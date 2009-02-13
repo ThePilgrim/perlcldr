@@ -495,8 +495,8 @@ sub get_package_name {
 }
 
 sub add_data_to_file {
-  our $transformGrammarForwards ||= <<'EOGRAMMAR';
-{ my %Variables }
+  our $transformGrammar ||= <<'EOGRAMMAR';
+{ my %Variables=(); }
 Transforms: TRANSFORM(s)
 {
   $return = join "\n", @{$item[1]};
@@ -540,13 +540,16 @@ RULE:  TRANSFORM_RULE ';' COMMENT(?)
 TRANSFORM_RULE: TRANSFORM_RULE_INVERSE
 |               TRANSFORM_RULE_NORMAL
 |               TRANSFORM_RULE_BOTH
+{
+  $return = $item[1]
+}
 
-TRANSFORRRM_RULE_INVERSE: '::' '(' TRANSFORM_RULE_NAME ')'
+TRANSFORM_RULE_INVERSE: '::' '(' TRANSFORM_RULE_NAME ')'
 {
   $return= '';
 }
 
-TRANSFORRRM_RULE_NORMAL:  '::' TRANSFORM_RULE_NAME '()'
+TRANSFORM_RULE_NORMAL:  '::' TRANSFORM_RULE_NAME '()'
 {
   my ($from, $to) = split /-/, $item{TRANSFORM_RULE_NAME};
   unless(defined $to) {
@@ -556,16 +559,15 @@ TRANSFORRRM_RULE_NORMAL:  '::' TRANSFORM_RULE_NAME '()'
   foreach ($from, $to) {
     $_ = ucfirst lc;
   }
-  $from = 'Any' if $from = 'Und';
-  $return = <<EOT;
-push \\@rules, sub {
-  my (\\$self, \\$from, \\$to, \\$string) = \\@_;
-  return \\$self->Transform('$from', '$to', \\$string);
+  $from = 'Any' if $from eq 'Und';
+  $return = "push \@rules, sub {
+  my (\$self, \$from, \$to, \$string) = \@_;
+  return \$self->Transform('$from', '$to', \$string);
 };
-EOT
+"
 }
 
-TRANSFORRRM_RULE_BOTH:    '::' TRANSFORM_RULE_NAME '(' TRANSFORM_RULENAME ')'
+TRANSFORM_RULE_BOTH:    '::' TRANSFORM_RULE_NAME '(' TRANSFORM_RULE_NAME ')'
 {
   my ($from, $to) = split /-/, $item[2];
   unless(defined $to) {
@@ -576,17 +578,21 @@ TRANSFORRRM_RULE_BOTH:    '::' TRANSFORM_RULE_NAME '(' TRANSFORM_RULENAME ')'
     $_ = ucfirst lc;
   }
   $from = 'Any' if $from = 'Und';
-  $return = <<EOT;
-push \\@rules, sub {
-  my (\\$self, \\$string) = \\@_;
-  return \\$self->Transform('$from', '$to', \\$string);
+  $return = "push \@rules, sub {
+  my (\$self, \$string) = \@_;
+  return \$self->Transform('$from', '$to', \$string);
 };
-EOT
+"
+}
+
+TRANSFORM_RULE_NAME: CHARACTER_TYPE_EXCLUDE['(;)'](s)
+{
+  $return = join '', @{$item[1]};
 }
 
 CONVERSION_RULE: FORWARD_CONVERSION_RULE
 |                BACKWARD_CONVERSION_RULE
-|                DULE_CONVERSION_RULE
+|                DUAL_CONVERSION_RULE
 {
   $return = $item[1]
 }
@@ -645,17 +651,48 @@ DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AF
   $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset }\n";
 }
 
-VARIABLE_DEFINITION_RULE: /\$\p{IDStart}\p{IDCntinue}/ '=' CHARACTER_TYPE_EXCLUDE[';'](s)
+BEFORE_CONTEXT: CHARACTER_TYPE_EXCLUDE['{;'](s) '{'
 {
-  $Variables{$item[1]} = join (' ', @{$item[3]})=~s/(\$\p{IDStart}\p{IDContinue}*)/exists $Variables{$1} ? $Variables{$1} $1/eg;
+  pop @{$item[1]} while $item[1][-1]=~/\s/;
+  $return = join '', @{$item[1]};
+}
+
+COMPLEATED_RESULT: CHARACTER_TYPE_EXCLUDE['|;'] '|'
+{
+  pop @{$item[1]} while $item[1][-1]=~/\s/;
+  $return = join '', @{$item[1]};
+}
+
+RESULT_TO_REVIST: TEXT_TO_REPLACE
+{
+  $return = $item[1];
+}
+
+TEXT_TO_REPLACE: CHARACTER_TYPE_EXCLUDE[';}'](s)
+{
+  pop @{$item[1]} while $item[1][-1]=~/\s/;
+  $return = join '', @{$item[1]};
+}
+
+AFTER_CONTEXT: '}' CHARACTER_TYPE_EXCLUDE[';'](s)
+{
+  pop @{$item[2]} while $item[2][-1]=~/\s/;
+  $return = join '', @{$item[2]};
+}
+
+VARIABLE_DEFINITION_RULE: /\$\p{IDStart}\p{IDCntinue}*/ '=' CHARACTER_TYPE_EXCLUDE[';'](s)
+{
+  $Variables{$item[1]} = join (' ', @{$item[3]});
+  $Variables{$item[1]} =~s/(\$\p{IDStart}\p{IDContinue}*)/exists $Variables{$1} ? $Variables{$1} : $1/eg;
 }
 
 CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR[$arg[0]]
 |                       STRING
-|                       CHARACTER_TYPE <reject: $item[1] =~ /$arg[0]/>
+|                       CHARACTER_TYPE <reject: $item[1] =~ /[\Q$arg[0]\E]/>
 { $return = $item[1] }
 
-ESCAPE_CHR: ESCAPE $arg[0]
+ESCAPE_CHR: { $arg[0] = '[' . quotemeta $arg[0] . ']' } <reject>
+ESCAPE /$arg[0]/
 
 CHARACTER_TYPE:    HEX_CODE_POINT 
 |                  CODE_POINT
@@ -674,7 +711,122 @@ ESCAPE:            '\\'
 
 EOGRAMMAR
 
-  our $transformParser ||= Parse::RecDescent->new($transformGrammar);
+  our $transformParserForwards ||= Parse::RecDescent->new($transformGrammar);
+  our $transformParserBackwards ||= Parse::RecDescent->new($transformGrammar);
+
+  # Fixup the reverse transformation
+  $transformParserBackwards->Replace(<<'EOGRAMMAR');
+Transforms: TRANSFORM(s)
+{
+  $return = join "\n", reverse @{$item[1]};
+}
+
+FORWARD_FILTER: '::' UNICODE_SET ';' COMMENT(?)
+{
+  $return = "";
+}
+
+REVERSE_FILTER: '::' '(' UNICODE_SET ')' ';' COMMENT(?)
+{
+  $return = "sub filter_re { return $item[3] }\n";
+}
+
+TRANSFORM_RULE_INVERSE: '::' '(' TRANSFORM_RULE_NAME ')'
+{
+  my ($from, $to) = split /-/, $item{TRANSFORM_RULE_NAME};
+  unless(defined $to) {
+    $to = $from;
+    $from = 'Any';
+  }
+  foreach ($from, $to) {
+    $_ = ucfirst lc;
+  }
+  $from = 'Any' if $from eq 'Und';
+  $return = "push \@rules, sub {
+  my (\$self, \$from, \$to, \$string) = \@_;
+  return \$self->Transform('$from', '$to', \$string);
+};
+"
+}
+
+TRANSFORM_RULE_NORMAL:  '::' TRANSFORM_RULE_NAME '()'
+{
+  $return= '';
+}
+
+TRANSFORM_RULE_BOTH:    '::' TRANSFORM_RULE_NAME '(' TRANSFORM_RULE_NAME ')'
+{
+  my ($from, $to) = split /-/, $item[4];
+  unless(defined $to) {
+    $to = $from;
+    $from = 'Any';
+  }
+  foreach ($from, $to) {
+    $_ = ucfirst lc;
+  }
+  $from = 'Any' if $from = 'Und';
+  $return = "push \@rules, sub {
+  my (\$self, \$string) = \@_;
+  return \$self->Transform('$from', '$to', \$string);
+};
+"
+}
+
+FORWARD_CONVERSION_RULE: BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?) '→' COMPLEATED_RESULT RESULT_TO_REVIST(?) 
+{
+  $return = ''; 1;
+}
+
+BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT RESULT_TO_REVIST(?) '←' BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?)
+{
+  my ($before, $replace, $after, $compleated, $revisit) = @item[4 .. 6, 1,2 ];
+  my ($from, $offset) = ('',0);
+  foreach my $string ($before, $replace, $after) {
+    $string = quotemeta($string);
+  }
+  if (defined $before) {
+    $from = "(?<=$before)";
+  }
+  $from.="\\G$replace";
+  if (defined $after) {
+    $from.="(?=$after)";
+  }
+
+  if(defined $revisit) {
+    $offset = - length $revisit;
+    $revisit =~s/^\@+//;
+    $compleated.=$revisit;
+  }
+
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset }\n";
+}
+
+DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?) '↔' BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?)
+{
+  my ($before, $replace, $continue, $after, $compleated, $revisit) = @item[6 .. 9, 2, 3 ];
+  my ($from, $offset) = ('',0);
+  $replace .= $continue;
+  foreach my $string ($before, $replace, $after) {
+    $string = quotemeta($string);
+  }
+  if (defined $before) {
+    $from = "(?<=$before)";
+  }
+  $from.="\\G$replace";
+  if (defined $after) {
+    $from.="(?=$after)";
+  }
+
+  if(defined $revisit) {
+    $offset = - length $revisit;
+    $revisit =~s/^\@+//;
+    $compleated.=$revisit;
+  }
+
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset }\n";
+}
+
+EOGRAMMAR
 
   my ($self, $file, $additional_paramaters) = @_;
   my $direction = $additional_paramaters->{backwards} ? 'backwards' : 'forwards';
@@ -708,7 +860,11 @@ EOT
     @{$transformation->{rules}} = grep {defined} @rules;
 
     # $rules[$count] now contains the rule on one line
-    print $file $transformParser->Transforms(join "\n", @{$transformation->{rules}});
+    print $file (
+      $direction eq   'backwards'
+        ? $transformParserBackwards
+	: $transformParserForwards
+    )->Transforms(join "\n", @{$transformation->{rules}});
   }
 }
 

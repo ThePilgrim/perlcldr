@@ -28,16 +28,16 @@ sub filter {
 
 # Set up standard transformation rules
 my %transformationRules = (
-  NFC => sub {
+  Nfc => sub {
     return NFC(@_);
   },
-  NFD => sub {
+  Nfd => sub {
     return NFD(@_);
   },
-  NFKD => sub {
+  Nfkd => sub {
     return NFKD(@_);
   },
-  NFKC => sub {
+  Nfkc => sub {
     return NFKC(@_);
   },
   Lower => sub {
@@ -83,5 +83,34 @@ sub Transform {
 
   return join '', @strings;
 }
+
+sub Convert {
+  my ($self, $string) = @_;
+  my $class = ref $self;
+  my @rules;
+
+  {
+    no strict 'refs';
+    @rules = @{"${class}::rules"};
+  }
+
+  foreach my $rule (@rules){
+    pos($string)=0;
+    while(pos($string) < length($string)) {
+      if (ref $rule eq 'ARRAY') {
+        foreach my $transformation (@$rule) {
+	  if ($string=~s/$transformation->{from}/$transformation->{to}/) {
+	    pos($string)+=$transformation->{offset};
+	    last;
+	  }
+	  pos($string)++;
+	}
+      }
+      else {
+        $string = $rule->($transliterationObject, $string);
+      }
+    }
+  }
+
 
 1;
