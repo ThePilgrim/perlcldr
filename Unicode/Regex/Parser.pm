@@ -12,13 +12,12 @@ my $grammar = <<'EOGRAMMAR';
 Regex:             REGEX_TERM(s) 
 { $return = join '', @{$item[1]}; }
 
-REGEX_TERM:        STRING
-|                  PROPERTY_OP
-|                  SET_OP
-|                  GROUP_OP
-|                  PERL_PROPERTY_OP
-|                  CHARACTER_TYPE_OP
-{ $return = $item[1]; }
+REGEX_TERM:        STRING { $return = $item[1]; }
+|                  PROPERTY_OP { $return = $item[1]; }
+|                  SET_OP { $return = $item[1]; }
+|                  GROUP_OP { $return = $item[1]; }
+|                  PERL_PROPERTY_OP { $return = $item[1]; }
+|                  CHARACTER_TYPE_OP { $return = $item[1]; }
 
 PROPERTY_OP:       PROPERTY REGEX_OP(?)
 { $return = "$item[1]$item[2][0]"; }
@@ -38,27 +37,22 @@ CHARACTER_TYPE_OP: CHARACTER_TYPE REGEX_OP(?)
 STRING:            "'" STRING_TYPE(s?) "'" 
 { $return = join '', @{$item[2]}; }
 
-STRING_TYPE:       ESCAPE_CHR["'"]
-|                  CHARACTER_TYPE <reject: $item[1] eq "'"> 
-{ $return = $item[1]; }
+STRING_TYPE:       ESCAPE_CHR["'"] { $return = $item[1]; }
+|                  CHARACTER_TYPE <reject: $item[1] eq "'"> { $return = $item[1]; }
 
 SET:               <skip:''> SET_EXPRESSION
 { 
   $return = __PACKAGE__->parse_set($item[2]);
 }
 
-SET_EXPRESSION:    PROPERTY
-|                  SET_EXPRESSION_BLOCK
-|                  SET_INTERSECTION_BLOCK
-|                  SET_DIFFERENCE_BLOCK
-|                  SET_UNION_BLOCK
-{ $return = $item[1] }
+SET_EXPRESSION:    PROPERTY { $return = $item[1] }
+|                  SET_EXPRESSION_BLOCK { $return = $item[1] }
+|                  SET_INTERSECTION_BLOCK { $return = $item[1] }
+|                  SET_DIFFERENCE_BLOCK { $return = $item[1] }
+|                  SET_UNION_BLOCK { $return = $item[1] }
 
-SET_EXPRESSION_BLOCK: SET_EXPRESSION_BLOCK_N
-|                     SET_EXPRESSION_BLOCK_P
-{
-  $return = $item[1];
-}
+SET_EXPRESSION_BLOCK: SET_EXPRESSION_BLOCK_N { $return = $item[1]; }
+|                     SET_EXPRESSION_BLOCK_P { $return = $item[1]; }
 
 SET_EXPRESSION_BLOCK_N: /\s*\[\^\s*/ SET_EXPRESSION /\s*\]/
 { 
@@ -70,11 +64,8 @@ SET_EXPRESSION_BLOCK_P: /\s*\[\s*/ SET_EXPRESSION /\s*\]/
   $return = "[ $item[2] ]"
 }
 
-SET_INTERSECTION_BLOCK: SET_INTERSECTION_BLOCK_N
-|                       SET_INTERSECTION_BLOCK_P
-{
-  $return = $item[1];
-}
+SET_INTERSECTION_BLOCK: SET_INTERSECTION_BLOCK_N { $return = $item[1]; }
+|                       SET_INTERSECTION_BLOCK_P { $return = $item[1]; }
 
 SET_INTERSECTION_BLOCK_N: /\s*\[\^\s*/ SET_INTERSECTION /\s*\]/
 {
@@ -86,11 +77,8 @@ SET_INTERSECTION_BLOCK_P: /\s*\[\s*/ SET_INTERSECTION /\s*\]/
   $return = "[ $item[2] ]"
 }
 
-SET_DIFFERENCE_BLOCK: SET_DIFFERENCE_BLOCK_N
-|                     SET_DIFFERENCE_BLOCK_P
-{
-  $return = $item[1]
-}
+SET_DIFFERENCE_BLOCK: SET_DIFFERENCE_BLOCK_N { $return = $item[1] }
+|                     SET_DIFFERENCE_BLOCK_P { $return = $item[1] }
 
 SET_DIFFERENCE_BLOCK_N: /\s*\[\^\s*/ SET_DIFFERENCE /\s*\]/
 {
@@ -102,11 +90,8 @@ SET_DIFFERENCE_BLOCK_P: /\s*\[\s*/ SET_DIFFERENCE /\s*\]/
   $return = "[ $item[2] ]" 
 }
 
-SET_UNION_BLOCK:   SET_UNION_BLOCK_N
-|                  SET_UNION_BLOCK_P
-{
-  $return = $item[1];
-}
+SET_UNION_BLOCK:   SET_UNION_BLOCK_N { $return = $item[1]; }
+|                  SET_UNION_BLOCK_P { $return = $item[1]; }
 
 SET_UNION_BLOCK_N: /\s*\[\^\s*/ SET_UNION(s) /\s*\]/
 {
@@ -124,36 +109,26 @@ SET_INTERSECTION:  <leftop: SET_UNION /\s+&&?\s+/ SET_UNION>
 SET_DIFFERENCE:    <leftop: SET_UNION /\s+--?\s+/ SET_UNION>
 { $return = join ' - ', @{$item[1]} }
 
-SET_UNION:         PROPERTY
-|                  SET_EXPRESSION
-|                  EXPOSED_RANGE
-|                  SET_UNION_TYPE_LIST
-|                  PERL_PROPERTY
-|                  /\s+/
-|                  CHARACTER_TYPE_EXCLUDE['[\]\|\-& ]'](s)
-{ 
-$return = ref $item[1] 
-  ? join ('', @{$item[1]})
-  : $item[1];
-}
+SET_UNION:         PROPERTY {$return = $item[1]}
+|                  SET_EXPRESSION {$return = $item[1]}
+|                  EXPOSED_RANGE {$return = $item[1]}
+|                  SET_UNION_TYPE_LIST {$return = $item[1] }
+|                  PERL_PROPERTY {$return = $item[1] }
+|                  /\s+/ {$return = $item[1] }
+|                  CHARACTER_TYPE_EXCLUDE['[\]\|\-& ]'](s) {$return = join '', @{$item[1]} }
 
 SET_UNION_TYPE_LIST: <leftop: SET_UNION_TYPE /\s+\|\|?\s+/ SET_UNION_TYPE>
 {
   $return = join ' | ', @{$item[1]};
 }
 
-SET_UNION_TYPE:     PROPERTY
-|                   SET_EXPRESSION_BLOCK
-|                   SET_UNION_BLOCK
-|                   EXPOSED_RANGE
-|                   CHARACTER_TYPE_EXCLUDE['[\]\| ]'](s)
-{
-  $return = ref $item[1] 
-    ? join ('', @{$item[1]})
-    : $item[1] 
-}
+SET_UNION_TYPE:     PROPERTY {$return = $item[1] }
+|                   SET_EXPRESSION_BLOCK {$return = $item[1] }
+|                   SET_UNION_BLOCK {$return = $item[1] }
+|                   EXPOSED_RANGE {$return = $item[1] }
+|                   CHARACTER_TYPE_EXCLUDE['[\]\| ]'](s) {$return = join '',   @{$item[1]} }
 
-CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR[$arg[0]]
+CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR[$arg[0]] { $return = $item[1] }
 |                       CHARACTER_TYPE <reject: $item[1] =~ /$arg[0]/>
 { $return = $item[1] }
 
@@ -175,9 +150,8 @@ ESCAPE_CHR:        ESCAPE "$arg[0]"
 GRAPHEME_CLUSTER:  "{" CHARACTER_TYPE(s) "}" 
 { $return = bless $item[2], 'Unicode::Rgex::Parse::GraphemeCluster'; }
 
-CHARACTER_TYPE:    HEX_CODE_POINT 
-|                  CODE_POINT
-{ $return = $item[1]; }
+CHARACTER_TYPE:    HEX_CODE_POINT { $return = $item[1]; }
+|                  CODE_POINT { $return = $item[1]; }
 
 HEX_CODE_POINT:    ESCAPE /u/i /\p{IsXDigit}+/ 
 { $return = chr hex $item[3]; }
@@ -185,10 +159,9 @@ HEX_CODE_POINT:    ESCAPE /u/i /\p{IsXDigit}+/
 PERL_PROPERTY:     ESCAPE /[pP]\{[^\}]+\}/ 
 { $return = "\\$item[2]" ; }
 
-REGEX_OP:          ZERO_OR_MORE
-|                  ZERO_OR_ONE
-|                  ONE_OR_MORE
-{ $return = $item[1]; }
+REGEX_OP:          ZERO_OR_MORE { $return = $item[1]; }
+|                  ZERO_OR_ONE { $return = $item[1]; }
+|                  ONE_OR_MORE { $return = $item[1]; }
 
 CODE_POINT:        /[\x{0000}-\x{10FFFF}]/
 ESCAPE:            '\\'

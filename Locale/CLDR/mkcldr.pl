@@ -497,14 +497,11 @@ sub get_package_name {
 sub add_data_to_file {
   our $transformGrammar ||= <<'EOGRAMMAR';
 { my %Variables=(); }
-Transforms: TRANSFORM(s)
-{
-  $return = join "\n", @{$item[1]};
-}
+Transforms: TRANSFORM(s) { $return = join "\n", @{$item[1]}; }
 
 TRANSFORM: FORWARD_FILTER(?) RULES REVERSE_FILTER(?)
 {
-  $return = join "\n", $item[1][0], @{$item[2]}, $item[3][0];
+  $return = join "\n", $item[1][0], $item[2], $item[3][0];
 }
 
 FORWARD_FILTER: '::' UNICODE_SET ';' COMMENT(?)
@@ -518,31 +515,19 @@ REVERSE_FILTER: '::' '(' UNICODE_SET ')' ';' COMMENT(?)
 }
 
 UNICODE_SET: { $thisparser = Unicode::Regex::Parser::parser } <reject>
-|            SET
-{
-  $return = $item{SET};
-}
+|            SET { $return = $item{SET}; }
 
 COMMENT: '#' <resync>
 
-RULES: RULE(s)
-{
-  $return = join "\n", @{$item[1]};
-}
+RULES: RULE(s) { $return = join "\n", @{$item[1]}; }
 
-RULE:  TRANSFORM_RULE ';' COMMENT(?)
-|      VARIABLE_DEFINITION_RULE ';' COMMENT(?)
-|      CONVERSION_RULE ';' COMMENT(?)
-{
-  $return = $item[1];
-}
+RULE:  TRANSFORM_RULE ';' COMMENT(?) { $return = $item[1]; }
+|      VARIABLE_DEFINITION_RULE ';' COMMENT(?) { $return = $item[1]; }
+|      CONVERSION_RULE ';' COMMENT(?) { $return = $item[1]; }
 
-TRANSFORM_RULE: TRANSFORM_RULE_INVERSE
-|               TRANSFORM_RULE_NORMAL
-|               TRANSFORM_RULE_BOTH
-{
-  $return = $item[1]
-}
+TRANSFORM_RULE: TRANSFORM_RULE_INVERSE { $return = $item[1]; }
+|               TRANSFORM_RULE_NORMAL { $return = $item[1]; }
+|               TRANSFORM_RULE_BOTH { $return = $item[1]; }
 
 TRANSFORM_RULE_INVERSE: '::' '(' TRANSFORM_RULE_NAME ')'
 {
@@ -582,7 +567,7 @@ TRANSFORM_RULE_BOTH:    '::' TRANSFORM_RULE_NAME '(' TRANSFORM_RULE_NAME ')'
   my (\$self, \$string) = \@_;
   return \$self->Transform('$from', '$to', \$string);
 };
-"
+";
 }
 
 TRANSFORM_RULE_NAME: CHARACTER_TYPE_EXCLUDE['(;)'](s)
@@ -590,35 +575,32 @@ TRANSFORM_RULE_NAME: CHARACTER_TYPE_EXCLUDE['(;)'](s)
   $return = join '', @{$item[1]};
 }
 
-CONVERSION_RULE: FORWARD_CONVERSION_RULE
-|                BACKWARD_CONVERSION_RULE
-|                DUAL_CONVERSION_RULE
-{
-  $return = $item[1]
-}
+CONVERSION_RULE: FORWARD_CONVERSION_RULE { $return = $item[1]; }
+|                BACKWARD_CONVERSION_RULE { $return = $item[1]; }
+|                DUAL_CONVERSION_RULE { $return = $item[1]; }
 
 FORWARD_CONVERSION_RULE: BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?) '→' COMPLEATED_RESULT RESULT_TO_REVIST(?) 
 {
   my ($before, $replace, $after, $compleated, $revisit) = @item[1 .. 3, 5,6 ];
   my ($from, $offset) = ('',0);
-  foreach my $string ($before, $replace, $after) {
+  foreach my $string ($before->[0], $replace, $after->[0]) {
     $string = quotemeta($string);
   }
-  if (defined $before) {
-    $from = "(?<=$before)";
+  if (defined $before->[0]) {
+    $from = "(?<=$before->[0])";
   }
   $from.="\\G$replace";
-  if (defined $after) {
-    $from.="(?=$after)";
+  if (defined $after->[0]) {
+    $from.="(?=$after->[0])";
   }
 
-  if(defined $revisit) {
-    $offset = - length $revisit;
-    $revisit =~s/^\@+//;
-    $compleated.=$revisit;
+  if(defined $revisit->[0]) {
+    $offset = - length $revisit->[0];
+    $revisit->[0] =~s/^\@+//;
+    $compleated.=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset }\n";
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset };\n";
 }
 
 BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT RESULT_TO_REVIST(?) '←' BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?)
@@ -628,53 +610,53 @@ BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT RESULT_TO_REVIST(?) '←' BEFORE_CON
 
 DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?) '↔' BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?)
 {
-  my ($before, $replace, $continue, $after, $compleated, $revisit) = @item[1 .. 4, 6, 7 ];
+  my ($before, $replace, $continue, $after, $compleated, $revisit) = @item[1 .. 4, 7, 8 ];
   my ($from, $offset) = ('',0);
-  $replace .= $continue;
-  foreach my $string ($before, $replace, $after) {
+  $replace .= $continue->[0];
+  foreach my $string ($before->[0], $replace, $after->[0]) {
     $string = quotemeta($string);
   }
-  if (defined $before) {
-    $from = "(?<=$before)";
+  if (length $before->[0]) {
+    $from = "(?<=$before->[0])";
   }
   $from.="\\G$replace";
-  if (defined $after) {
-    $from.="(?=$after)";
+  if (length $after->[0]) {
+    $from.="(?=$after->[0])";
   }
 
-  if(defined $revisit) {
-    $offset = - length $revisit;
-    $revisit =~s/^\@+//;
-    $compleated.=$revisit;
+  if(length $revisit->[0]) {
+    $offset = - length $revisit->[0];
+    $revisit->[0] =~s/^\@+//;
+    $compleated.=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset }\n";
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset };\n";
 }
 
-BEFORE_CONTEXT: CHARACTER_TYPE_EXCLUDE['{;'](s) '{'
+BEFORE_CONTEXT: CHARACTER_TYPE_EXCLUDE['{;←↔→'](s) '{'
 {
   pop @{$item[1]} while $item[1][-1]=~/\s/;
   $return = join '', @{$item[1]};
 }
 
-COMPLEATED_RESULT: CHARACTER_TYPE_EXCLUDE['|;'] '|'
+COMPLEATED_RESULT: CHARACTER_TYPE_EXCLUDE['|;←↔→'](s)
 {
   pop @{$item[1]} while $item[1][-1]=~/\s/;
   $return = join '', @{$item[1]};
 }
 
-RESULT_TO_REVIST: TEXT_TO_REPLACE
+RESULT_TO_REVIST: '|' TEXT_TO_REPLACE
 {
-  $return = $item[1];
+  $return = $item[2];
 }
 
-TEXT_TO_REPLACE: CHARACTER_TYPE_EXCLUDE[';}'](s)
+TEXT_TO_REPLACE: CHARACTER_TYPE_EXCLUDE[';}↔←→'](s)
 {
   pop @{$item[1]} while $item[1][-1]=~/\s/;
   $return = join '', @{$item[1]};
 }
 
-AFTER_CONTEXT: '}' CHARACTER_TYPE_EXCLUDE[';'](s)
+AFTER_CONTEXT: '}' CHARACTER_TYPE_EXCLUDE[';←↔→'](s)
 {
   pop @{$item[2]} while $item[2][-1]=~/\s/;
   $return = join '', @{$item[2]};
@@ -686,17 +668,16 @@ VARIABLE_DEFINITION_RULE: /\$\p{IDStart}\p{IDCntinue}*/ '=' CHARACTER_TYPE_EXCLU
   $Variables{$item[1]} =~s/(\$\p{IDStart}\p{IDContinue}*)/exists $Variables{$1} ? $Variables{$1} : $1/eg;
 }
 
-CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR[$arg[0]]
-|                       STRING
+CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR[$arg[0]] { $return = $item[1] }
+|                       STRING { $return = $item[1] }
 |                       CHARACTER_TYPE <reject: $item[1] =~ /[\Q$arg[0]\E]/>
 { $return = $item[1] }
 
 ESCAPE_CHR: { $arg[0] = '[' . quotemeta $arg[0] . ']' } <reject>
 ESCAPE /$arg[0]/
 
-CHARACTER_TYPE:    HEX_CODE_POINT 
-|                  CODE_POINT
-{ $return = $item[1]; }
+CHARACTER_TYPE:    HEX_CODE_POINT { $return = $item[1]; }
+|                  CODE_POINT { $return = $item[1]; }
 
 HEX_CODE_POINT:    ESCAPE /u/i /\p{IsXDigit}+/ 
 { $return = chr hex $item[3]; }
@@ -781,49 +762,49 @@ BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT RESULT_TO_REVIST(?) '←' BEFORE_CON
 {
   my ($before, $replace, $after, $compleated, $revisit) = @item[4 .. 6, 1,2 ];
   my ($from, $offset) = ('',0);
-  foreach my $string ($before, $replace, $after) {
+  foreach my $string ($before->[0], $replace, $after->[0]) {
     $string = quotemeta($string);
   }
-  if (defined $before) {
-    $from = "(?<=$before)";
+  if (length $before->[0]) {
+    $from = "(?<=$before->[0])";
   }
   $from.="\\G$replace";
-  if (defined $after) {
-    $from.="(?=$after)";
+  if (length $after->[0]) {
+    $from.="(?=$after->[0])";
   }
 
-  if(defined $revisit) {
-    $offset = - length $revisit;
-    $revisit =~s/^\@+//;
-    $compleated.=$revisit;
+  if(length $revisit->[0]) {
+    $offset = - length $revisit->[0];
+    $revisit->[0] =~s/^\@+//;
+    $compleated.=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset }\n";
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset };\n";
 }
 
 DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?) '↔' BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?)
 {
   my ($before, $replace, $continue, $after, $compleated, $revisit) = @item[6 .. 9, 2, 3 ];
   my ($from, $offset) = ('',0);
-  $replace .= $continue;
-  foreach my $string ($before, $replace, $after) {
+  $replace .= $continue->[0];
+  foreach my $string ($before->[0], $replace, $after->[0]) {
     $string = quotemeta($string);
   }
-  if (defined $before) {
-    $from = "(?<=$before)";
+  if (length $before->[0]) {
+    $from = "(?<=$before->[0])";
   }
   $from.="\\G$replace";
-  if (defined $after) {
-    $from.="(?=$after)";
+  if (length $after->[0]) {
+    $from.="(?=$after->[0])";
   }
 
-  if(defined $revisit) {
-    $offset = - length $revisit;
-    $revisit =~s/^\@+//;
-    $compleated.=$revisit;
+  if(length $revisit->[0]) {
+    $offset = - length $revisit->[0];
+    $revisit->[0] =~s/^\@+//;
+    $compleated.=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset }\n";
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset };\n";
 }
 
 EOGRAMMAR

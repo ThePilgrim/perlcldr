@@ -49,10 +49,10 @@ my %transformationRules = (
   Title => sub {
     return ucfirst @_;
   },
-  Null => {
+  Null => sub {
     return @_;
   },
-  Remove => {
+  Remove => sub {
     return '';
   },
 );
@@ -71,7 +71,7 @@ sub Transform {
   my $convert=1;
   foreach my $sub_string (@strings) {
     $convert = ! $convert;
-    next if ! $convert
+    next if ! $convert;
     
     if (my $sub = $transformationRules{$to}) {
       $sub_string = $sub->($sub_string);
@@ -111,6 +111,6 @@ sub Convert {
       }
     }
   }
-
+}
 
 1;
