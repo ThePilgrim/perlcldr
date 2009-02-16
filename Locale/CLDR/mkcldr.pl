@@ -10,6 +10,7 @@ use XML::Parser;
 use File::Spec;
 use File::Path;
 use File::Basename;
+use Unicode::Regex::Parser;
 
 use constant {
   START => 1,
@@ -506,7 +507,7 @@ TRANSFORM: FORWARD_FILTER(?) RULES REVERSE_FILTER(?)
 
 FORWARD_FILTER: '::' UNICODE_SET ';' COMMENT(?)
 {
-  $return = "sub filter_re { return $item[2] }\n";
+  $return = "sub filter_re { return qr($item[2]) }\n";
 }
 
 REVERSE_FILTER: '::' '(' UNICODE_SET ')' ';' COMMENT(?)
@@ -514,8 +515,10 @@ REVERSE_FILTER: '::' '(' UNICODE_SET ')' ';' COMMENT(?)
   $return = "";
 }
 
-UNICODE_SET: { $thisparser = Unicode::Regex::Parser::parser } <reject>
-|            SET { $return = $item{SET}; }
+UNICODE_SET: 
+{
+$return = Unicode::Regex::Parser::parser->SET(\$text);
+}
 
 COMMENT: '#' <resync>
 
@@ -523,11 +526,14 @@ RULES: RULE(s) { $return = join "\n", @{$item[1]}; }
 
 RULE:  TRANSFORM_RULE ';' COMMENT(?) { $return = $item[1]; }
 |      VARIABLE_DEFINITION_RULE ';' COMMENT(?) { $return = $item[1]; }
-|      CONVERSION_RULE ';' COMMENT(?) { $return = $item[1]; }
+|      CONVERSION_RULE ';' COMMENT(?) {
+$return = $item[1];
+}
 
 TRANSFORM_RULE: TRANSFORM_RULE_INVERSE { $return = $item[1]; }
 |               TRANSFORM_RULE_NORMAL { $return = $item[1]; }
 |               TRANSFORM_RULE_BOTH { $return = $item[1]; }
+|               TRANSFORM_RULE_SAME { $return = $item[1]; }
 
 TRANSFORM_RULE_INVERSE: '::' '(' TRANSFORM_RULE_NAME ')'
 {
@@ -570,6 +576,24 @@ TRANSFORM_RULE_BOTH:    '::' TRANSFORM_RULE_NAME '(' TRANSFORM_RULE_NAME ')'
 ";
 }
 
+TRANSFORM_RULE_SAME:  '::' TRANSFORM_RULE_NAME 
+{
+  my ($from, $to) = split /-/, $item{TRANSFORM_RULE_NAME};
+  unless(defined $to) {
+    $to = $from;
+    $from = 'Any';
+  }
+  foreach ($from, $to) {
+    $_ = ucfirst lc;
+  }
+  $from = 'Any' if $from eq 'Und';
+  $return = "push \@rules, sub {
+  my (\$self, \$from, \$to, \$string) = \@_;
+  return \$self->Transform('$from', '$to', \$string);
+};
+"
+}
+
 TRANSFORM_RULE_NAME: CHARACTER_TYPE_EXCLUDE['(;)'](s)
 {
   $return = join '', @{$item[1]};
@@ -579,42 +603,13 @@ CONVERSION_RULE: FORWARD_CONVERSION_RULE { $return = $item[1]; }
 |                BACKWARD_CONVERSION_RULE { $return = $item[1]; }
 |                DUAL_CONVERSION_RULE { $return = $item[1]; }
 
-FORWARD_CONVERSION_RULE: BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?) '→' COMPLEATED_RESULT RESULT_TO_REVIST(?) 
+FORWARD_CONVERSION_RULE: BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?) '→' COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) 
 {
   my ($before, $replace, $after, $compleated, $revisit) = @item[1 .. 3, 5,6 ];
   my ($from, $offset) = ('',0);
-  foreach my $string ($before->[0], $replace, $after->[0]) {
-    $string = quotemeta($string);
-  }
-  if (defined $before->[0]) {
-    $from = "(?<=$before->[0])";
-  }
-  $from.="\\G$replace";
-  if (defined $after->[0]) {
-    $from.="(?=$after->[0])";
-  }
-
-  if(defined $revisit->[0]) {
-    $offset = - length $revisit->[0];
-    $revisit->[0] =~s/^\@+//;
-    $compleated.=$revisit->[0];
-  }
-
-  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset };\n";
-}
-
-BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT RESULT_TO_REVIST(?) '←' BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?)
-{
-  $return = ''; 1;
-}
-
-DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?) '↔' BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?)
-{
-  my ($before, $replace, $continue, $after, $compleated, $revisit) = @item[1 .. 4, 7, 8 ];
-  my ($from, $offset) = ('',0);
-  $replace .= $continue->[0];
-  foreach my $string ($before->[0], $replace, $after->[0]) {
-    $string = quotemeta($string);
+  foreach my $string ($before->[0], $replace, $after->[0], $compleated->[0], $revisit->[0]) {
+    $string =~s/(\$\p{IDStart}\p{IDContinue}*)/exists $Variables{$1} ? $Variables{$1} : $1/eg;
+    $string = Unicode::Regex::Parser::parser->SET($string) || $string;
   }
   if (length $before->[0]) {
     $from = "(?<=$before->[0])";
@@ -627,10 +622,41 @@ DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AF
   if(length $revisit->[0]) {
     $offset = - length $revisit->[0];
     $revisit->[0] =~s/^\@+//;
-    $compleated.=$revisit->[0];
+    $compleated->[0].=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset };\n";
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated->[0]', offset => $offset };\n";
+}
+
+BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) '←' BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?)
+{
+  $return = ''; 1;
+}
+
+DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) AFTER_CONTEXT(?) '↔' BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) AFTER_CONTEXT(?)
+{
+  my ($before, $replace, $continue, $after, $compleated, $revisit) = @item[1 .. 4, 7, 8 ];
+  my ($from, $offset) = ('',0);
+  $replace->[0] .= $continue->[0];
+  foreach my $string ($before->[0], $replace->[0], $after->[0], $compleated->[0], $revisit->[0]) {
+    $string =~s/(\$\p{IDStart}\p{IDContinue}*)/exists $Variables{$1} ? $Variables{$1} : $1/eg;
+    $string = Unicode::Regex::Parser::parser->SET($string) || $string;
+  }
+  if (length $before->[0]) {
+    $from = "(?<=$before->[0])";
+  }
+  $from.="\\G$replace->[0]";
+  if (length $after->[0]) {
+    $from.="(?=$after->[0])";
+  }
+
+  if(length $revisit->[0]) {
+    $offset = - length $revisit->[0];
+    $revisit->[0] =~s/^\@+//;
+    $compleated->[0].=$revisit->[0];
+  }
+
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated->[0]', offset => $offset };\n";
 }
 
 BEFORE_CONTEXT: CHARACTER_TYPE_EXCLUDE['{;←↔→'](s) '{'
@@ -662,25 +688,26 @@ AFTER_CONTEXT: '}' CHARACTER_TYPE_EXCLUDE[';←↔→'](s)
   $return = join '', @{$item[2]};
 }
 
-VARIABLE_DEFINITION_RULE: /\$\p{IDStart}\p{IDCntinue}*/ '=' CHARACTER_TYPE_EXCLUDE[';'](s)
+VARIABLE_DEFINITION_RULE: /\$\p{IDStart}\p{IDContinue}*/ '=' <skip:''> CHARACTER_TYPE_EXCLUDE[';'](s)
 {
-  $Variables{$item[1]} = join (' ', @{$item[3]});
+  $Variables{$item[1]} = join ('', @{$item[4]});
   $Variables{$item[1]} =~s/(\$\p{IDStart}\p{IDContinue}*)/exists $Variables{$1} ? $Variables{$1} : $1/eg;
+  $return = "# $item[1] = $Variables{$item[1]}\n";
 }
 
-CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR[$arg[0]] { $return = $item[1] }
+CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR { $return = $item[1] }
 |                       STRING { $return = $item[1] }
 |                       CHARACTER_TYPE <reject: $item[1] =~ /[\Q$arg[0]\E]/>
 { $return = $item[1] }
 
-ESCAPE_CHR: { $arg[0] = '[' . quotemeta $arg[0] . ']' } <reject>
-ESCAPE /$arg[0]/
+ESCAPE_CHR: HEX_CODE_POINT {$return=$item[1]}
+|           ESCAPE CODE_POINT {$return = "\\$item[2]" }
 
 CHARACTER_TYPE:    HEX_CODE_POINT { $return = $item[1]; }
 |                  CODE_POINT { $return = $item[1]; }
 
 HEX_CODE_POINT:    ESCAPE /u/i /\p{IsXDigit}+/ 
-{ $return = chr hex $item[3]; }
+{ $return = "\\x{$item[3]}"; }
 
 STRING: <skip:''> "'" CHARACTER_TYPE_EXCLUDE["'"](s) "'"
 {
@@ -697,10 +724,8 @@ EOGRAMMAR
 
   # Fixup the reverse transformation
   $transformParserBackwards->Replace(<<'EOGRAMMAR');
-Transforms: TRANSFORM(s)
-{
-  $return = join "\n", reverse @{$item[1]};
-}
+{ my %Variables=(); }
+Transforms: TRANSFORM(s) { $return = join "\n", reverse @{$item[1]}; }
 
 FORWARD_FILTER: '::' UNICODE_SET ';' COMMENT(?)
 {
@@ -709,7 +734,7 @@ FORWARD_FILTER: '::' UNICODE_SET ';' COMMENT(?)
 
 REVERSE_FILTER: '::' '(' UNICODE_SET ')' ';' COMMENT(?)
 {
-  $return = "sub filter_re { return $item[3] }\n";
+  $return = "sub filter_re { return qr($item[3]) }\n";
 }
 
 TRANSFORM_RULE_INVERSE: '::' '(' TRANSFORM_RULE_NAME ')'
@@ -753,17 +778,18 @@ TRANSFORM_RULE_BOTH:    '::' TRANSFORM_RULE_NAME '(' TRANSFORM_RULE_NAME ')'
 "
 }
 
-FORWARD_CONVERSION_RULE: BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?) '→' COMPLEATED_RESULT RESULT_TO_REVIST(?) 
+FORWARD_CONVERSION_RULE: BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?) '→' COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) 
 {
-  $return = ''; 1;
+  $return = '';
 }
 
-BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT RESULT_TO_REVIST(?) '←' BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?)
+BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) '←' BEFORE_CONTEXT(?) TEXT_TO_REPLACE AFTER_CONTEXT(?)
 {
   my ($before, $replace, $after, $compleated, $revisit) = @item[4 .. 6, 1,2 ];
   my ($from, $offset) = ('',0);
-  foreach my $string ($before->[0], $replace, $after->[0]) {
-    $string = quotemeta($string);
+  foreach my $string ($before->[0], $replace, $after->[0], $compleated->[0], $revisit->[0]) {
+    $string =~s/(\$\p{IDStart}\p{IDContinue}*)/exists $Variables{$1} ? $Variables{$1} : $1/eg;
+    $string = Unicode::Regex::Parser::parser->SET($string) || $string;
   }
   if (length $before->[0]) {
     $from = "(?<=$before->[0])";
@@ -776,24 +802,25 @@ BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT RESULT_TO_REVIST(?) '←' BEFORE_CON
   if(length $revisit->[0]) {
     $offset = - length $revisit->[0];
     $revisit->[0] =~s/^\@+//;
-    $compleated.=$revisit->[0];
+    $compleated->[0].=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset };\n";
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated->[0]', offset => $offset };\n";
 }
 
-DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?) '↔' BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AFTER_CONTEXT(?)
+DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) AFTER_CONTEXT(?) '↔' BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) AFTER_CONTEXT(?)
 {
   my ($before, $replace, $continue, $after, $compleated, $revisit) = @item[6 .. 9, 2, 3 ];
   my ($from, $offset) = ('',0);
-  $replace .= $continue->[0];
-  foreach my $string ($before->[0], $replace, $after->[0]) {
-    $string = quotemeta($string);
+  $replace->[0] .= $continue->[0];
+  foreach my $string ($before->[0], $replace->[0], $after->[0], $compleated->[0], $revisit->[0]) {
+    $string =~s/(\$\p{IDStart}\p{IDContinue}*)/exists $Variables{$1} ? $Variables{$1} : $1/eg;
+    $string = Unicode::Regex::Parser::parser->SET($string) || $string;
   }
   if (length $before->[0]) {
     $from = "(?<=$before->[0])";
   }
-  $from.="\\G$replace";
+  $from.="\\G$replace->[0]";
   if (length $after->[0]) {
     $from.="(?=$after->[0])";
   }
@@ -801,10 +828,10 @@ DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT RESULT_TO_REVIST(?) AF
   if(length $revisit->[0]) {
     $offset = - length $revisit->[0];
     $revisit->[0] =~s/^\@+//;
-    $compleated.=$revisit->[0];
+    $compleated->[0].=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated', offset => $offset };\n";
+  $return = "push \@{\$rules[-1]}, { from => '$from', to => '$compleated->[0]', offset => $offset };\n";
 }
 
 EOGRAMMAR
@@ -822,7 +849,6 @@ our @rules;
 
 EOT
   foreach my $transformation (@{$self->{transforms}}) {
-    my $filter_re='';
 
     # Preprocess the rules so that we pass in a rule with no
     # white space or escaped characters. Also a rule can span 
@@ -838,6 +864,9 @@ EOT
       }
     }
     
+    our $count++;
+    print STDERR "Counter: $count\n";
+    $::RD_TRACE = $count == 24 ? 1 : undef;
     @{$transformation->{rules}} = grep {defined} @rules;
 
     # $rules[$count] now contains the rule on one line

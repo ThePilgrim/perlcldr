@@ -37,7 +37,7 @@ CHARACTER_TYPE_OP: CHARACTER_TYPE REGEX_OP(?)
 STRING:            "'" STRING_TYPE(s?) "'" 
 { $return = join '', @{$item[2]}; }
 
-STRING_TYPE:       ESCAPE_CHR["'"] { $return = $item[1]; }
+STRING_TYPE:       ESCAPE_CHR { $return = $item[1]; }
 |                  CHARACTER_TYPE <reject: $item[1] eq "'"> { $return = $item[1]; }
 
 SET:               <skip:''> SET_EXPRESSION
@@ -116,6 +116,7 @@ SET_UNION:         PROPERTY {$return = $item[1]}
 |                  PERL_PROPERTY {$return = $item[1] }
 |                  /\s+/ {$return = $item[1] }
 |                  CHARACTER_TYPE_EXCLUDE['[\]\|\-& ]'](s) {$return = join '', @{$item[1]} }
+|                  '|' .../\S/ { $return = '|'; }
 
 SET_UNION_TYPE_LIST: <leftop: SET_UNION_TYPE /\s+\|\|?\s+/ SET_UNION_TYPE>
 {
@@ -128,7 +129,7 @@ SET_UNION_TYPE:     PROPERTY {$return = $item[1] }
 |                   EXPOSED_RANGE {$return = $item[1] }
 |                   CHARACTER_TYPE_EXCLUDE['[\]\| ]'](s) {$return = join '',   @{$item[1]} }
 
-CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR[$arg[0]] { $return = $item[1] }
+CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR { $return = $item[1] }
 |                       CHARACTER_TYPE <reject: $item[1] =~ /$arg[0]/>
 { $return = $item[1] }
 
@@ -142,10 +143,10 @@ GROUP:             "(" REGEX_TERM(s) ")"
 { $return = join '', '(', @{$item[2]}, ')'; print "GROUP: $return\n" }
 
 PROPERTY:          /\s*/ /\^?/ "[:" NEGATE(?) CHARACTER_TYPE_EXCLUDE[':'](s) ":]" 
-{ $return = ' ' . ($item[2] ? '^' : '') . '[:' . ($item[4][0] ? '^' : '') . join '', @{$item[5]}, ':] '; }
+{ $return = $item[1] . ($item[2] ? '^' : '') . '[:' . ($item[4][0] ? '^' : '') . join '', @{$item[5]}, ':]'; }
 
-ESCAPE_CHR:        ESCAPE "$arg[0]" 
-{ $return = $arg[0]; }
+ESCAPE_CHR:        ESCAPE CODE_POINT
+{ $return = "\\$item[2]"; }
 
 GRAPHEME_CLUSTER:  "{" CHARACTER_TYPE(s) "}" 
 { $return = bless $item[2], 'Unicode::Rgex::Parse::GraphemeCluster'; }
@@ -154,7 +155,7 @@ CHARACTER_TYPE:    HEX_CODE_POINT { $return = $item[1]; }
 |                  CODE_POINT { $return = $item[1]; }
 
 HEX_CODE_POINT:    ESCAPE /u/i /\p{IsXDigit}+/ 
-{ $return = chr hex $item[3]; }
+{ $return = "\\x{$item[3]}"; }
 
 PERL_PROPERTY:     ESCAPE /[pP]\{[^\}]+\}/ 
 { $return = "\\$item[2]" ; }
@@ -165,7 +166,7 @@ REGEX_OP:          ZERO_OR_MORE { $return = $item[1]; }
 
 CODE_POINT:        /[\x{0000}-\x{10FFFF}]/
 ESCAPE:            '\\'
-NEGATE:            /^\s*/
+NEGATE:            /\^\s*/
 ZERO_OR_MORE:      "*"
 ZERO_OR_ONE:       "?"
 ONE_OR_MORE:       "+"
