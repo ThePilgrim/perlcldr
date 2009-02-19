@@ -42,7 +42,7 @@ STRING_TYPE:       ESCAPE_CHR { $return = $item[1]; }
 
 SET:               <skip:''> SET_EXPRESSION
 { 
-  $return = __PACKAGE__->parse_set($item[2]);
+  $return = __PACKAGE__->parse_set($item{SET_EXPRESSION});
 }
 
 SET_EXPRESSION:    PROPERTY { $return = $item[1] }
@@ -103,11 +103,11 @@ SET_UNION_BLOCK_P: /\s*\[\s*/ SET_UNION(s) /\s*\]/
   $return = join '', '[ ', @{$item[2]}, " ]"
 }
 
-SET_INTERSECTION:  <leftop: SET_UNION /\s+&&?\s+/ SET_UNION>
-{ $return = join ' & ', @{$item[1]} }
+SET_INTERSECTION:  <leftop: SET_UNION /(\s*&&?\s*)/ SET_UNION>
+{ $return = join '', @{$item[1]} }
 
-SET_DIFFERENCE:    <leftop: SET_UNION /\s+--?\s+/ SET_UNION>
-{ $return = join ' - ', @{$item[1]} }
+SET_DIFFERENCE:    <leftop: SET_UNION /(\s*--?\s*)/ SET_UNION>
+{ $return = join '', @{$item[1]} }
 
 SET_UNION:         PROPERTY {$return = $item[1]}
 |                  SET_EXPRESSION {$return = $item[1]}
@@ -145,8 +145,8 @@ GROUP:             "(" REGEX_TERM(s) ")"
 PROPERTY:          /\s*/ /\^?/ "[:" NEGATE(?) CHARACTER_TYPE_EXCLUDE[':'](s) ":]" 
 { $return = $item[1] . ($item[2] ? '^' : '') . '[:' . ($item[4][0] ? '^' : '') . join '', @{$item[5]}, ':]'; }
 
-ESCAPE_CHR:        ESCAPE CODE_POINT
-{ $return = "\\$item[2]"; }
+ESCAPE_CHR:        HEX_CODE_POINT {$return = $item[1]}
+|                  ESCAPE CODE_POINT { $return = "\\$item[2]"; }
 
 GRAPHEME_CLUSTER:  "{" CHARACTER_TYPE(s) "}" 
 { $return = bless $item[2], 'Unicode::Rgex::Parse::GraphemeCluster'; }
