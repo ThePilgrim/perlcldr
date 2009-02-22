@@ -42,6 +42,7 @@ STRING_TYPE:       ESCAPE_CHR { $return = $item[1]; }
 
 SET:               <skip:''> SET_EXPRESSION
 { 
+  print STDERR "Converting: $item{SET_EXPRESSION}\n";
   $return = __PACKAGE__->parse_set($item{SET_EXPRESSION});
 }
 
@@ -143,7 +144,13 @@ GROUP:             "(" REGEX_TERM(s) ")"
 { $return = join '', '(', @{$item[2]}, ')'; print "GROUP: $return\n" }
 
 PROPERTY:          /\s*/ /\^?/ "[:" NEGATE(?) CHARACTER_TYPE_EXCLUDE[':'](s) ":]" 
-{ $return = $item[1] . ($item[2] ? '^' : '') . '[:' . ($item[4][0] ? '^' : '') . join '', @{$item[5]}, ':]'; }
+{ 
+  my $property = $item[2] || $item[4][0] ? 'P' : 'p' ;
+  my $name = join'', @{$item[5]};
+  $name = ucfirst $name;
+  $name = 'XDigit' if $name eq 'Xdigit';
+  $return = $item[1] . "\\${property}{" . $name ."}";
+}
 
 ESCAPE_CHR:        HEX_CODE_POINT {$return = $item[1]}
 |                  ESCAPE CODE_POINT { $return = "\\$item[2]"; }

@@ -5,11 +5,20 @@ use base 'Local::CLDR';
 
 # Base clas for Transformations
 
+# Returning the null string from filter_re causes the filter sub
+# to return the entire string. This will be overridden by those
+# transformations that require a filter
+sub filter_re {
+  return '';
+}
+
+# Split a string into chunks useing the filter regex
+# The returned array is (don't change, change, ...)
 sub filter {
   my ($self, $string, $re) = @_;
   
+  return ('',[$string]) unless defined $re && length $re;
   my @char = split //, $string;
-  return ('',[@chr]) unless defined $re && length $re;
   @chr = map {[ $_, /$re/ ? 1 : 0 ]} @chr;
 
   my @string;
@@ -60,6 +69,7 @@ my %transformationRules = (
 sub Transform {
   my ($self, $from, $to, $string) = @_;
 
+  # Normalise the from and to data
   foreach ($from, $to) {
     $_ = ucfirst lc;
   }
@@ -84,6 +94,7 @@ sub Transform {
   return join '', @strings;
 }
 
+# This method is the starting point for the Tranformation
 sub Convert {
   my ($self, $string) = @_;
   my $class = ref $self;
@@ -99,9 +110,11 @@ sub Convert {
     while(pos($string) < length($string)) {
       if (ref $rule eq 'ARRAY') {
         foreach my $transformation (@$rule) {
-	  if ($string=~s/$transformation->{from}/$transformation->{to}/) {
-	    pos($string)+=$transformation->{offset};
-	    last;
+	  if ($transformation->{before} && $string=~/$transformation->{before}/) {
+	    if ($string=~s/$transformation->{from}/$transformation->{to}/) {
+	      pos($string)+=$transformation->{offset};
+	      last;
+	    }
 	  }
 	  pos($string)++;
 	}
