@@ -42,7 +42,6 @@ STRING_TYPE:       ESCAPE_CHR { $return = $item[1]; }
 
 SET:               <skip:''> SET_EXPRESSION
 { 
-  print STDERR "Converting: $item{SET_EXPRESSION}\n";
   $return = __PACKAGE__->parse_set($item{SET_EXPRESSION});
 }
 
@@ -110,7 +109,8 @@ SET_INTERSECTION:  <leftop: SET_UNION /(\s*&&?\s*)/ SET_UNION>
 SET_DIFFERENCE:    <leftop: SET_UNION /(\s*--?\s*)/ SET_UNION>
 { $return = join '', @{$item[1]} }
 
-SET_UNION:         PROPERTY {$return = $item[1]}
+SET_UNION:         NEGATE SET_UNION { $return = "^ $item[2]"}
+|                  PROPERTY {$return = $item[1]}
 |                  SET_EXPRESSION {$return = $item[1]}
 |                  EXPOSED_RANGE {$return = $item[1]}
 |                  SET_UNION_TYPE_LIST {$return = $item[1] }

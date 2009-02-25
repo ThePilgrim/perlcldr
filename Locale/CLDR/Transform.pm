@@ -111,8 +111,8 @@ sub Convert {
       if (ref $rule eq 'ARRAY') {
         foreach my $transformation (@$rule) {
 	  if ($transformation->{before} && $string=~/$transformation->{before}/) {
-	    if ($string=~s/$transformation->{from}/$transformation->{to}/) {
-	      pos($string)+=$transformation->{offset};
+	    if ($string=~s/$transformation->{from}/$transformation->{to}/e) {
+	      pos($string)+=eval "$transformation->{offset}";
 	      last;
 	    }
 	  }
