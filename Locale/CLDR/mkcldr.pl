@@ -919,6 +919,7 @@ EOGRAMMAR
   print $file <<'EOT';
 use Unicode::Normalize;
 use base 'Locale::CLDR::Transform';
+use Unicode::Regex::CCC;
 
 our @rules;
 
