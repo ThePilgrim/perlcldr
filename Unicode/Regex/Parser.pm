@@ -109,14 +109,14 @@ SET_INTERSECTION:  <leftop: SET_UNION /(\s*&&?\s*)/ SET_UNION>
 SET_DIFFERENCE:    <leftop: SET_UNION /(\s*--?\s*)/ SET_UNION>
 { $return = join '', @{$item[1]} }
 
-SET_UNION:         NEGATE SET_UNION { $return = "^ $item[2]"}
+SET_UNION:         NEGATE SET_UNION { $return = "^$item[2]"}
 |                  PROPERTY {$return = $item[1]}
 |                  SET_EXPRESSION {$return = $item[1]}
 |                  EXPOSED_RANGE {$return = $item[1]}
 |                  SET_UNION_TYPE_LIST {$return = $item[1] }
 |                  PERL_PROPERTY {$return = $item[1] }
 |                  /\s+/ {$return = $item[1] }
-|                  CHARACTER_TYPE_EXCLUDE['[\]\|\-& ]'](s) {$return = join '', @{$item[1]} }
+|                  CHARACTER_TYPE_EXCLUDE['[\[\]\|\-& ]'](s) {$return = join '', @{$item[1]} }
 |                  '|' .../\S/ { $return = '|'; }
 
 SET_UNION_TYPE_LIST: <leftop: SET_UNION_TYPE /\s+\|\|?\s+/ SET_UNION_TYPE>
@@ -128,7 +128,7 @@ SET_UNION_TYPE:     PROPERTY {$return = $item[1] }
 |                   SET_EXPRESSION_BLOCK {$return = $item[1] }
 |                   SET_UNION_BLOCK {$return = $item[1] }
 |                   EXPOSED_RANGE {$return = $item[1] }
-|                   CHARACTER_TYPE_EXCLUDE['[\]\| ]'](s) {$return = join '',   @{$item[1]} }
+|                   CHARACTER_TYPE_EXCLUDE['[\[\]\| ]'](s) {$return = join '',   @{$item[1]} }
 
 CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR { $return = $item[1] }
 |                       CHARACTER_TYPE <reject: $item[1] =~ /$arg[0]/>

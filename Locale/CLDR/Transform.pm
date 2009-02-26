@@ -9,7 +9,7 @@ use base 'Local::CLDR';
 # to return the entire string. This will be overridden by those
 # transformations that require a filter
 sub filter_re {
-  return '';
+  return qr/./s;
 }
 
 # Split a string into chunks useing the filter regex
@@ -17,7 +17,6 @@ sub filter_re {
 sub filter {
   my ($self, $string, $re) = @_;
   
-  return ('',[$string]) unless defined $re && length $re;
   my @char = split //, $string;
   @chr = map {[ $_, /$re/ ? 1 : 0 ]} @chr;
 
@@ -67,27 +66,29 @@ my %transformationRules = (
 );
 
 sub Transform {
-  my ($self, $from, $to, $string) = @_;
+  my ($self, %params) = @_;
 
   # Normalise the from and to data
-  foreach ($from, $to) {
+  foreach ($params{from}, $params{to}) {
     $_ = ucfirst lc;
   }
 
-  my @strings = $self->filter($string, $self->filter_re());
-
-  pos($string) = 0;
+  my @strings = $self->filter($params{string},
+    defined $params{filter} 
+    ? $params{filter} 
+    : $self->filter_re()
+  );
 
   my $convert=1;
   foreach my $sub_string (@strings) {
     $convert = ! $convert;
     next if ! $convert;
     
-    if (my $sub = $transformationRules{$to}) {
+    if (my $sub = $transformationRules{$params{to}}) {
       $sub_string = $sub->($sub_string);
     }
     else {
-      $sub_string = $self->Transliterate($from, $to, $sub_string);
+      $sub_string = $self->Transliterate($params{from}, $params{to}, $sub_string);
     }
   }
 
