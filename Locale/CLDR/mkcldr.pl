@@ -569,6 +569,7 @@ TRANSFORM_RULE_NORMAL:  '::' TRANSFORM_RULE_NAME '()'
   my (\$self, \$string) = \@_;
   return \$self->Transform($filter from => '$from', to => '$to', string => \$string);
 };
+push \@rules,[];
 "
 }
 
@@ -593,6 +594,7 @@ TRANSFORM_RULE_BOTH:    '::' TRANSFORM_RULE_NAME '(' TRANSFORM_RULE_NAME ')'
   my (\$self, \$string) = \@_;
   return \$self->Transform($filter from => '$from', to => '$to', string => \$string);
 };
+push \@rules,[];
 ";
 }
 
@@ -617,6 +619,7 @@ TRANSFORM_RULE_SAME:  '::' TRANSFORM_RULE_NAME
   my (\$self, \$string) = \@_;
   return \$self->Transform($filter from => '$from', to => '$to', string => \$string);
 };
+push \@rules,[];
 "
 }
 
@@ -807,6 +810,7 @@ TRANSFORM_RULE_INVERSE: '::' '(' TRANSFORM_RULE_NAME ')'
   my (\$self, \$string) = \@_;
   return \$self->Transform($filter from=> '$from', to=> '$to', string => \$string);
 };
+push \@rules,[];
 "
 }
 
@@ -922,6 +926,7 @@ use base 'Locale::CLDR::Transform';
 use Unicode::Regex::CCC;
 
 our @rules;
+push @rules, [];
 
 EOT
   foreach my $transformation (@{$self->{transforms}}) {
@@ -940,10 +945,6 @@ EOT
       }
     }
     
-    our $count++;
-    print STDERR "Counter: $count\n";
-#    $::RD_TRACE = $count == 100 ? 1 : undef;
-#    $::RD_TRACE = 1;
     @{$transformation->{rules}} = grep {defined} @rules;
 
     # $rules[$count] now contains the rule on one line
