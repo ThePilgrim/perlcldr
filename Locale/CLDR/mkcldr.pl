@@ -463,6 +463,7 @@ BEGIN {
 }
 use Parse::RecDescent;
 use Unicode::Regex::Parser;
+our @Transform_List = ();
 
 sub _calculate_file_names {
   my $self = shift;
@@ -487,12 +488,14 @@ sub create_files {
     $self->current_file_name($filename);
     $self->create_file({backwards => $count++});
   }
+  $self->create_list_file(\@Transform_List);
 }
 
 sub get_package_name {
   my $self = shift;
   my $package = join '::', map {ucfirst lc $_} File::Spec->splitdir((fileparse($self->current_file_name()))[1]);
   $package.= fileparse($self->current_file_name());
+  push @Transform_List, [$package=~/^Transform::(.*?)::(.*?)$/];
   return "Local::CLDR::$package";
 }
 
@@ -956,3 +959,18 @@ EOT
   }
 }
 
+sub create_list_file {
+  my ($self, $list) = @_;
+  open my $file, '>', 'Transform/List.pl' or die $!;
+  my $time = gmtime;
+  print <<EOT;
+#Local::CLDR::Transform::List generated on $time GMT
+#by $0 from data in the CLDR Version $::VERSION;
+
+return <<EOT;
+EOT
+  foreach my $transform_pair (@{$list}) {
+    print join('=>', @{$transform_pair}), "\n";
+  }
+  print "EOT\n";
+}

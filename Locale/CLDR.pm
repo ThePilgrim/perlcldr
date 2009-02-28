@@ -53,6 +53,8 @@ sub process_segmentation_rules {
   }
 }
 
+# User subs follow
+
 sub Transliterate {
   my ($self, $from, $to, $string) = @_;
 
@@ -72,6 +74,14 @@ sub Transliterate {
   $string = $transliterationObject->Convert($string);
 
   return $string;
+}
+
+sub get_transliteration_list {
+  my $list = do "Local::CLDR::Transform::List";
+  my @list = map {[split /=>/, $_]} 
+	     map { s/^\s*//; s/\s*$//; $_ }
+             split /\n/, $list;
+  return \@list;
 }
     
 1;
