@@ -106,28 +106,41 @@ sub Convert {
     @rules = @{"${class}::rules"};
   }
 
-  foreach my $rule (@rules){
-    pos($string)=0;
-    while(pos($string) < length($string)) {
-      if (ref $rule eq 'ARRAY') {
-        foreach my $transformation (@$rule) {
-	  if (
-	    ! exists $transformation->{before}
-	    || ( $transformation->{before} && $string=~/$transformation->{before}/)
-	    ){
-	    if ($string=~s/$transformation->{from}/$transformation->{to}/e) {
-	      pos($string)+=eval "$transformation->{offset}";
-	      last;
+  my @strings = $self->filter($params{string},
+    defined $params{filter} 
+    ? $params{filter} 
+    : $self->filter_re()
+  );
+
+  my $convert=1;
+  foreach my $sub_string (@strings) {
+    $convert = ! $convert;
+    next if ! $convert;
+
+    foreach my $rule (@rules){
+      pos($sub_string)=0;
+        while(pos($sub_string) < length($sub_string)) {
+        if (ref $rule eq 'ARRAY') {
+          foreach my $transformation (@$rule) {
+	    if (
+	      ! exists $transformation->{before}
+	      || ( $transformation->{before} && $sub_string=~/$transformation->{before}/)
+	      ){
+	      if ($sub_string=~s/$transformation->{from}/$transformation->{to}/e) {
+	        pos($sub_string)+=eval "$transformation->{offset}";
+	        last;
+	      }
 	    }
+	    pos($sub_string)++;
 	  }
-	  pos($string)++;
-	}
-      }
-      else {
-        $string = $rule->($transliterationObject, $string);
+        }
+        else {
+          $sub_string = $rule->($transliterationObject, $sub_string);
+        }
       }
     }
   }
+  return join '', @strings;
 }
 
 1;
