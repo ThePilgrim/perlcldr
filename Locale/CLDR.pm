@@ -56,16 +56,17 @@ sub process_segmentation_rules {
 # User subs follow
 
 sub Transliterate {
-  my ($self, $from, $to, $string) = @_;
+  my ($self, $from, $to, $string, $variation) = @_;
 
-  foreach ($from, $to) {
+  foreach ($from, $to, defined $variation ? $variation : ()) {
     $_=ucfirst lc
   }
 
   my $class = "Local::CLDR::Transform::${from}::${to}";
+  $class .= "::$variation" if defined $variation;
   eval "require $class";
   if ($@) {
-    die "Can not load transform data for '$from::$to' $@\n";
+    die "Can not load transform data '$class' $@\n";
   }
 
   # re-bless the CLDR object into a transliteration object
@@ -77,9 +78,9 @@ sub Transliterate {
 }
 
 sub get_transliteration_list {
+  # Returns a list of from, to, variation 
   my $list = do "Local::CLDR::Transform::List";
   my @list = map {[split /=>/, $_]} 
-	     map { s/^\s*//; s/\s*$//; $_ }
              split /\n/, $list;
   return \@list;
 }

@@ -1,4 +1,4 @@
-Transforms
-  Currently do not have a mechanism to pick variants
+Segmentations
+  Move segmentation code into its own package
 Regex
   Variables in Regex::Parse not implimented

@@ -150,7 +150,7 @@ PROPERTY:          /\s*/ /\^?/ "[:" NEGATE(?) CHARACTER_TYPE_EXCLUDE[':'](s) ":]
   $name = ucfirst $name;
   $name = 'XDigit' if $name eq 'Xdigit';
   # \p{ccc=\d+} is currently borked so use this workaround
-  $name =~s/^Ccc=(\d+)$/ccc$1/;
+  $name =~s/^Ccc=(\d+)$/ccc$1/ unless 'a'=~/\p{ccc=NR}/;
   $return = $item[1] . "\\${property}{" . $name ."}";
 }
 

@@ -68,7 +68,7 @@ my %transformationRules = (
 sub Transform {
   my ($self, %params) = @_;
 
-  # Normalise the from and to data
+  # Normalise the from and to names
   foreach ($params{from}, $params{to}) {
     $_ = ucfirst lc;
   }

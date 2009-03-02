@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+)#!/usr/bin/perl
 
 use strict;
 use warnings FATAL => 'all';
@@ -265,9 +265,11 @@ sub transform {
   #/supplementalData/transforms
   if ($type == START ) {
     push @{$data->{transforms}}, {
-      from      => $attributes->{source},
-      to        => $attributes->{target},
-      direction => $attributes->{direction},
+      from       => $attributes->{source},
+      to         => $attributes->{target},
+      direction  => $attributes->{direction},
+      variant    => $attributes->{variant},
+      visibility => $attributes->{visibility},
       rules     => [],
     };
   }
@@ -472,10 +474,24 @@ sub _calculate_file_names {
   if ($self->{transforms}[0]{direction} eq 'both') {
     push @$filename, File::Spec->catfile('Transform',$self->{transforms}[0]{to},$self->{transforms}[0]{from});
   }
-  if (defined $self->{variant}) {
+  if (defined $self->{transforms}[0]{variant}) {
     foreach (@$filename) {
-      $_=File::Spec->catfile($_,$self->{variant});
+      $_=File::Spec->catfile($_,$self->{transforms}[0]{variant});
     }
+  }
+  # Fix for CLDR bug 2043
+  if (
+    (
+      $self->{transforms}[0]{from} eq 'Thaana'
+      && $self->{transforms}[0]{to} eq 'Latin'
+    )
+    ||
+    (
+      $self->{transforms}[0]{from} eq 'Aboriginal'
+      && $self->{transforms}[0]{to} eq 'Latin'
+    )
+  ) {
+    @$filename = reverse @$filename;
   }
   $self->{__cache__}{filenames} = $filename;
   return $self->{__cache__}{filenames};
@@ -495,7 +511,6 @@ sub get_package_name {
   my $self = shift;
   my $package = join '::', map {ucfirst lc $_} File::Spec->splitdir((fileparse($self->current_file_name()))[1]);
   $package.= fileparse($self->current_file_name());
-  push @Transform_List, [$package=~/^Transform::(.*?)::(.*?)$/];
   return "Local::CLDR::$package";
 }
 
@@ -926,7 +941,7 @@ EOGRAMMAR
   print $file <<'EOT';
 use Unicode::Normalize;
 use base 'Locale::CLDR::Transform';
-use Unicode::Regex::CCC;
+use if 'a' !~/\p{ccc=NR}/, 'Unicode::Regex::CCC';
 
 our @rules;
 push @rules, [];
@@ -957,20 +972,25 @@ EOT
 	: $transformParserForwards
     )->Transforms(join "\n", @{$transformation->{rules}});
   }
+  push @Transform_List,
+    [$self->get_package_name()=~/^Local::CLDR::Transform::(.*?)::(.*?)(?:::(.*))?$/]
+    unless (defined $self->{transforms}[0]{visibility}
+      && $self->{transforms}[0]{visibility} eq 'internal');
 }
 
 sub create_list_file {
   my ($self, $list) = @_;
   open my $file, '>', 'Transform/List.pl' or die $!;
   my $time = gmtime;
-  print <<EOT;
+  print $file <<EOT;
 #Local::CLDR::Transform::List generated on $time GMT
-#by $0 from data in the CLDR Version $::VERSION;
+#by $0 from data in the CLDR Version $::VERSION.
+#This file contains all the public facing transformations
 
 return <<EOT;
 EOT
-  foreach my $transform_pair (@{$list}) {
-    print join('=>', @{$transform_pair}), "\n";
+  foreach my $transform_pair (sort {$a->[0] cmp $b->[0]} @{$list}) {
+    print $file join('=>', grep {defined} @{$transform_pair}), "\n";
   }
-  print "EOT\n";
+  print $file "EOT\n";
 }
