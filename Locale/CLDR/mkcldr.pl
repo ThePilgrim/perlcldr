@@ -426,7 +426,7 @@ BEGIN {
 
 sub add_data_to_file {
   my ($self, $file) = @_;
-  print $file "use base 'Locale::CLDR::Segmentation'\n# Segmentations\n";
+  print $file "use base 'Locale::CLDR::Segmentations';\n# Segmentations\n";
   foreach my $segment (keys %{$self->{segmentations}{segmentation}}) {
     print $file <<EOT;
 sub ${segment}_variables {

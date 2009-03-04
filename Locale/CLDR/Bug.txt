@@ -1,5 +1,4 @@
 Segmentations
-  Move segmentation code into its own package
+  Generating of Segmentation Regex's is far to slow
 Regex
   Variables in Regex::Parse not implimented
-  Rewrite Unicode::Regex::Parse to impleents Sets as per http://www.icu-project.org/apiref/icu4j/com/ibm/icu/text/UnicodeSet.html

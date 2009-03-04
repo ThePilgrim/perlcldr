@@ -40,10 +40,10 @@ SET_DIFFERENCE:    <leftop: SET_UNION /(\s*--?\s*)/ SET_UNION>
 
 SET_UNION:         NEGATE SET_UNION { $return = "^$item[2]"}
 |                  PROPERTY {$return = $item[1]}
+|                  PERL_PROPERTY {$return = $item[1] }
 |                  SET_EXPRESSION {$return = $item[1]}
 |                  EXPOSED_RANGE {$return = $item[1]}
 |                  SET_UNION_TYPE_LIST {$return = $item[1] }
-|                  PERL_PROPERTY {$return = $item[1] }
 |                  /\s+/ {$return = $item[1] }
 |                  CHARACTER_TYPE_EXCLUDE['[\[\]\|\-& ]'](s) {$return = join '', @{$item[1]} }
 |                  '|' .../\S/ { $return = '|'; }

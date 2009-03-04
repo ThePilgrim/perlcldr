@@ -33,7 +33,7 @@ sub Split {
       if ($string=~/$rule->[0]/) {
         if ($rule->[1] eq '÷') {
 	  push @segments, substr $string,0,$count,'';
-	  $count = -1;
+	  $count = 0;
 	}
 	last;
       }
