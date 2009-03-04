@@ -12,33 +12,14 @@ my $grammar = <<'EOGRAMMAR';
 Regex:             REGEX_TERM(s) 
 { $return = join '', @{$item[1]}; }
 
-REGEX_TERM:        STRING { $return = $item[1]; }
-|                  PROPERTY_OP { $return = $item[1]; }
-|                  SET_OP { $return = $item[1]; }
-|                  GROUP_OP { $return = $item[1]; }
-|                  PERL_PROPERTY_OP { $return = $item[1]; }
-|                  CHARACTER_TYPE_OP { $return = $item[1]; }
+REGEX_TERM:        "'" STRING_TYPE(s?) "'" { $return = join '', @{$item[2]}; }
+|                  "(" REGEX_TERM(s) ")" REGEX_OP(?) { $return = join '', @{$item[2]}, $item[4][0]; }
+|                  PROPERTY REGEX_OP(?) { $return = "$item[1]$item[2][0]"; }
+|                  SET REGEX_OP(?) { $return = "$item[1]$item[2][0]"; }
+|                  PERL_PROPERTY REGEX_OP(?) { $return = "$item[1]$item[2][0]"; }
+|                  CHARACTER_TYPE REGEX_OP(?) { $return = "$item[1]$item[2][0]"; }
 
-PROPERTY_OP:       PROPERTY REGEX_OP(?)
-{ $return = "$item[1]$item[2][0]"; }
-
-SET_OP:            SET REGEX_OP(?)
-{ $return = "$item[1]$item[2][0]"; }
-
-GROUP_OP:          GROUP REGEX_OP(?)
-{ $return = "$item[1]$item[2][0]"; }
-
-PERL_PROPERTY_OP:  PERL_PROPERTY REGEX_OP(?)
-{ $return = "$item[1]$item[2][0]"; }
-
-CHARACTER_TYPE_OP: CHARACTER_TYPE REGEX_OP(?)
-{ $return = "$item[1]$item[2][0]"; }
-
-STRING:            "'" STRING_TYPE(s?) "'" 
-{ $return = join '', @{$item[2]}; }
-
-STRING_TYPE:       ESCAPE_CHR { $return = $item[1]; }
-|                  CHARACTER_TYPE <reject: $item[1] eq "'"> { $return = $item[1]; }
+STRING_TYPE:       CHARACTER_TYPE_EXCLUDE["'"] { $return = $item[1]; }
 
 SET:               <skip:''> SET_EXPRESSION
 { 
@@ -46,62 +27,10 @@ SET:               <skip:''> SET_EXPRESSION
 }
 
 SET_EXPRESSION:    PROPERTY { $return = $item[1] }
-|                  SET_EXPRESSION_BLOCK { $return = $item[1] }
-|                  SET_INTERSECTION_BLOCK { $return = $item[1] }
-|                  SET_DIFFERENCE_BLOCK { $return = $item[1] }
-|                  SET_UNION_BLOCK { $return = $item[1] }
-
-SET_EXPRESSION_BLOCK: SET_EXPRESSION_BLOCK_N { $return = $item[1]; }
-|                     SET_EXPRESSION_BLOCK_P { $return = $item[1]; }
-
-SET_EXPRESSION_BLOCK_N: /\s*\[\^\s*/ SET_EXPRESSION /\s*\]/
-{ 
-  $return = "[^ $item[2] ]"
-}
-
-SET_EXPRESSION_BLOCK_P: /\s*\[\s*/ SET_EXPRESSION /\s*\]/
-{ 
-  $return = "[ $item[2] ]"
-}
-
-SET_INTERSECTION_BLOCK: SET_INTERSECTION_BLOCK_N { $return = $item[1]; }
-|                       SET_INTERSECTION_BLOCK_P { $return = $item[1]; }
-
-SET_INTERSECTION_BLOCK_N: /\s*\[\^\s*/ SET_INTERSECTION /\s*\]/
-{
-  $return = "[^ $item[2] ]"
-}
-
-SET_INTERSECTION_BLOCK_P: /\s*\[\s*/ SET_INTERSECTION /\s*\]/
-{
-  $return = "[ $item[2] ]"
-}
-
-SET_DIFFERENCE_BLOCK: SET_DIFFERENCE_BLOCK_N { $return = $item[1] }
-|                     SET_DIFFERENCE_BLOCK_P { $return = $item[1] }
-
-SET_DIFFERENCE_BLOCK_N: /\s*\[\^\s*/ SET_DIFFERENCE /\s*\]/
-{
-  $return = "[^ $item[2] ]" 
-}
-
-SET_DIFFERENCE_BLOCK_P: /\s*\[\s*/ SET_DIFFERENCE /\s*\]/
-{
-  $return = "[ $item[2] ]" 
-}
-
-SET_UNION_BLOCK:   SET_UNION_BLOCK_N { $return = $item[1]; }
-|                  SET_UNION_BLOCK_P { $return = $item[1]; }
-
-SET_UNION_BLOCK_N: /\s*\[\^\s*/ SET_UNION(s) /\s*\]/
-{
-  $return = join '', '[^ ', @{$item[2]}, " ]"
-}
-
-SET_UNION_BLOCK_P: /\s*\[\s*/ SET_UNION(s) /\s*\]/
-{
-  $return = join '', '[ ', @{$item[2]}, " ]"
-}
+|                  /\s*/ '[' NEGATE(?) /\s*/ SET_EXPRESSION /\s*/ ']' { $return = "[" . ($item[3][0] ? '^' : '' ) . " $item{SET_EXPRESSION} ]" }
+|                  /\s*/ '[' NEGATE(?) /\s*/ SET_INTERSECTION /\s*/ ']' { $return = "[" . ($item[3][0] ? '^' : '' ) . " $item{SET_INTERSECTION} ]" }
+|                  /\s*/ '[' NEGATE(?) /\s*/ SET_DIFFERENCE /\s*/ ']' { $return = "[" . ($item[3][0] ? '^' : '' ) . " $item{SET_DIFFERENCE} ]" }
+|                  /\s*/ '[' NEGATE(?) /\s*/ SET_UNION(s) /\s*/ ']' { $return = join '', "[" , ($item[3][0] ? '^ ' : ' ' ) ,  @{$item[5]}, " ]" }
 
 SET_INTERSECTION:  <leftop: SET_UNION /(\s*&&?\s*)/ SET_UNION>
 { $return = join '', @{$item[1]} }
@@ -125,8 +54,8 @@ SET_UNION_TYPE_LIST: <leftop: SET_UNION_TYPE /\s+\|\|?\s+/ SET_UNION_TYPE>
 }
 
 SET_UNION_TYPE:     PROPERTY {$return = $item[1] }
-|                   SET_EXPRESSION_BLOCK {$return = $item[1] }
-|                   SET_UNION_BLOCK {$return = $item[1] }
+|                   /\s*/ '[' NEGATE(?) /\s*/ SET_EXPRESSION /\s*/ ']' { $return = "[" . ($item{NEGATE}[0] ? '^' : '' ) . " $item{SET_EXPRESSION} ]" }
+|                   /\s*/ '[' NEGATE(?) /\s*/ SET_UNION /\s*/ ']' { $return = "[" . ($item{NEGATE}[0] ? '^' : '' ) . " $item{SET_UNION} ]" }
 |                   EXPOSED_RANGE {$return = $item[1] }
 |                   CHARACTER_TYPE_EXCLUDE['[\[\]\| ]'](s) {$return = join '',   @{$item[1]} }
 
@@ -134,14 +63,9 @@ CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR { $return = $item[1] }
 |                       CHARACTER_TYPE <reject: $item[1] =~ /$arg[0]/>
 { $return = $item[1] }
 
-RANGE:             EXPOSED_RANGE
-{ $return = "[$item[1]]"; }
-
 EXPOSED_RANGE:     CHARACTER_TYPE "-" CHARACTER_TYPE 
 { $return = "$item[1]-$item[3]"; }
 
-GROUP:             "(" REGEX_TERM(s) ")" 
-{ $return = join '', '(', @{$item[2]}, ')'; print "GROUP: $return\n" }
 
 PROPERTY:          /\s*/ /\^?/ "[:" NEGATE(?) CHARACTER_TYPE_EXCLUDE[':'](s) ":]" 
 { 

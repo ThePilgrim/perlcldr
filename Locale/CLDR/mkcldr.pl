@@ -1,8 +1,8 @@
-)#!/usr/bin/perl
+#!/usr/bin/perl
 
 use strict;
 use warnings FATAL => 'all';
-use 5.008;
+use 5.010; # Nead at least this for Unicode version 5.0
 use utf8;
 use lib '../..';
 
@@ -344,7 +344,7 @@ sub current_file_name {
 
 sub _calculate_file_names {
   my $self = shift;
-  $self->{__cache__}{filenames} = [File::Spec->catfile(map {defined($_) ? $_ : 'any'} @$self{qw{_section_ language script territory variant}})];
+  $self->{__cache__}{filenames} = [File::Spec->catfile(map {defined($_) ? ucfirst lc $_ : 'Any'} @$self{qw{_section_ language script territory variant}})];
   tr[-][_] foreach @{$self->{__cache__}{filenames}};
   return $self->{__cache__}{filenames};
 }
@@ -385,7 +385,9 @@ sub generation_date {
 
 sub get_package_name {
   my $self = shift;
-  my $package = join '::', map {defined($_) ? ucfirst lc $_ : 'Any' } (qw(Locale CLDR), @$self{qw{_section_ language script territory variant}});
+  my $package = join '::', (qw(Locale CLDR),
+    map {defined($_) ? ucfirst lc $_ : 'Any' }
+    @$self{qw{_section_ language script territory variant}});
   return $package;
 }
 
@@ -424,10 +426,10 @@ BEGIN {
 
 sub add_data_to_file {
   my ($self, $file) = @_;
-  print $file "# Segmentations\n";
+  print $file "use base 'Locale::CLDR::Segmentation'\n# Segmentations\n";
   foreach my $segment (keys %{$self->{segmentations}{segmentation}}) {
     print $file <<EOT;
-sub segmentation_${segment}_variables {
+sub ${segment}_variables {
   my \$self = shift();
 
   my \$variables = [
@@ -440,7 +442,7 @@ EOT
   return \$variables;
 }
 
-sub segmentation_${segment}_rules {
+sub ${segment}_rules {
   my \$self = shift();
 
   my \$rules = {

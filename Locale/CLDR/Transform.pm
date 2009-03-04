@@ -5,9 +5,8 @@ use base 'Local::CLDR';
 
 # Base clas for Transformations
 
-# Returning the null string from filter_re causes the filter sub
-# to return the entire string. This will be overridden by those
-# transformations that require a filter
+# Default filter is '.' to return eveery character in the string.
+# This will be overridden by those transformations that require a filter
 sub filter_re {
   return qr/./s;
 }

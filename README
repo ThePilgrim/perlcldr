@@ -1,10 +1,10 @@
 Please note that this is very much alpha code.
 Please note that I know there is inceficient documenation.
-please note that the segments code will undergo a servere rewrite after I get the transliterration code fixed.
+Please note that this code requires Perl 5.10 and above as it uses Unicode version 5.0
 
 Unicode::Regex::Parse is propably useable and uses Parse::RecDescent and Unicode::Regex::Set under the hood. If someone could remove the dependency on Unicode::Regex::Set I would be delighted. At that point I will concider the code sutable for CPAN
 
-The general overview of the project it to convert the XML of the CLDR into a arge number of small Perl modules that can be loaded from the main Local::CLDR when needed to do what ever is required.
+The general overview of the project it to convert the XML of the CLDR into a large number of small Perl modules that can be loaded from the main Local::CLDR when needed to do what ever is required.
 
 BUGS: 
-Unicode property ccc is borked in perl 5.8.8 so I have intruduced a fixup in Unicode::Regex::Parser which changes \p{ccc=\d+} to \p{ccc\d+} if you then use Unicode::Regex::CCC you will get the correct results
+Unicode property ccc is borked in perl 5.10.0 so I have intruduced a fixup in Unicode::Regex::Parser which changes \p{ccc=\d+} to \p{ccc\d+} if you then use Unicode::Regex::CCC you will get the correct results

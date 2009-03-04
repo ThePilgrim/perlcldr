@@ -66,6 +66,10 @@ use constant {
   IN_TEXT_TYPE_TYPES                    => 15,
   IN_TEXT_TYPE_VARIANTS                 => 16,
   IN_TEXT_MIXED                         => 17,
+  SEGMENT_GRAPHEME_CLUSTER              => 1,
+  SEGMENT_LINE                          => 4,
+  SEGMENT_SETENCE                       => 3,
+  SEGMENT_WORD                          => 2,
   TEXT_ORIENTATION_BOTTOM_TO_TOP        => 1,
   TEXT_ORIENTATION_LEFT_TO_RIGHT        => 2,
   TEXT_ORIENTATION_RIGHT_TO_LEFT        => 3,
@@ -156,6 +160,13 @@ my @calendar = qw(
   CALENDAR_TYPE_STANDALONE
 );
 
+my @segments = qw(
+  SEGMENT_GRAPHEME_CLUSTER
+  SEGMENT_LINE
+  SEGMENT_SETENCE
+  SEGMENT_WORD
+);
+
 our @EXPORT_OK = (
   @orientation,
   @inlist,
@@ -163,6 +174,7 @@ our @EXPORT_OK = (
   @internal,
   @characters,
   @calendar,
+  @segments,
 );
 
 our %EXPORT_TAGS = (
@@ -172,11 +184,13 @@ our %EXPORT_TAGS = (
   characters  => [@characters],
   internal    => [@internal],
   calendar    => [@calendar],
+  segments    => [@segments],
   all         => [
     @orientation,
     @inlist,
     @intext,
     @characters,
+    @segments,
   ],
 );
 
