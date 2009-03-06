@@ -538,6 +538,18 @@ sub codePattern {
   }
 }
 
+sub characters {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{localeDisplayNames}{characters} = {};
+  }
+}
+
+sub exemplarCharacters {
+}
+
+
 # End of XML Tags
 
 sub _get_class {
