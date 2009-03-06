@@ -60,6 +60,8 @@ foreach my $directory (@directories) {
 
 sub process_file {
   my $filename = shift;
+  #testing
+  return unless $filename eq 'Data/main/ml.xml';
 
   print STDERR "Processing $filename\n" if $verbose;
   
@@ -132,6 +134,7 @@ sub process_data {
 # elements described here
 sub ldml {
   my ($type, $data, $attributes) = @_;
+  die "Sub Locals" if $attributes->{validSubLocales};
 }
 
 sub identity {
@@ -166,28 +169,83 @@ sub language {
     }
     #/ldml/localeDisplayNames/languages
     elsif ($data->{stack}[-1] eq 'languages'){
-      die;
+      $data->{displayname}{languages}{current}={
+        code  => $attributes->{type},
+	alt   => $attributes->{alt},
+	draft => $attributes->{draft},
+      }
     }
-    else {
-      use Data::Dumper;
-      die Dumper($data);
+  }
+  else {
+    if ($data->{stack}[-2] eq 'languages'){
+      push @{$data->{displayname}{languages}{
+        $data->{displayname}{languages}{current}{code}
+      }}, {
+        alt   => $data->{displayname}{languages}{current}{alt},
+        draft => $data->{displayname}{languages}{current}{draft},
+        name  => $data->{"@{$data->{stack}}"}{_characters},
+      }
     }
   }
 }
 
 sub territory {
   my ($type, $data, $attributes) = @_;
-  #/ldml/identity
   if ($type == START) {
-    $data->{territory} = $attributes->{type};
+    #/ldml/identity
+    if ($data->{stack}[-1] eq 'identity') {
+      $data->{territory} = $attributes->{type};
+    }
+    elsif ($data->{stack}[-1] eq 'territories') {
+    #/ldml/localeDisplayNames/territories
+      $data->{displayname}{territories}{current}={
+        code  => $attributes->{type},
+        alt   => $attributes->{alt},
+        draft => $attributes->{draft},
+      }
+    }
+  }
+  else {
+    if ($data->{stack}[-2] eq 'territories') {
+    #/ldml/localeDisplayNames/territories
+      push @{$data->{displayname}{territories}{
+        $data->{displayname}{territories}{current}{code}
+      }}, {
+        alt   => $data->{displayname}{territories}{current}{alt},
+        draft => $data->{displayname}{territories}{current}{draft},
+        name  => $data->{"@{$data->{stack}}"}{_characters},
+      }
+    }
   }
 }
 
 sub variant {
   my ($type, $data, $attributes) = @_;
-  #/ldml/identity
   if ($type == START) {
-    $data->{variant} = $attributes->{type};
+    #/ldml/identity
+    if ($data->{stack}[-1] eq 'identity') {
+      $data->{variant} = $attributes->{type};
+    }
+    elsif ($data->{stack}[-1] eq 'territories') {
+    #/ldml/localeDisplayNames/territories
+      $data->{displayname}{variants}{current}={
+        code  => $attributes->{type},
+        alt   => $attributes->{alt},
+        draft => $attributes->{draft},
+      }
+    }
+  }
+  else {
+    if ($data->{stack}[-2] eq 'territories') {
+    #/ldml/localeDisplayNames/territories
+      push @{$data->{displayname}{variants}{
+        $data->{displayname}{variants}{current}{code}
+      }}, {
+        alt   => $data->{displayname}{variants}{current}{alt},
+        draft => $data->{displayname}{variants}{current}{draft},
+        name  => $data->{"@{$data->{stack}}"}{_characters},
+      }
+    }
   }
 }
 
@@ -293,13 +351,194 @@ sub localeDisplayNames {
   #/ldml
 }
 
+sub localeDisplayPattern {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{loacaleDisplayNames}{pattern}={};
+  }
+}
+
+sub localePattern {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames/localeDisplayPattern
+  if ($type == STOP) {
+    $data->{loacaleDisplayNames}{pattern}{data}
+      = $data->{"@{$data->{stack}}"}{_characters};
+    $data->{"@{$data->{stack}}"}{_characters} = '';
+  }
+}
+
+sub localeSeparator {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames/localeDisplayPattern
+  if ($type == STOP) {
+    $data->{loacaleDisplayNames}{pattern}{separator}
+      = $data->{"@{$data->{stack}}"}{_characters};
+    $data->{"@{$data->{stack}}"}{_characters} = '';
+  }
+}
+
 sub languages {
   my ($type, $data, $attributes) = @_;
   #/ldml/localeDisplayNames
   if ($type == START) {
-    $data->{localDisplayNames}{languages} = [];
+    $data->{localeDisplayNames}{languages} = {};
   }
 }
+
+sub scripts {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{localeDisplayNames}{scripts} = {};
+  }
+}
+
+sub script {
+  my ($type, $data, $attributes) = @_;
+  if ($type == START) {
+  #/ldml/localeDisplayNames/Scripts
+    $data->{displayname}{scripts}{current}={
+      code  => $attributes->{type},
+      alt   => $attributes->{alt},
+      draft => $attributes->{draft},
+    }
+  }
+  else {
+    push @{$data->{displayname}{scripts}{
+      $data->{displayname}{scripts}{current}{code}
+    }}, {
+      alt   => $data->{displayname}{scripts}{current}{alt},
+      draft => $data->{displayname}{scripts}{current}{draft},
+      name  => $data->{"@{$data->{stack}}"}{_characters},
+    }
+  }
+}
+
+sub territories {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{localeDisplayNames}{territories} = {};
+  }
+}
+
+sub variants {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{localeDisplayNames}{variants} = {};
+  }
+}
+
+sub keys {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{localeDisplayNames}{'keys'} = {};
+  }
+}
+
+sub key {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames/keys
+  if ($type == START) {
+    $data->{localeDisplayNames}{'keys'}{current}={
+      type => $attributes->{type},
+    }
+  }
+  else {
+    push @{$data->{localeDisplayNames}{'keys'}{
+      $data->{localeDisplayNames}{'keys'}{current}{type}
+    }}, {
+      name  => $data->{"@{$data->{stack}}"}{_characters},
+    };
+  }
+}
+
+sub types {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{localeDisplayNames}{types} = {};
+  }
+}
+
+sub type {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames/types
+  if ($type == START) {
+    $data->{localeDisplayNames}{types}{current} = {
+      type => $attributes->{type},
+      key  => $attributes->{key},
+      alt  => $attributes->{alt},
+    }
+  }
+  else {
+    push @{$data->{localeDisplayNames}{types}{
+      $data->{localeDisplayNames}{types}{current}{type}
+    }},{
+      key => $data->{localeDisplayNames}{types}{current}{key},
+      alt => $data->{localeDisplayNames}{types}{current}{alt},
+      name  => $data->{"@{$data->{stack}}"}{_characters},
+    };
+  }
+}
+
+sub measurementSystemNames {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{localeDisplayNames}{measurementSystemNames} = {};
+  }
+}
+
+sub measurementSystemName {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames/measurementSystemName
+  if ($type == START) {
+    $data->{localeDisplayNames}{measurementSystemNames}{current} = {
+      type => $attributes->{type},
+      key  => $attributes->{key},
+      alt  => $attributes->{alt},
+    }
+  }
+  else {
+    push @{$data->{localeDisplayNames}{measurementSystemNames}{
+      $data->{localeDisplayNames}{measurementSystemNames}{current}{type}
+    }},{
+      name  => $data->{"@{$data->{stack}}"}{_characters},
+    };
+  }
+}
+
+sub codePatterns {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames
+  if ($type == START) {
+    $data->{localeDisplayNames}{codePatterns} = {};
+  }
+}
+
+sub codePattern {
+  my ($type, $data, $attributes) = @_;
+  #/ldml/localeDisplayNames/codePatterns
+  if ($type == START) {
+    $data->{localeDisplayNames}{codePatterns}{current} = {
+      type => $attributes->{type},
+    }
+  }
+  else {
+    push @{$data->{localeDisplayNames}{codePatterns}{
+      $data->{localeDisplayNames}{codePatterns}{current}{type}
+    }},{
+      name  => $data->{"@{$data->{stack}}"}{_characters},
+    };
+  }
+}
+
+# End of XML Tags
 
 sub _get_class {
   my $data = shift;
