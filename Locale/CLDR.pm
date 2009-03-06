@@ -254,12 +254,37 @@ In no case is whitespace lost.
 =head2 DisplayLocale
 
  my $localeName         = $locale->DisplayLocal();
- my $austrianGermanName = $locale->DisplayLocale('de_AT');
+ my $GermanName         = $locale->DisplayLocale('de_AT');
+ my $GermanName         = $locale->DisplayLocale('de');
  my $otherLocaleName    = $locale->DisplayLocale($otherLocale);
 
 DisplayLocale() returns a locale name formatted for the current locale.
 Without any paramaters it returns the locales name formatted for the locale.
-The other 2 versions allow you to get the name of a diffrent locale 
+The other 3 versions allow you to get the name of a diffrent locale 
 formatted for the current locale.
 
+=head2 DisplayLanguage
 
+ my $localeLanguageName      = $locale->DisplayLanguage();
+ my $austrianLanguageName    = $locale->DisplayLanguage('de_AT');
+ my $austrianLanguageName    = $locale->DisplayLanguage('AT');
+ my $otherLocaleLanguageName = $locale->DisplayLanguage($otherLocale);
+
+DispalayLanguage() returns a language name formatted for the current locale
+Without any paramaters it returns the locales language name formatted for
+the locale.
+The other 3 versions allow you to get the name of a language for a diffrent
+locale formatted for the current locale.
+
+=head2 DisplayScript
+
+ my $localeScriptName      = $locale->DisplayLanguage();
+ my $austrianScriptName    = $locale->DisplayLanguage('de_latin_AT');
+ my $ScriptName            = $locale->DisplayLanguage('latin');
+ my $otherLocaleScriptName = $locale->DisplayLanguage($otherLocale);
+
+DispalayScript() returns a script name formatted for the current locale
+Without any paramaters it returns the locales script name formatted for
+the locale.
+The other 3 versions allow you to get the name of a script for a diffrent
+locale formatted for the current locale.
