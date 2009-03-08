@@ -278,13 +278,61 @@ locale formatted for the current locale.
 
 =head2 DisplayScript
 
- my $localeScriptName      = $locale->DisplayLanguage();
- my $austrianScriptName    = $locale->DisplayLanguage('de_latin_AT');
- my $ScriptName            = $locale->DisplayLanguage('latin');
- my $otherLocaleScriptName = $locale->DisplayLanguage($otherLocale);
+ my $localeScriptName      = $locale->DisplayScript();
+ my $austrianScriptName    = $locale->DisplayScript('de_latin_AT');
+ my $ScriptName            = $locale->DisplayScript('latin');
+ my $otherLocaleScriptName = $locale->DisplayScript($otherLocale);
 
 DispalayScript() returns a script name formatted for the current locale
 Without any paramaters it returns the locales script name formatted for
 the locale.
 The other 3 versions allow you to get the name of a script for a diffrent
 locale formatted for the current locale.
+
+=head2 DisplayTerritory
+
+ my $localeTerritoryName      = $locale->DisplayTerritory();
+ my $austrianTerritoryName    = $locale->DisplayTerritory('de_AT');
+ my $TerritoryName            = $locale->DisplayTerritory('AT');
+ my $otherLocaleTerritoryName = $locale->DisplayTerritory($otherLocale);
+
+DispalayTeritorry() returns a teritory name formatted for the current
+locale. Without any paramaters it returns the locales teritory name
+formatted for the locale.
+The other 3 versions allow you to get the name of a teritory for a diffrent
+locale formatted for the current locale.
+
+=head2 DisplayVariant
+
+ my $localeVariantName      = $locale->DisplayVariant();
+ my $PosixVariantName       = $locale->DisplayVariant('en_us_POSIX');
+ my $VariantName            = $locale->DisplayVariant('POSIX');
+ my $otherLocaleVariantName = $locale->DisplayVariant($otherLocale);
+
+DispalayVariant() returns a variant name formatted for the current
+locale. Without any paramaters it returns the locales variant name
+formatted for the locale.
+The other 3 versions allow you to get the name of a variant for a diffrent
+locale formatted for the current locale.
+
+=head2 DisplayKey
+
+ use Local::CLDR::Constants ':key';
+ my $KeyName = $locale->DisplayKey(KEY_COLLATION);
+
+DispalayKey() returns a tanslation for the key elements in the extention
+part of a locale name. The value of the paramater must be one of
+
+=over 4
+
+=item KEY_CALLLNDER
+
+=item KEY_COLLATION
+
+=item KEY_CURRENCY
+
+=back
+
+these can be imported from Locale::CLDR::Constants useing the C<:key> tag
+
+

@@ -23,6 +23,7 @@ sub testregex {
   join '', grep /^$pat\z/, @char;
 }
 
+ok(testregex('[abcde[[fghi][jklm]]]'),'abcdefghijklm');
 ok(testregex('[A-Z]'), $upper);
 ok(testregex('[A-Z xyz]'), $upper.'xyz');
 ok(testregex('[A&G]'), 'AG&');
@@ -65,3 +66,5 @@ ok(testregex('[[:alnum:]]'), "$digit$upper$lower");
 ok(testregex('[[:alnum:] - 0123]'), "456789$upper$lower");
 ok(testregex('[[ace][bdf] - [abc][def]]'), "");
 ok(testregex('[[ace][bdf] - [abc][df]]'), "e");
+ok(testregex('[[ [:alnum:] ]-[0123]]*'), "456789$upper$lower");
+ok(testregex('[^[iuyIUY]]'), "${digit}ABCDEFGHJKLMNOPQRSTVWXZabcdefghjklmnopqrstvwxz$space$punct");
