@@ -6,5 +6,3 @@ Unicode::Regex::Parse is propably useable and uses Parse::RecDescent and Unicode
 
 The general overview of the project it to convert the XML of the CLDR into a large number of small Perl modules that can be loaded from the main Local::CLDR when needed to do what ever is required.
 
-BUGS: 
-Unicode property ccc is borked in perl 5.10.0 so I have intruduced a fixup in Unicode::Regex::Parser which changes \p{ccc=\d+} to \p{ccc\d+} if you then use Unicode::Regex::CCC you will get the correct results
