@@ -2,7 +2,7 @@
 
 use strict;
 use warnings FATAL => 'all';
-use 5.010; # Nead at least this for Unicode version 5.0
+use 5.010; # Nead at least this for full unicode regex's
 use utf8;
 use lib '../..';
 
@@ -61,7 +61,7 @@ foreach my $directory (@directories) {
 sub process_file {
   my $filename = shift;
   #testing
-  return unless $filename eq 'Data/main/ml.xml';
+#  return unless $filename eq 'Data/main/ml.xml';
 
   print STDERR "Processing $filename\n" if $verbose;
   
@@ -782,7 +782,7 @@ TRANSFORM: FORWARD_FILTER(?) RULES REVERSE_FILTER(?)
 
 FORWARD_FILTER: '::' UNICODE_SET ';' COMMENT(?)
 {
-  $return = "sub filter_re { return qr($item[2]) }\n";
+  $return = "sub filter_re { return qr($item{UNICODE_SET}) }\n";
 }
 
 REVERSE_FILTER: '::' '(' UNICODE_SET ')' ';' COMMENT(?)
@@ -977,7 +977,7 @@ DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?)
   $return = "push \@{\$rules[-1]}, { $before from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
 }
 
-BEFORE_CONTEXT: <skip:''> CHARACTER_TYPE_EXCLUDE["{;←↔→\x{ff5b}"](s) /[\x{{{ff5b}{]/
+BEFORE_CONTEXT: <skip:''> CHARACTER_TYPE_EXCLUDE["{;←↔→\x{ff5b}"](s) /[\x{ff5b}{]/
 {
   pop @{$item[2]} while $item[2][-1]=~/\s/;
   $return = join '', @{$item[2]};
@@ -1020,7 +1020,7 @@ CHARACTER_STRING:       ESCAPE_CHR { $return = $item[1] }
 
 CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR { $return = $item[1] }
 |                       STRING { $return = $item[1] }
-|                       CHARACTER_TYPE <reject: $item[1] =~ /[\Q$arg[0]\E]/>
+|                       CHARACTER_TYPE {$arg[0]=quotemeta $arg[0]} <reject: $item[1] =~ /[$arg[0]]/>
 { $return = $item[1] }
 
 ESCAPE_CHR: HEX_CODE_POINT {$return=$item[1]}
@@ -1194,7 +1194,6 @@ EOGRAMMAR
   print $file <<'EOT';
 use Unicode::Normalize;
 use base 'Locale::CLDR::Transform';
-use if 'a' !~/\p{ccc=NR}/, 'Unicode::Regex::CCC';
 
 our @rules;
 push @rules, [];
@@ -1219,6 +1218,7 @@ EOT
     @{$transformation->{rules}} = grep {defined} @rules;
 
     # $rules[$count] now contains the rule on one line
+#    $::RD_TRACE=1;
     print $file (
       $direction eq   'backwards'
         ? $transformParserBackwards

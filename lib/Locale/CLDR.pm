@@ -325,7 +325,7 @@ part of a locale name. The value of the paramater must be one of
 
 =over 4
 
-=item KEY_CALLLNDER
+=item KEY_CALENDAR
 
 =item KEY_COLLATION
 
@@ -335,4 +335,39 @@ part of a locale name. The value of the paramater must be one of
 
 these can be imported from Locale::CLDR::Constants useing the C<:key> tag
 
+=head2 DisplayType
 
+ use Locale:CLDR::Constants (':type', ':key');
+ my $translatedTypeName =  $locale->DisplayType(KEY_CALENDAR, TYPE_JAPANESE);
+
+DispalayType() returns a tanslation for the type elements in the extention
+part of a locale name. The value of the first paramater must be one of  
+
+=over 4
+
+=item KEY_CALENDAR
+
+=item KEY_COLLATION
+
+=item KEY_CURRENCY
+
+=back
+
+The value of the second paamater must be a type constant corrisponding to the given key
+
+=head2 DisplayMeasurementSystem
+
+ use Locale::CLDR::Constants(':measurement');
+ $translatedMeasurementName = $locale->DisplayMeasurementSystem(MEASUREMENT_UK);
+
+DisplayMeasurementSystem() returns the translated name for the given Measurement system. The Value of the paramater must be one of
+
+=over 4
+
+=item MEASUREMENT_METRIC
+
+=item MEASUREMENT_UK
+
+=item MEASUREMENT_US
+
+=back

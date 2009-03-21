@@ -69,6 +69,9 @@ use constant {
   KEY_CALANDAR                          => 1,
   KEY_COLLATION                         => 2,
   KEY_CURRENCY                          => 3,
+  MESURMENT_METRIC                      => 1,
+  MESURMENT_UK                          => 2,
+  MESURMENT_US                          => 3,
   SEGMENT_GRAPHEME_CLUSTER              => 1,
   SEGMENT_LINE                          => 4,
   SEGMENT_SENTENCE                      => 3,
@@ -77,6 +80,29 @@ use constant {
   TEXT_ORIENTATION_LEFT_TO_RIGHT        => 2,
   TEXT_ORIENTATION_RIGHT_TO_LEFT        => 3,
   TEXT_ORIENTATION_TOP_TO_BOTTOM        => 4,
+  TYPE_ARABIC                           => 1,
+  TYPE_BIG5HAN                          => 2,
+  TYPE_BUDDHIST                         => 3,
+  TYPE_CHINESE                          => 4,
+  TYPE_CIVIL_ARABIC                     => 5,
+  TYPE_COPTIC                           => 6,
+  TYPE_DIRECT                           => 7,
+  TYPE_ETHIOPIC                         => 8,
+  TYPE_GB2312HAN                        => 9,
+  TYPE_GREGORIAN                        => 10,
+  TYPE_HEBREW                           => 11,
+  TYPE_ISLAMIC                          => 1,
+  TYPE_ISLAMIC_CIVIL                    => 5,
+  TYPE_JAPANESE                         => 12,
+  TYPE_PERSIAN                          => 13,
+  TYPE_PHONEBOOK                        => 14,
+  TYPE_PINYIN                           => 15,
+  TYPE_POSIX                            => 16,
+  TYPE_STANDARD                         => 17,
+  TYPE_STROKE                           => 18,
+  TYPE_TRADITIONAL                      => 19,
+  TYPE_THAI_BUDDHIST                    => 3,
+  TYPE_UNIHAN                           => 20,
 };
 
 my @orientation = qw(
@@ -171,9 +197,41 @@ my @segments = qw(
 );
 
 my @keys = qw(
-  KEY_CALANDAR
+  KEY_CALENDAR
   KEY_COLLATION
   KEY_CURRENCY
+);
+
+my @types = qw(
+  TYPE_ARABIC
+  TYPE_BIG5HAN
+  TYPE_BUDDHIST
+  TYPE_CHINESE
+  TYPE_CIVIL_ARABIC
+  TYPE_COPTIC
+  TYPE_DIRECT
+  TYPE_ETHIOPIC
+  TYPE_GB2312HAN
+  TYPE_GREGORIAN
+  TYPE_HEBREW
+  TYPE_ISLAMIC
+  TYPE_ISLAMIC_CIVIL
+  TYPE_JAPANESE
+  TYPE_PERSIAN
+  TYPE_PHONEBOOK
+  TYPE_PINYIN
+  TYPE_POSIX
+  TYPE_STANDARD
+  TYPE_STROKE
+  TYPE_TRADITIONAL
+  TYPE_THAI_BUDDHIST
+  TYPE_UNIHAN
+);
+
+my @measurement = qw(
+  MESURMENT_METRIC
+  MESURMENT_UK
+  MESURMENT_US
 );
 
 our @EXPORT_OK = (
@@ -185,6 +243,8 @@ our @EXPORT_OK = (
   @calendar,
   @segments,
   @keys,
+  @types,
+  @measurement,
 );
 
 our %EXPORT_TAGS = (
@@ -196,6 +256,8 @@ our %EXPORT_TAGS = (
   calendar    => [@calendar],
   segments    => [@segments],
   'keys'      => [@keys],
+  types       => [@types],
+  measurement => [@measurement],
   all         => [
     @orientation,
     @inlist,

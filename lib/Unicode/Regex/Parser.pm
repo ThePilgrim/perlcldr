@@ -6,6 +6,7 @@ use Unicode::Regex::Set;
 
 use base 'Exporter';
 our @EXPORT_OK = qw(parse parser);
+#$::RD_TRACE=1;
 
 # Set up the RecDescent Gramma
 my $grammar = <<'EOGRAMMAR';
@@ -21,51 +22,30 @@ REGEX_TERM:        "'" STRING_TYPE(s?) "'" { $return = join '', @{$item[2]}; }
 
 STRING_TYPE:       CHARACTER_TYPE_EXCLUDE["'"] { $return = $item[1]; }
 
-SET:               <skip:''> SET_EXPRESSION
+SET:               SET_EXPRESSION 
 { 
   $return = __PACKAGE__->parse_set($item{SET_EXPRESSION});
 }
 
-SET_EXPRESSION:    PROPERTY { $return = $item[1] }
-|                  /\s*/ '[' NEGATE(?) /\s*/ SET_EXPRESSION /\s*/ ']' { $return = "[" . ($item[3][0] ? '^' : '' ) . " $item{SET_EXPRESSION} ]" }
-|                  /\s*/ '[' NEGATE(?) /\s*/ SET_INTERSECTION /\s*/ ']' { $return = "[" . ($item[3][0] ? '^' : '' ) . " $item{SET_INTERSECTION} ]" }
-|                  /\s*/ '[' NEGATE(?) /\s*/ SET_DIFFERENCE /\s*/ ']' { $return = "[" . ($item[3][0] ? '^' : '' ) . " $item{SET_DIFFERENCE} ]" }
-|                  /\s*/ '[' NEGATE(?) /\s*/ SET_UNION(s) /\s*/ ']' { $return = join '', "[" , ($item[3][0] ? '^ ' : ' ' ) ,  @{$item[5]}, " ]" }
+SET_EXPRESSION:    '[' /^?/ ITEM(s) ']' {$return = '[' . ($item[2] ? '^' : '') . join( '', @{$item[3]}) . ']'; }
+|                  PROPERTY { $return = $item[1] }
 
-SET_INTERSECTION:  <leftop: SET_UNION /(\s*&&?\s*)/ SET_UNION>
-{ $return = join '', @{$item[1]} }
+ITEM: PATTERN_EXPR {$return = $item[1]}
+|     RANGE {$return = $item[1] }
+|     CHARACTER_TYPE_EXCLUDE['[]-'] { $return = $item[1] }
 
-SET_DIFFERENCE:    <leftop: SET_UNION /(\s*--?\s*)/ SET_UNION>
-{ $return = join '', @{$item[1]} }
+RANGE: CHARACTER_TYPE_EXCLUDE['[]-'] '-' CHARACTER_TYPE_EXCLUDE['[]-'] { $return = "$item[1]-$item[3]" }
 
-SET_UNION:         NEGATE SET_UNION { $return = "^$item[2]"}
-|                  PROPERTY {$return = $item[1]}
-|                  PERL_PROPERTY {$return = $item[1] }
-|                  SET_EXPRESSION {$return = $item[1]}
-|                  EXPOSED_RANGE {$return = $item[1]}
-|                  SET_UNION_TYPE_LIST {$return = $item[1] }
-|                  /\s+/ {$return = $item[1] }
-|                  CHARACTER_TYPE_EXCLUDE['[\[\]\|\-& ]'](s) {$return = join '', @{$item[1]} }
-|                  '|' .../\S/ { $return = '|'; }
+PATTERN_EXPR: SET_EXPRESSION OP SET_EXPRESSION {$return = "@item[1..3]"}
+|             SET_EXPRESSION SET_EXPRESSION {$return = "@item[1..2]"}
+|             SET_EXPRESSION {$return = $item[1]}
 
-SET_UNION_TYPE_LIST: <leftop: SET_UNION_TYPE /\s+\|\|?\s+/ SET_UNION_TYPE>
-{
-  $return = join ' | ', @{$item[1]};
-}
-
-SET_UNION_TYPE:     PROPERTY {$return = $item[1] }
-|                   /\s*/ '[' NEGATE(?) /\s*/ SET_EXPRESSION /\s*/ ']' { $return = "[" . ($item{NEGATE}[0] ? '^' : '' ) . " $item{SET_EXPRESSION} ]" }
-|                   /\s*/ '[' NEGATE(?) /\s*/ SET_UNION /\s*/ ']' { $return = "[" . ($item{NEGATE}[0] ? '^' : '' ) . " $item{SET_UNION} ]" }
-|                   EXPOSED_RANGE {$return = $item[1] }
-|                   CHARACTER_TYPE_EXCLUDE['[\[\]\| ]'](s) {$return = join '',   @{$item[1]} }
+OP: /&&?/   {$return = $item[1]}
+|   /--?/   {$return = $item[1]}
+|   /\|\|?/ {$return = $item[1]}
 
 CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR { $return = $item[1] }
-|                       CHARACTER_TYPE <reject: $item[1] =~ /$arg[0]/>
-{ $return = $item[1] }
-
-EXPOSED_RANGE:     CHARACTER_TYPE "-" CHARACTER_TYPE 
-{ $return = "$item[1]-$item[3]"; }
-
+|                       CHARACTER_TYPE {$arg[0] = quotemeta $arg[0]} <reject: $item[1] =~ /[$arg[0]]/> { $return = $item[1] }
 
 PROPERTY:          /\s*/ /\^?/ "[:" NEGATE(?) CHARACTER_TYPE_EXCLUDE[':'](s) ":]" 
 { 
