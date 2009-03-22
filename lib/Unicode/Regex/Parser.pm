@@ -22,27 +22,32 @@ REGEX_TERM:        "'" STRING_TYPE(s?) "'" { $return = join '', @{$item[2]}; }
 
 STRING_TYPE:       CHARACTER_TYPE_EXCLUDE["'"] { $return = $item[1]; }
 
-SET:               SET_EXPRESSION 
+SET:               SET_EXPRESSION
 { 
-  $return = __PACKAGE__->parse_set($item{SET_EXPRESSION});
+  $return = __PACKAGE__->parse_set("[$item{SET_EXPRESSION}]");
 }
 
-SET_EXPRESSION:    '[' /^?/ ITEM(s) ']' {$return = '[' . ($item[2] ? '^' : '') . join( '', @{$item[3]}) . ']'; }
-|                  PROPERTY { $return = $item[1] }
+SET_EXPRESSION: PROPERTY { $return = $item[1] }
+|               <skip:''> '[' /\^?/ <skip: $item[1]> ITEM(s) ']' {$return = '[' . $item[3] . join( '', @{$item[5]}) . ']'; }
 
 ITEM: PATTERN_EXPR {$return = $item[1]}
 |     RANGE {$return = $item[1] }
-|     CHARACTER_TYPE_EXCLUDE['[]-'] { $return = $item[1] }
+|     <skip:''> CHARACTER_TYPE_EXCLUDE['[]-&|'] RANGE { $return = "$item[2]$item[3]" }
+|     <skip:''> CHARACTER_TYPE_EXCLUDE['[]-&|'] { $return = $item[2] }
 
-RANGE: CHARACTER_TYPE_EXCLUDE['[]-'] '-' CHARACTER_TYPE_EXCLUDE['[]-'] { $return = "$item[1]-$item[3]" }
+RANGE: <skip:''> /\^?/ CHARACTER_TYPE_EXCLUDE['[]-'] '-' CHARACTER_TYPE_EXCLUDE['[]-'] { $return = "$item[2]$item[3]-$item[5]" }
 
-PATTERN_EXPR: SET_EXPRESSION OP SET_EXPRESSION {$return = "@item[1..3]"}
-|             SET_EXPRESSION SET_EXPRESSION {$return = "@item[1..2]"}
-|             SET_EXPRESSION {$return = $item[1]}
+SET_TYPE:     SET_EXPRESSION                     {$return = $item[1] }
+|             RANGE                              {$return = $item[1] }
+|             <skip:''> CHARACTER_TYPE_EXCLUDE['[]-&|'] RANGE { $return = "$item[2]$item[3]" }
+|             CHARACTER_TYPE_EXCLUDE['[]-&| '] {$return = $item[1] }
 
-OP: /&&?/   {$return = $item[1]}
-|   /--?/   {$return = $item[1]}
-|   /\|\|?/ {$return = $item[1]}
+PATTERN_EXPR: <skip:''> <leftop: SET_TYPE OP SET_TYPE> {$return = join '', @{$item[2]}}
+
+OP: /\s*&&?\s*/   {$return = $item[1]}
+|   /\s*--?\s*/   {$return = $item[1]}
+|   /\s*\|\|?\s*/ {$return = $item[1]}
+|   /\s*/         {$return = $item[1]}
 
 CHARACTER_TYPE_EXCLUDE: ESCAPE_CHR { $return = $item[1] }
 |                       CHARACTER_TYPE {$arg[0] = quotemeta $arg[0]} <reject: $item[1] =~ /[$arg[0]]/> { $return = $item[1] }
