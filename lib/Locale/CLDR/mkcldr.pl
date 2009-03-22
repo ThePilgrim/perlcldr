@@ -4,6 +4,7 @@ use strict;
 use warnings FATAL => 'all';
 use 5.010; # Nead at least this for full unicode regex's
 use utf8;
+use open OUT => ':utf8';
 use lib '../..';
 
 use XML::Parser;
@@ -16,9 +17,6 @@ use constant {
   START => 1,
   STOP  => 2,
 };
-
-binmode STDERR, ':utf8';
-binmode $DB::OUT, ':utf8' if defined $DB::OUT;
 
 my $verbose = '';
 if (grep /-v/, @ARGV) {
@@ -45,7 +43,7 @@ else {
 foreach my $directory (@directories) {
   my $dir;
   if(opendir($dir, $directory)) {
-    foreach my $filename (readdir $dir) {
+    foreach my $filename (sort readdir $dir) {
       my $fullname = File::Spec->catfile($directory,$filename);
       next unless -f $fullname;       # Skip anything that is not a regular file
       next if $filename=~/^\./;        # Skip hidden files
@@ -780,12 +778,12 @@ TRANSFORM: FORWARD_FILTER(?) RULES REVERSE_FILTER(?)
   $return = join "\n", $item[1][0], $item[2], $item[3][0];
 }
 
-FORWARD_FILTER: '::' UNICODE_SET ';' COMMENT(?)
+FORWARD_FILTER: /::\s*/ UNICODE_SET ';' COMMENT(?)
 {
   $return = "sub filter_re { return qr($item{UNICODE_SET}) }\n";
 }
 
-REVERSE_FILTER: '::' '(' UNICODE_SET ')' ';' COMMENT(?)
+REVERSE_FILTER: /::\s*/ '(' UNICODE_SET ')' ';' COMMENT(?)
 {
   $return = "";
 }
@@ -1050,12 +1048,12 @@ EOGRAMMAR
   $transformParserBackwards->Replace(<<'EOGRAMMAR');
 RULES: RULE(s) { $return = join "\n", reverse @{$item[1]}; }
 
-FORWARD_FILTER: '::' UNICODE_SET ';' COMMENT(?)
+FORWARD_FILTER: /::\s*/ UNICODE_SET ';' COMMENT(?)
 {
   $return = "";
 }
 
-REVERSE_FILTER: '::' '(' UNICODE_SET ')' ';' COMMENT(?)
+REVERSE_FILTER: /::\s*/ '(' UNICODE_SET ')' ';' COMMENT(?)
 {
   $return = "sub filter_re { return qr($item[3]) }\n";
 }
