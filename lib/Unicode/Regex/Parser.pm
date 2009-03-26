@@ -27,8 +27,7 @@ SET:               SET_EXPRESSION
   $return = __PACKAGE__->parse_set("[$item{SET_EXPRESSION}]");
 }
 
-SET_EXPRESSION: PROPERTY { $return = $item[1] }
-|               <skip:''> '[' /\^?/ <skip: $item[1]> ITEM(s) ']' {$return = '[' . $item[3] . join( '', @{$item[5]}) . ']'; }
+SET_EXPRESSION: <skip:''> '[' /\^?/ <skip: $item[1]> ITEM(s) ']' {$return = '[' . $item[3] . join( '', @{$item[5]}) . ']'; }
 
 ITEM: PATTERN_EXPR {$return = $item[1]}
 |     RANGE {$return = $item[1] }
@@ -37,7 +36,8 @@ ITEM: PATTERN_EXPR {$return = $item[1]}
 
 RANGE: <skip:''> /\^?/ CHARACTER_TYPE_EXCLUDE['[]-'] '-' CHARACTER_TYPE_EXCLUDE['[]-'] { $return = "$item[2]$item[3]-$item[5]" }
 
-SET_TYPE:     SET_EXPRESSION                     {$return = $item[1] }
+SET_TYPE:     PROPERTY                           {$return = $item[1] }
+|             SET_EXPRESSION                     {$return = $item[1] }
 |             RANGE                              {$return = $item[1] }
 |             <skip:''> CHARACTER_TYPE_EXCLUDE['[]-&|'] RANGE { $return = "$item[2]$item[3]" }
 |             CHARACTER_TYPE_EXCLUDE['[]-&| '] {$return = $item[1] }
