@@ -10,7 +10,7 @@ my $builder = Module::Build->new(
 	'XML::XPath'	=> '1.13',
 	'version'       => '0.74',
     },
-    dist_author         => q{John Imrie <john.imrie@vodafoeemail.co.uk>},
+    dist_author         => q{John Imrie <john.imrie@vodafoneemail.co.uk>},
     dist_version_from   => 'lib/Locale/CLDR.pm',
     build_requires => {
         'Test::More'		=> 0,
