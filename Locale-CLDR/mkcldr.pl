@@ -99,7 +99,8 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 	process_display_pattern($file, $xml);
 	process_display_language($file, $xml);
 	process_display_script($file, $xml);
-
+	process_display_territory($file, $xml);
+	process_display_variant($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -158,15 +159,14 @@ sub process_display_pattern {
 	
 	print $file <<EOT;
 sub displayNamePattern {
-	my (\$self, \$name) = \@_;
+	my (\$self, \$name, \$territory, \$script, \$variant) = \@_;
 
-	my \$lang_code = \$name->language;
 	my \$display_pattern = '$display_pattern';
-	\$display_pattern =~s/\\\{0\\\}/\$lang_code/g;
+	\$display_pattern =~s/\\\{0\\\}/\$name/g;
 	my \$subtags = join '$display_seperator', grep {defined} (
-		\$name->script,
-		\$name->territory,
-		\$name->variant,
+		\$territory,
+		\$script,
+		\$variant,
 	);
 
 	\$display_pattern =~s/\\\{1\\\}/\$subtags/g;
@@ -188,7 +188,7 @@ sub process_display_language {
 			$type .= "\@alt=$variant";
 		}
 		my $name = $language->getChildNode(1)->getValue;
-		$name =~s/\//\/\//g;
+		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
 		$language = "\t\t\t'$type' => '$name',\n";
 	}
@@ -221,7 +221,7 @@ sub process_display_script {
 			$type .= "\@alt=$variant";
 		}
 		my $name = $script->getChildNode(1)->getValue;
-		$name =~s/\//\/\//g;
+		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
 		$script = "\t\t\t'$type' => '$name',\n";
 	}
@@ -234,6 +234,72 @@ has 'displayNameScript' => (
 	default		=> sub { 
 		{
 @scripts
+		}
+	},
+);
+
+EOT
+}
+
+sub process_display_territory {
+	my ($file, $xpath) = @_;
+	my @territories = $xpath
+		->findnodes('/ldml/localeDisplayNames/territories/territory');
+	
+	return unless @territories;
+	foreach my $territory (@territories) {
+		my $type = $territory->getAttribute('type');
+		my $variant = $territory->getAttribute('alt');
+		if ($variant) {
+			$type .= "\@alt=$variant";
+		}
+		my $name = $territory->getChildNode(1)->getValue;
+		$name =~s/\\/\/\\/g;
+		$name =~s/'/\\'/g;
+		$territory = "\t\t\t'$type' => '$name',\n";
+	}
+
+	print $file <<EOT;
+has 'displayNameTerritory' => (
+	is		=> 'ro',
+	isa		=> 'HashRef[Str]',
+	init_args	=> undef,
+	default		=> sub { 
+		{
+@territories
+		}
+	},
+);
+
+EOT
+}
+
+sub process_display_variant {
+	my ($file, $xpath) = @_;
+	my @variants= $xpath
+		->findnodes('/ldml/localeDisplayNames/variants/variant');
+	
+	return unless @variants;
+	foreach my $variant (@variants) {
+		my $type = $variant->getAttribute('type');
+		my $variant_attr = $variant->getAttribute('alt');
+		if ($variant_attr) {
+			$type .= "\@alt=$variant_attr";
+		}
+		my $name = $variant->getChildNode(1)->getValue;
+		$name =~s/\\/\\\\/g;
+		$name =~s/'/\\'/g;
+		$variant = "\t\t\t'$type' => '$name',\n";
+	}
+
+	print $file <<EOT;
+has 'displayNameVariant' => (
+	is		=> 'ro',
+	isa		=> 'HashRef[Str]',
+	init_args	=> undef,
+	default		=> sub { 
+		{
+@variants
 		}
 	},
 );

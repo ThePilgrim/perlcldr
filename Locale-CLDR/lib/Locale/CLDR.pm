@@ -213,7 +213,7 @@ sub _find_bundle {
 }
 
 # Method to return the given local name in the current locals format
-sub get_local_name {
+sub local_name {
 	my ($self, $name) = @_;
 	$name //= $self;
 
@@ -235,16 +235,61 @@ sub get_local_name {
 
 	# Now we have to process each individual element
 	# to pass to the display name pattern
-	my $language = 'und';
+	my $language = $self->language_name($name);
+	my $script = $self->script_name($name);
+	my $territory = $self->territory_name($name);
+	my $variant = $self->variant_name($name);
+
+	$bundle = $self->_find_bundle('displayNamePattern');
+	return $bundel->displayNamePattern($name, $territory, $script, $variant);
+}
+
+sub language_name {
+	my ($self, $name) = @_;
+
+	$name //= $self;
+
+	my $code = ref $name
+		? $name->language
+		: $name;
+
+	my $language = undef;
 	foreach my $bundle (@bundles) {
-		my $display_name = $bundel->displayNameLanguage($name->language);
-		if (defined $name) {
+		my $display_name = $bundel->displayNameLanguage->{$code};
+		if (defined $display_name) {
 			$language = $display_name;
 			last;
 		}
 	}
 
-	my $script;
+	# If we don't have a display name for the language we try again
+	# with the und tag
+	if (! defined $language ) {
+		foreach my $bundle (@bundles) {
+			my $display_name = $bundel->displayNameLanguage->{'und'};
+			if (defined $display_name) {
+				$language = $display_name;
+				last;
+			}
+		}
+	}
+
+	return $language;
+}
+
+sub script_name {
+	my ($self, $name) = @_;
+	$name //= $self;
+
+	if ( ref $name && ! $name->has_script ) {
+		return undef;
+	}
+
+	if (! ref $name ) {
+		$name = __PACKAGE__->new(language => 'und', script => $name);
+	}
+
+	my $script = undef;
 	@bundles = $self->_find_bundle('displayNameScript');
 	foreach my $bundle (@bundles) {
 		$script = $bundel->displayNameScript->{$name->script};
@@ -252,9 +297,72 @@ sub get_local_name {
 			last;
 		}
 	}
-	
-	$bundle = $self->_find_bundle('displayNamePattern');
-	return $bundel->displayNamePattern($name);
+
+	if (! defined $script) {
+		foreach my $bundle (@bundles) {
+			$script = $bundel->displayNameScript->{'Zzzz'};
+			if (defined $script) {
+				last;
+			}
+		}
+	}
+
+	return $script;
+}
+
+sub territory_name {
+	my ($self, $name) = @_;
+	$name //= $self;
+
+	if ( ref $name && ! $name->has_territory) {
+		return undef;
+	}
+
+	if (! ref $name ) {
+		$name = __PACKAGE__->new(languge => 'und', territory => $name);
+	}
+
+	my $territory = undef;
+	@bundles = $self->_find_bundle('displayNameTerritory');
+	foreach my $bundle (@bundles) {
+		$territory = $bundel->displayNameTerritory->{$name->territory};
+		if (defined $territory) {
+			last;
+		}
+	}
+
+	if (! defined $territory) {
+		foreach my $bundle (@bundles) {
+			$territory = $bundel->displayNameTerritory->{'ZZ'};
+			if (defined $territory) {
+				last;
+			}
+		}
+	}
+
+	return $territory;
+}
+
+sub variant_name {
+	my ($self, $name) = @_;
+	$name //= $self;
+
+	if (! ref $name ) {
+		$name = __PACKAGE__->new(language=> 'und', variant => $name);
+	}
+
+	my $variant = undef;
+	if ($name->has_variant) {
+		@bundles = $self->_find_bundle('displayNameVariant');
+		foreach my $bundle (@bundles) {
+			$variant= $bundel->displayNameVariant->{$name->variant};
+			if (defined $variant) {
+				last;
+			}
+		}
+	}
+
+	return $variant;
 }
 
 =head1 AUTHOR
