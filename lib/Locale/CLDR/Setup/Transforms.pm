@@ -1,5 +1,7 @@
 package Locale::CLDR::Setup::Transforms;
 use base 'Locale::CLDR::Setup::Base';
+use strict;
+use warnings;
 
 use File::Path;
 use File::Basename;
@@ -10,27 +12,26 @@ our @Transform_List = ();
 sub _calculate_file_names {
   my $self = shift;
 
-  my $filename = [ File::Spec->catfile('Transform',$self->{transforms}[0]{from},$self->{transforms}[0]{to}) ];
-  if ($self->{transforms}[0]{direction} eq 'both') {
-    push @$filename, File::Spec->catfile('Transform',$self->{transforms}[0]{to},$self->{transforms}[0]{from});
+  my $filename = [ File::Spec->catfile('Transform',$self->{xpath}->findvalue('/supplementalData/transforms/transform/@source'),$self->{xpath}->findvalue('/supplementalData/transforms/transform/@target')) ];
+  if ($self->{xpath}->exists('/supplementalData/transforms/transform[@direction=\'both\']')) {
+    push @$filename, File::Spec->catfile('Transform',$self->{xpath}->findvalue('/supplementalData/transforms/transform/@target'),$self->{xpath}->findvalue('/supplementalData/transforms/transform/@source'));
   }
-  if (defined $self->{transforms}[0]{variant}) {
+  if ($self->{xpath}->exists('/supplementalData/transforms/transform/@variant')) {
     foreach (@$filename) {
-      $_=File::Spec->catfile($_,$self->{transforms}[0]{variant});
+      $_=File::Spec->catfile($_,$self->{xpath}->findvalue('/supplementalData/transforms/transform/@variant'));
     }
   }
   # Fix for CLDR bug 2043
   if (
     (
-      $self->{transforms}[0]{from} eq 'Thaana'
-      && $self->{transforms}[0]{to} eq 'Latin'
-    )
+      $self->{xpath}->exists('/supplementalData/transforms/transform[@source=\'Thaana\'')
+      && $self->{xpath}->exists('/supplementalData/transforms/transform[@target=\'Latin\'') 
     ||
     (
-      $self->{transforms}[0]{from} eq 'Aboriginal'
-      && $self->{transforms}[0]{to} eq 'Latin'
+      $self->{xpath}->exists('/supplementalData/transforms/transform[@source=\'Aboriginal\'')
+      && $self->{xpath}->exists('supplementalData/transforms/transform[@target=\'Latin\'')
     )
-  ) {
+  )) {
     @$filename = reverse @$filename;
   }
   $self->{__cache__}{filenames} = $filename;
@@ -206,14 +207,14 @@ FORWARD_CONVERSION_RULE: BEFORE_CONTEXT(?) TEXT_TO_REPLACE(?) AFTER_CONTEXT(?) '
   }
 
   if (length $before->[0]) {
-    $before = "before => qr($before->[0]\\G)x,";
+    $before = "$before=>[0]\\K";
   }
   else {
     $before = '';
   }
 
   $replace->[0] = '' unless defined $replace->[0];
-  $from.="\\G$replace->[0]";
+  $from.="$before\\G$replace->[0]";
   if (length $after->[0]) {
     $from.="(?=$after->[0])";
   }
@@ -224,7 +225,7 @@ FORWARD_CONVERSION_RULE: BEFORE_CONTEXT(?) TEXT_TO_REPLACE(?) AFTER_CONTEXT(?) '
     $compleated->[0].=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { $before from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
+  $return = "push \@{\$rules[-1]}, { from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
 }
 
 BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) '←' BEFORE_CONTEXT(?) TEXT_TO_REPLACE(?) AFTER_CONTEXT(?)
@@ -245,12 +246,12 @@ DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?)
     $string = Unicode::Regex::Parser::parser->Regex(\$set);
   }
   if (length $before->[0]) {
-    $before = "before => qr($before->[0]\\G)x,";
+    $before = "$before->[0]\\K";
   }
   else {
     $before = '';
   }
-  $from.="\\G$replace->[0]";
+  $from.="$before\\G$replace->[0]";
   if (length $after->[0]) {
     $from.="(?=$after->[0])";
   }
@@ -261,7 +262,7 @@ DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?)
     $compleated->[0].=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { $before from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
+  $return = "push \@{\$rules[-1]}, { from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
 }
 
 BEFORE_CONTEXT: <skip:''> CHARACTER_TYPE_EXCLUDE["{;←↔→\x{ff5b}"](s) /[\x{ff5b}{]/
@@ -419,13 +420,13 @@ BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) '←' BEFORE_
     $string = Unicode::Regex::Parser::parser->Regex(\$set);
   }
   if (length $before->[0]) {
-    $before = "before => qr($before->[0]\\G)x,";
+    $before = "$before->[0]\\K";
   }
   else {
     $before = '';
   }
   $replace->[0] ='' unless defined $replace->[0];
-  $from.="\\G$replace->[0]";
+  $from.="$before\\G$replace->[0]";
   if (length $after->[0]) {
     $from.="(?=$after->[0])";
   }
@@ -438,7 +439,7 @@ BACKWARD_CONVERSION_RULE: COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) '←' BEFORE_
 
   # Fixup $ at end of 'to' string
   $compleated->[0]=~s/\$$/\\\$/;
-  $return = "push \@{\$rules[-1]}, { $before from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
+  $return = "push \@{\$rules[-1]}, { from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
 }
 
 DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) AFTER_CONTEXT(?) '↔' BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?) AFTER_CONTEXT(?)
@@ -454,12 +455,12 @@ DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?)
     $string = Unicode::Regex::Parser::parser->Regex(\$set);
   }
   if (length $before->[0]) {
-    $before = "before => qr($before->[0]\\G)x,";
+    $before = "$before->[0]\\K";
   }
   else {
     $before = '';
   }
-  $from.="\\G$replace->[0]";
+  $from.="$before\\G$replace->[0]";
   if (length $after->[0]) {
     $from.="(?=$after->[0])";
   }
@@ -470,7 +471,7 @@ DUAL_CONVERSION_RULE: BEFORE_CONTEXT(?) COMPLEATED_RESULT(?) RESULT_TO_REVIST(?)
     $compleated->[0].=$revisit->[0];
   }
 
-  $return = "push \@{\$rules[-1]}, { $before from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
+  $return = "push \@{\$rules[-1]}, { from => qr($from)x, to => \"$compleated->[0]\", offset => '$offset' };\n";
 }
 
 EOGRAMMAR
@@ -479,7 +480,7 @@ EOGRAMMAR
   my $direction = $additional_paramaters->{backwards} ? 'backwards' : 'forwards';
   my $count = 0;
 
-  print STDERR "From: $self->{file_name}; Direction: $direction\n" if $verbose;
+  print STDERR "From: $self->{file_name}; Direction: $direction\n" if $::verbose;
   print $file <<'EOT';
 use Unicode::Normalize;
 use base 'Locale::CLDR::Transform';
@@ -488,36 +489,36 @@ our @rules;
 push @rules, [];
 
 EOT
-  foreach my $transformation (@{$self->{transforms}}) {
+  my $transformation=$self->{xpath}->find('/supplementalData/transforms/transform/tRule');
 
-    # Preprocess the rules so that we pass in a rule with no
-    # white space or escaped characters. Also a rule can span 
-    # multiple tRule elements so we need to check for that.
+  # Preprocess the rules so that we pass in a rule with no
+  # white space or escaped characters. Also a rule can span 
+  # multiple tRule elements so we need to check for that.
 
-    my @rules = @{$transformation->{rules}};
+  my @rules= 
+    map { $_->getChildNode(1)->getValue }
+    $transformation->get_nodelist;
 
-    for (my $count = 0; $count < @rules; $count++) {
-      while ($rules[$count]=~s/\\\s*$//) {
-        $rules[$count+1]="$rules[$count]$rules[$count+1]";
-	$rules[$count] = undef;
-	$count++;
-      }
+  for (my $count = 0; $count < @rules; $count++) {
+    while ($rules[$count]=~s/\\\s*$//) {
+      $rules[$count+1]="$rules[$count]$rules[$count+1]";
+      $rules[$count] = undef;
+      $count++;
     }
-    
-    @{$transformation->{rules}} = grep {defined} @rules;
-
-    # $rules[$count] now contains the rule on one line
-#    $::RD_TRACE=1;
-    print $file (
-      $direction eq   'backwards'
-        ? $transformParserBackwards
-	: $transformParserForwards
-    )->Transforms(join "\n", @{$transformation->{rules}});
   }
+    
+  @rules = grep {defined} @rules;
+
+  # $rules[$count] now contains the rule on one line
+    $::RD_TRACE=1;
+  print $file (
+    $direction eq   'backwards'
+      ? $transformParserBackwards
+      : $transformParserForwards
+  )->Transforms(join "\n", @rules);
   push @Transform_List,
     [$self->get_package_name()=~/^Local::CLDR::Transform::(.*?)::(.*?)(?:::(.*))?$/]
-    unless (defined $self->{transforms}[0]{visibility}
-      && $self->{transforms}[0]{visibility} eq 'internal');
+    unless $self->{xpath}->exists('/supplementalData/transforms/transform[@visibility=\'internal\'');
 }
 
 sub create_list_file {

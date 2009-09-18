@@ -34,7 +34,7 @@ sub current_file_name {
 
 sub _calculate_file_names {
   my $self = shift;
-  $self->{__cache__}{filenames} = [File::Spec->catfile(map {defined($_) ? ucfirst lc $_ : 'Any'} @$self{qw{_section_ language script territory variant}})];
+  $self->{__cache__}{filenames} = [File::Spec->catfile(map {length ($_) ? ucfirst lc $_ : 'Any'} ($self->{_section_}, map {$self->{xpath}->findvalue("/ldml/identity/$_/\@type")} qw( language script territory variant)))];
   tr[-][_] foreach @{$self->{__cache__}{filenames}};
   return $self->{__cache__}{filenames};
 }
@@ -59,25 +59,40 @@ sub create_file {
 
 sub version {
   my $self = shift;
-  if (@_) {
-    $self->{version} = $_[0];
-  }
-  return $self->{version};
+
+  my $version = $self->{xpath}->findvalue('/ldml/identity/version/@number');
+  return $self->{version} 
+    unless $version;
+
+  ($version) = $version=~/([\d\.]+)/;
+  return $version;
 }
 
 sub generation_date {
   my $self = shift;
-  if (@_) {
-    $self->{generation} = $_[0];
-  }
-  return $self->{generation} || 'unknown date';
+
+  my $date = $self->{xpath}->findvalue('/ldml/identity/generation/@date');
+  ($date) = $date =~/(\d[\d\/ :]+\d)/;
+  $date ||= 'Unknown date';
+  return $date;
 }
 
 sub get_package_name {
   my $self = shift;
-  my $package = join '::', (qw(Locale CLDR),
-    map {defined($_) ? ucfirst lc $_ : 'Any' }
-    @$self{qw{_section_ language script territory variant}});
+  my $package = join '::', (
+    qw(Locale CLDR), (
+      map {
+        length ($_)
+	  ? ucfirst lc $_
+	  : 'Any'
+      } (
+        $self->{_section_},
+	map {
+	  $self->{xpath}->findvalue("/ldml/identity/$_/\@type")
+	} qw( language script territory variant)
+      )
+    )
+  );
   return $package;
 }
 

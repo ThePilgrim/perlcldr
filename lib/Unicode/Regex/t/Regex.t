@@ -68,3 +68,4 @@ ok(testregex('[[ace][bdf] - [abc][def]]'), "");
 ok(testregex('[[ace][bdf] - [abc][df]]'), "e");
 ok(testregex('[[ [:alnum:] ]-[0123]]*'), "456789$upper$lower");
 ok(testregex('[^[iuyIUY]]'), "${digit}ABCDEFGHJKLMNOPQRSTVWXZabcdefghjklmnopqrstvwxz$space$punct");
+ok(testregex('[[:alnum:]-[a]]',"a"));

@@ -5,7 +5,7 @@ use base 'Local::CLDR';
 
 # Base clas for Transformations
 
-# Default filter is '.' to return eveery character in the string.
+# Default filter is '.' to return every character in the string.
 # This will be overridden by those transformations that require a filter
 sub filter_re {
   return qr/./s;
@@ -121,14 +121,9 @@ sub Convert {
         while(pos($sub_string) < length($sub_string)) {
         if (ref $rule eq 'ARRAY') {
           foreach my $transformation (@$rule) {
-	    if (
-	      ! exists $transformation->{before}
-	      || ( $transformation->{before} && $sub_string=~/$transformation->{before}/)
-	      ){
-	      if ($sub_string=~s/$transformation->{from}/$transformation->{to}/e) {
-	        pos($sub_string)+=eval "$transformation->{offset}";
-	        last;
-	      }
+	    if ($sub_string=~s/$transformation->{from}/$transformation->{to}/e) {
+	      pos($sub_string)+=eval "$transformation->{offset}";
+	      last;
 	    }
 	    pos($sub_string)++;
 	  }

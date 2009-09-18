@@ -7,7 +7,7 @@ use open IO => ':utf8';
 
 use FindBin;
 use File::Spec;
-use XML::XPath;
+use XML::XPath qw(node_pos);
 use LWP::UserAgent;
 use Archive::Extract;
 use DateTime;
@@ -77,6 +77,13 @@ die "Incorrect CLDR Version found $cldrVersion. It should be $VERSION"
 say "Processing files";
 
 # Process main files
+
+sub collapse_text_nodes {
+	my $node = shift;
+	my @children;
+        my $first;
+	($first, @children ) = $node->getChildNodes;
+
 foreach my $file_name ( 'root.xml', 'en.xml') {
 	my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
 		'main',
@@ -95,12 +102,15 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 		File::Spec->catfile($base_directory, 'main', $file_name)
 	);
 
+	process_cp($file, $xmp);
 	process_fallback($file, $xml);
 	process_display_pattern($file, $xml);
 	process_display_language($file, $xml);
 	process_display_script($file, $xml);
 	process_display_territory($file, $xml);
 	process_display_variant($file, $xml);
+	process_display_key($file, $xml);
+	process_display_type($file,$xml);
 	process_footer($file);
 
 	close $file;
@@ -126,6 +136,23 @@ use Moose;
 
 EOT
 }
+
+sub process_cp {
+	my ($file, $xpath) = @_;
+	foreach my $character ( $xpath->findnodes('//cp')) {
+		my $hex = $character->getAttribute('hex');
+       		my $chr = chr($hex);
+		my $nodepos = $character->get_pos;
+		my $parent = $character->getParentNode;
+		$parent->[node_children][$nodepos]
+			=bless [
+				$parent,
+				$nodepos,
+				$chr,
+				], 'XML::XPath::Text';
+		collapse_text_nodes($parent);
+ 	}
+}	
 
 sub process_fallback {
 	my ($file, $xpath) = @_;
@@ -305,6 +332,40 @@ has 'displayNameVariant' => (
 );
 
 EOT
+}
+
+sub process_display_key {
+	my ($file, $xpath) = @_;
+	my @keys= $xpath
+		->findnodes('/ldml/localeDisplayNames/keys/key');
+	
+	return unless @keys;
+	foreach my $key (@keys) {
+		my $type = $variant->getAttribute('type');
+		my $name = $variant->getChildNode(1)->getValue;
+		$name =~s/\\/\\\\/g;
+		$name =~s/'/\\'/g;
+	}
+
+	print $file 
+	
+	<<EOT;
+has 'displayNameKey' => (
+	is		=> 'ro',
+	isa		=> 'HashRef[Str]',
+	init_args	=> undef,
+	default		=> sub { 
+		{
+@keys
+		}
+	},
+);
+
+EOT
+}
+
+sub process_display_type {
+	my ($file, $xpath) = @_;
 }
 
 sub process_footer {

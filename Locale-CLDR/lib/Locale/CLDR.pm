@@ -67,6 +67,16 @@ has 'method_cashe' => (
 	init_arg	=> undef,
 );
 
+has 'valid_keys' => (
+	is			=> 'ro',
+	isa			=> 'ArrayRef[Str]',
+	init_arg		=> undef,
+	auto_deref		=> 1,
+	default		=> sub {
+		return [ qw( colation calendar currency numbers timezone ) ];
+	},
+};
+
 sub BUILDARGS {
 	my $self = shift;
 	my %args;
@@ -363,6 +373,22 @@ sub variant_name {
 	}
 
 	return $variant;
+}
+
+sub key_name {
+	my ($self, $key) = @_;
+	die "No key given" unless defined $key;
+	my $key_name = undef;
+	my @bundles = $self->_find_bundle('displayNameKey');
+		foreach my $bundle (@bundles) {
+			$key = $bundel->displayNameKey->{$key};
+			if (defined $variant) {
+				last;
+			}
+		}
+	}
+
+	return $key_name // $key;
 }
 
 =head1 AUTHOR
