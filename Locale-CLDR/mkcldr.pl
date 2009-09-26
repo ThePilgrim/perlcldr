@@ -7,7 +7,8 @@ use open IO => ':utf8';
 
 use FindBin;
 use File::Spec;
-use XML::XPath qw(node_pos);
+use XML::XPath; 
+use XML::XPath::Node::Text;
 use LWP::UserAgent;
 use Archive::Extract;
 use DateTime;
@@ -78,12 +79,6 @@ say "Processing files";
 
 # Process main files
 
-sub collapse_text_nodes {
-	my $node = shift;
-	my @children;
-        my $first;
-	($first, @children ) = $node->getChildNodes;
-
 foreach my $file_name ( 'root.xml', 'en.xml') {
 	my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
 		'main',
@@ -102,7 +97,7 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 		File::Spec->catfile($base_directory, 'main', $file_name)
 	);
 
-	process_cp($file, $xmp);
+	process_cp($file, $xml);
 	process_fallback($file, $xml);
 	process_display_pattern($file, $xml);
 	process_display_language($file, $xml);
@@ -140,17 +135,21 @@ EOT
 sub process_cp {
 	my ($file, $xpath) = @_;
 	foreach my $character ( $xpath->findnodes('//cp')) {
-		my $hex = $character->getAttribute('hex');
-       		my $chr = chr($hex);
-		my $nodepos = $character->get_pos;
 		my $parent = $character->getParentNode;
-		$parent->[node_children][$nodepos]
-			=bless [
-				$parent,
-				$nodepos,
-				$chr,
-				], 'XML::XPath::Text';
-		collapse_text_nodes($parent);
+		my @siblings = $parent->getChildNodes;
+		my $text = '';
+		foreach my $sibling (@siblings) {
+			if ($sibling->isTextNode) {
+				$text.=$sibling->getNodeValue;
+			}
+			else {
+				my $hex = $character->getAttribute('hex');
+       			my $chr = chr(hex $hex);
+				$text .= $chr;
+			}
+			$parent->removeChild($sibling);
+		}
+		$parent->appendChild(XML::XPath::Node::Text->new($text));
  	}
 }	
 
@@ -341,8 +340,8 @@ sub process_display_key {
 	
 	return unless @keys;
 	foreach my $key (@keys) {
-		my $type = $variant->getAttribute('type');
-		my $name = $variant->getChildNode(1)->getValue;
+		my $type = $key->getAttribute('type');
+		my $name = $key->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
 	}
