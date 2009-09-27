@@ -57,8 +57,8 @@ if (! -d $base_directory) {
 
 # Now check that we have a 'common' directory
 die <<EOM
-We successfully unzipped the core.zip file but don't have a 'common' 
-directory. Is this a version $VERSION Unicode core.zip file
+I successfully unzipped the core.zip file but don't have a 'common' 
+directory. Is this version $VERSION of the Unicode core.zip file?
 EOM
 
 	unless -d File::Spec->catdir($base_directory);
@@ -75,7 +75,8 @@ my $cldrVersion = $sdf->findnodes('/supplementalData/cldrVersion')
 die "Incorrect CLDR Version found $cldrVersion. It should be $VERSION"
 	unless $cldrVersion eq $VERSION;
 
-say "Processing files";
+say "Processing files"
+	if $verbose;
 
 # Process main files
 
@@ -91,7 +92,9 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 	my $package = $output_file_name = ucfirst $output_file_name;
 	$package =~s/\.pm$//;
 
-	open my $file, '>', File::Spec->catfile($lib_directory, $output_file_name);
+	open my $file,
+		'>',
+		File::Spec->catfile($lib_directory, $output_file_name);
 
 	# Note: The order of these calls is important
 	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, 
@@ -116,6 +119,9 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 # Process the elements of the file note
 sub process_header {
 	my ($file, $class, $version, $xpath, $xml_name) = @_;
+	say "Processing File $xml_name\nProcessing Header"
+		if $verbose;
+
 	$xml_name =~s/^.*(Data.*)$/$1/;
 	my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
 	my $xml_generated = $xpath->findnodes('/ldml/identity/generation')
@@ -136,6 +142,8 @@ EOT
 
 sub process_alias {
 	my ($file, $xpath) = @_;
+	say "Processing Aliases"
+		if $verbose;
 
 	# find all the alias nodes
 	while ( my @alias = $xpath->findnodes('//alias')->get_nodelist) {
@@ -162,13 +170,17 @@ sub process_alias {
 			$replace_me->removeChild($alias);
 		}
 		else {
-			die "Can't process none local aliases";
+			die "Can't process remote aliases";
 		}
 	}
 }
 
 sub process_cp {
 	my ($file, $xpath) = @_;
+
+	say "Processing Cp"
+		if $verbose;
+
 	foreach my $character ( $xpath->findnodes('//cp')) {
 		my $parent = $character->getParentNode;
 		my @siblings = $parent->getChildNodes;
@@ -190,6 +202,10 @@ sub process_cp {
 
 sub process_fallback {
 	my ($file, $xpath) = @_;
+
+	say "Processing Fallback"
+		if $verbose;
+
 	my $fallback = $xpath->getNodeText('/ldml/fallback') // '';
 
 	print $file <<EOT;
@@ -206,6 +222,10 @@ EOT
 
 sub process_display_pattern {
 	my ($file, $xpath) = @_;
+
+	say "Processing Display Pattern"
+		if $verbose;
+
 	my $display_pattern = $xpath
 		->getNodeText('/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
 	
@@ -219,7 +239,7 @@ sub process_display_pattern {
 	}
 	
 	print $file <<EOT;
-sub displayNamePattern {
+sub display_name_pattern {
 	my (\$self, \$name, \$territory, \$script, \$variant) = \@_;
 
 	my \$display_pattern = '$display_pattern';
@@ -238,6 +258,9 @@ EOT
 
 sub process_display_language {
 	my ($file, $xpath) = @_;
+	say "Processing Display Language"
+		if $verbose;
+
 	my @languages = $xpath
 		->findnodes('/ldml/localeDisplayNames/languages/language');
 	
@@ -255,7 +278,7 @@ sub process_display_language {
 	}
 
 	print $file <<EOT;
-has 'displayNameLanguage' => (
+has 'display_name_language' => (
 	is		=> 'ro',
 	isa		=> 'HashRef[Str]',
 	init_args	=> undef,
@@ -271,6 +294,10 @@ EOT
 
 sub process_display_script {
 	my ($file, $xpath) = @_;
+
+	say "Processing Display Script"
+		if $verbose;
+
 	my @scripts = $xpath
 		->findnodes('/ldml/localeDisplayNames/scripts/script');
 	
@@ -288,7 +315,7 @@ sub process_display_script {
 	}
 
 	print $file <<EOT;
-has 'displayNameScript' => (
+has 'display_name_script' => (
 	is		=> 'ro',
 	isa		=> 'HashRef[Str]',
 	init_args	=> undef,
@@ -304,6 +331,10 @@ EOT
 
 sub process_display_territory {
 	my ($file, $xpath) = @_;
+
+	say "Processing Display Territory"
+		if $verbose;
+
 	my @territories = $xpath
 		->findnodes('/ldml/localeDisplayNames/territories/territory');
 	
@@ -321,7 +352,7 @@ sub process_display_territory {
 	}
 
 	print $file <<EOT;
-has 'displayNameTerritory' => (
+has 'display_name_territory' => (
 	is		=> 'ro',
 	isa		=> 'HashRef[Str]',
 	init_args	=> undef,
@@ -337,6 +368,10 @@ EOT
 
 sub process_display_variant {
 	my ($file, $xpath) = @_;
+
+	say "Processing Display Variant"
+		if $verbose;
+
 	my @variants= $xpath
 		->findnodes('/ldml/localeDisplayNames/variants/variant');
 	
@@ -354,7 +389,7 @@ sub process_display_variant {
 	}
 
 	print $file <<EOT;
-has 'displayNameVariant' => (
+has 'display_name_variant' => (
 	is		=> 'ro',
 	isa		=> 'HashRef[Str]',
 	init_args	=> undef,
@@ -370,6 +405,10 @@ EOT
 
 sub process_display_key {
 	my ($file, $xpath) = @_;
+
+	say "Processing Display Key"
+		if $verbose;
+
 	my @keys= $xpath
 		->findnodes('/ldml/localeDisplayNames/keys/key');
 	
@@ -381,10 +420,8 @@ sub process_display_key {
 		$name =~s/'/\\'/g;
 	}
 
-	print $file 
-	
-	<<EOT;
-has 'displayNameKey' => (
+	print $file <<EOT;
+has 'display_name_key' => (
 	is		=> 'ro',
 	isa		=> 'HashRef[Str]',
 	init_args	=> undef,
@@ -400,10 +437,17 @@ EOT
 
 sub process_display_type {
 	my ($file, $xpath) = @_;
+
+	say "Processing Display Type"
+		if $verbose;
+
 }
 
 sub process_footer {
 	my $file = shift;
+
+	say "Processing Footer"
+		if $verbose;
 
 	say $file 'no Moose;';
 	say $file '1;';

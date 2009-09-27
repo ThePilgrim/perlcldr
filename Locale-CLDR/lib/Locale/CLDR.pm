@@ -75,7 +75,7 @@ has 'valid_keys' => (
 	default		=> sub {
 		return [ qw( colation calendar currency numbers timezone ) ];
 	},
-};
+);
 
 sub BUILDARGS {
 	my $self = shift;
@@ -169,7 +169,7 @@ sub BUILD {
 		require Local::CLDR::En;
 		push @modules, Local::CLDR::En->new
 	}
-	;
+
 	$self->_set_modules(\@modules);
 }
 
@@ -231,10 +231,10 @@ sub local_name {
 		? join ('_', $name->language, $name->region)
 		: $name;
 	
-	my @bundles = $self->_find_bundle('displayNameLanguage');
+	my @bundles = $self->_find_bundle('display_name_language');
 
 	foreach my $bundle (@bundles) {
-		my $display_name = $bundel->displayNameLanguage->{$code};
+		my $display_name = $bundle->display_name_language->{$code};
 		return $display_name if defined $display_name;
 	}
 
@@ -250,8 +250,9 @@ sub local_name {
 	my $territory = $self->territory_name($name);
 	my $variant = $self->variant_name($name);
 
-	$bundle = $self->_find_bundle('displayNamePattern');
-	return $bundel->displayNamePattern($name, $territory, $script, $variant);
+	my $bundle = $self->_find_bundle('display_name_pattern');
+	return $bundle
+		->display_name_pattern($name, $territory, $script, $variant);
 }
 
 sub language_name {
@@ -264,8 +265,10 @@ sub language_name {
 		: $name;
 
 	my $language = undef;
+	my @bundles = $self->_find_bundle('display_name_language');
+
 	foreach my $bundle (@bundles) {
-		my $display_name = $bundel->displayNameLanguage->{$code};
+		my $display_name = $bundle->display_name_language->{$code};
 		if (defined $display_name) {
 			$language = $display_name;
 			last;
@@ -276,7 +279,7 @@ sub language_name {
 	# with the und tag
 	if (! defined $language ) {
 		foreach my $bundle (@bundles) {
-			my $display_name = $bundel->displayNameLanguage->{'und'};
+			my $display_name = $bundle->display_name_language->{'und'};
 			if (defined $display_name) {
 				$language = $display_name;
 				last;
@@ -300,9 +303,9 @@ sub script_name {
 	}
 
 	my $script = undef;
-	@bundles = $self->_find_bundle('displayNameScript');
+	my @bundles = $self->_find_bundle('display_name_script');
 	foreach my $bundle (@bundles) {
-		$script = $bundel->displayNameScript->{$name->script};
+		$script = $bundle->display_name_script->{$name->script};
 		if (defined $script) {
 			last;
 		}
@@ -310,7 +313,7 @@ sub script_name {
 
 	if (! defined $script) {
 		foreach my $bundle (@bundles) {
-			$script = $bundel->displayNameScript->{'Zzzz'};
+			$script = $bundle->display_name_script->{'Zzzz'};
 			if (defined $script) {
 				last;
 			}
@@ -333,9 +336,9 @@ sub territory_name {
 	}
 
 	my $territory = undef;
-	@bundles = $self->_find_bundle('displayNameTerritory');
+	my @bundles = $self->_find_bundle('display_name_territory');
 	foreach my $bundle (@bundles) {
-		$territory = $bundel->displayNameTerritory->{$name->territory};
+		$territory = $bundle->display_name_territory->{$name->territory};
 		if (defined $territory) {
 			last;
 		}
@@ -343,7 +346,7 @@ sub territory_name {
 
 	if (! defined $territory) {
 		foreach my $bundle (@bundles) {
-			$territory = $bundel->displayNameTerritory->{'ZZ'};
+			$territory = $bundle->display_name_territory->{'ZZ'};
 			if (defined $territory) {
 				last;
 			}
@@ -363,9 +366,9 @@ sub variant_name {
 
 	my $variant = undef;
 	if ($name->has_variant) {
-		@bundles = $self->_find_bundle('displayNameVariant');
+		my @bundles = $self->_find_bundle('display_name_variant');
 		foreach my $bundle (@bundles) {
-			$variant= $bundel->displayNameVariant->{$name->variant};
+			$variant= $bundle->display_name_variant->{$name->variant};
 			if (defined $variant) {
 				last;
 			}
@@ -379,23 +382,24 @@ sub key_name {
 	my ($self, $key) = @_;
 	die "No key given" unless defined $key;
 	my $key_name = undef;
-	my @bundles = $self->_find_bundle('displayNameKey');
-		foreach my $bundle (@bundles) {
-			$key = $bundel->displayNameKey->{$key};
-			if (defined $variant) {
-				last;
-			}
+	my @bundles = $self->_find_bundle('display_name_key');
+	foreach my $bundle (@bundles) {
+		$key = $bundle->display_name_key->{$key};
+		if (defined $key) {
+			last;
 		}
 	}
-
 	return $key_name // $key;
 }
 
 =head1 AUTHOR
 
-John Imrie, C<< <john.imrie at vodafoeemail.co.uk> >>
+John Imrie, C<< <john.imrie at vodafoneemail.co.uk> >>
 
 =head1 BUGS
+
+Please report any bugs or feture requests to me at the above email adddress 
+and ignore the CPAN stuff below for the present
 
 Please report any bugs or feature requests to C<bug-locale-cldr at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Locale-CLDR>.  I will be notified, and then you'll
