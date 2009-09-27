@@ -93,10 +93,12 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 
 	open my $file, '>', File::Spec->catfile($lib_directory, $output_file_name);
 
+	# Note: The order of these calls is important
 	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, 
 		File::Spec->catfile($base_directory, 'main', $file_name)
 	);
 
+	process_alias($file, $xml);
 	process_cp($file, $xml);
 	process_fallback($file, $xml);
 	process_display_pattern($file, $xml);
@@ -111,7 +113,7 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 	close $file;
 }
 
-# Process the elements of the file
+# Process the elements of the file note
 sub process_header {
 	my ($file, $class, $version, $xpath, $xml_name) = @_;
 	$xml_name =~s/^.*(Data.*)$/$1/;
@@ -130,6 +132,39 @@ package $class;
 use Moose;
 
 EOT
+}
+
+sub process_alias {
+	my ($file, $xpath) = @_;
+
+	# find all the alias nodes
+	while ( my @alias = $xpath->findnodes('//alias')->get_nodelist) {
+
+		# now replace the deepest node
+		my ($alias, $depth) = ('',0);
+		foreach my $test (@alias) {
+			if ( (my $current_depth = $xpath
+				->find('count(ancestor-or-self::*)', $test)
+				->value) > $depth) {
+				$depth = $current_depth;
+				$alias = $test;
+			}
+		}
+		my $path=$alias->getAttribute('path');
+		my $replace_me = $alias->getParentNode;
+		# Process local nodes
+		if ($alias->getAttribute('source') eq 'locale' ) {
+			my @replacements = $xpath->findnodes("$path/*", $replace_me)
+				->get_nodelist;
+			foreach my $replacement (@replacements) {
+				$replace_me->insertBefore($replacement,$alias);
+			}
+			$replace_me->removeChild($alias);
+		}
+		else {
+			die "Can't process none local aliases";
+		}
+	}
 }
 
 sub process_cp {
