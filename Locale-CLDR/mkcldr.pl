@@ -101,7 +101,6 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 		File::Spec->catfile($base_directory, 'main', $file_name)
 	);
 
-	process_alias($file, $xml);
 	process_cp($file, $xml);
 	process_fallback($file, $xml);
 	process_display_pattern($file, $xml);
@@ -114,6 +113,15 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 	process_footer($file);
 
 	close $file;
+}
+
+# This sub looks fof nodes along an xpath. If it can't find
+# any it starts looking for alias nodes
+sub findnodes {
+	my ($xpath, $path ) = @_;
+	my $nodes = $xpath->findnodes($path);
+	return $nodes if $nodes->size;
+	return process_alias($xpath, $path);
 }
 
 # Process the elements of the file note
@@ -141,33 +149,33 @@ EOT
 }
 
 sub process_alias {
-	my ($file, $xpath) = @_;
-	say "Processing Aliases"
-		if $verbose;
+	my ($xpath, $path) = @_;
+	my $origanal_path = $path;
 
-	# find all the alias nodes
-	while ( my @alias = $xpath->findnodes('//alias')->get_nodelist) {
-
-		# now replace the deepest node
-		my ($alias, $depth) = ('',0);
-		foreach my $test (@alias) {
-			if ( (my $current_depth = $xpath
-				->find('count(ancestor-or-self::*)', $test)
-				->value) > $depth) {
-				$depth = $current_depth;
-				$alias = $test;
+	my $nodes;
+	while (1) {
+		$path=~s/\/[^\/]*$/alias/;
+		$nodes = $xpath->findnodes($path);
+		unless ($nodes->size) {
+			if ($path=~s/\/[^\/]+\/alias$/\/alias/) {
+				next;
+			}
+			else {
+				return;
 			}
 		}
-		my $path=$alias->getAttribute('path');
-		my $replace_me = $alias->getParentNode;
+		# now replace the node
+		my $new_path=$nodes->getAttribute('path');
+		my $replace_me = $nodes->getParentNode;
 		# Process local nodes
-		if ($alias->getAttribute('source') eq 'locale' ) {
-			my @replacements = $xpath->findnodes("$path/*", $replace_me)
+		if ($nodes->getAttribute('source') eq 'locale' ) {
+			my @replacements = $xpath->findnodes("$new_path/*", $replace_me)
 				->get_nodelist;
 			foreach my $replacement (@replacements) {
-				$replace_me->insertBefore($replacement,$alias);
+				$replace_me->insertBefore($replacement,$nodes);
 			}
-			$replace_me->removeChild($alias);
+			$replace_me->removeChild($nodes);
+			return $xpath->findnodes($origanal_path);
 		}
 		else {
 			die "Can't process remote aliases";
