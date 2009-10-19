@@ -132,7 +132,8 @@ sub process_header {
 
 	$xml_name =~s/^.*(Data.*)$/$1/;
 	my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
-	my $xml_generated = $xpath->findnodes('/ldml/identity/generation')
+#	my $xml_generated = $xpath->findnodes('/ldml/identity/generation')
+	my $xml_generated = findnodes($xpath, '/ldml/identity/generation')
 		->get_node
 		->getAttribute('date');
 	$xml_generated=~s/^\$Date: (.*) \$$/$1/;
@@ -154,7 +155,7 @@ sub process_alias {
 
 	my $nodes;
 	while (1) {
-		$path=~s/\/[^\/]*$/alias/;
+		$path=~s/\/[^\/]*$/\/alias/;
 		$nodes = $xpath->findnodes($path);
 		unless ($nodes->size) {
 			if ($path=~s/\/[^\/]+\/alias$/\/alias/) {
@@ -214,7 +215,9 @@ sub process_fallback {
 	say "Processing Fallback"
 		if $verbose;
 
-	my $fallback = $xpath->getNodeText('/ldml/fallback') // '';
+#	my $fallback = $xpath->getNodeText('/ldml/fallback') // '';
+	my $fallback = findnodes($xpath, '/ldml/fallback');
+	$fallback = $fallback ? $fallback->get_node->string_value : '';
 
 	print $file <<EOT;
 has 'fallback' => (
@@ -234,11 +237,15 @@ sub process_display_pattern {
 	say "Processing Display Pattern"
 		if $verbose;
 
-	my $display_pattern = $xpath
-		->getNodeText('/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
+	my $display_pattern = # $xpath
+#		->getNodeText('/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
+		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
+	$display_pattern = defined $display_pattern ? $display_pattern->get_node->string_value : $display_pattern;
 	
-	my $display_seperator = $xpath
-		->getNodeText('/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
+	my $display_seperator = # $xpath
+#		->getNodeText('/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
+		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
+	$display_seperator = $display_seperator ? $display_seperator->get_node->string_value : '';
 	
 	return unless defined $display_pattern;
 	foreach ($display_pattern, $display_seperator) {
@@ -269,10 +276,10 @@ sub process_display_language {
 	say "Processing Display Language"
 		if $verbose;
 
-	my @languages = $xpath
-		->findnodes('/ldml/localeDisplayNames/languages/language');
+	my $languages = findnodes($xpath,'/ldml/localeDisplayNames/languages/language');
 	
-	return unless @languages;
+	return unless $languages;
+	my @languages = $languages->get_nodelist;
 	foreach my $language (@languages) {
 		my $type = $language->getAttribute('type');
 		my $variant = $language->getAttribute('alt');
@@ -306,10 +313,10 @@ sub process_display_script {
 	say "Processing Display Script"
 		if $verbose;
 
-	my @scripts = $xpath
-		->findnodes('/ldml/localeDisplayNames/scripts/script');
+	my $scripts = findnodes($xpath, '/ldml/localeDisplayNames/scripts/script');
 	
-	return unless @scripts;
+	return unless $scripts;
+	my @scripts = $scripts->get_nodelist;
 	foreach my $script (@scripts) {
 		my $type = $script->getAttribute('type');
 		my $variant = $script->getAttribute('alt');
@@ -343,10 +350,10 @@ sub process_display_territory {
 	say "Processing Display Territory"
 		if $verbose;
 
-	my @territories = $xpath
-		->findnodes('/ldml/localeDisplayNames/territories/territory');
+	my $territories = findnodes($xpath, '/ldml/localeDisplayNames/territories/territory');
 	
-	return unless @territories;
+	return unless $territories;
+	my @territories = $territories->get_nodelist;
 	foreach my $territory (@territories) {
 		my $type = $territory->getAttribute('type');
 		my $variant = $territory->getAttribute('alt');
@@ -380,10 +387,10 @@ sub process_display_variant {
 	say "Processing Display Variant"
 		if $verbose;
 
-	my @variants= $xpath
-		->findnodes('/ldml/localeDisplayNames/variants/variant');
+	my $variants= findnodes($xpath, '/ldml/localeDisplayNames/variants/variant');
 	
-	return unless @variants;
+	return unless $variants;
+	my @variants = $variants->get_nodelist;
 	foreach my $variant (@variants) {
 		my $type = $variant->getAttribute('type');
 		my $variant_attr = $variant->getAttribute('alt');
@@ -417,10 +424,10 @@ sub process_display_key {
 	say "Processing Display Key"
 		if $verbose;
 
-	my @keys= $xpath
-		->findnodes('/ldml/localeDisplayNames/keys/key');
+	my $keys= findnodes($xpath, '/ldml/localeDisplayNames/keys/key');
 	
-	return unless @keys;
+	return unless $keys;
+	my @keys = $keys->get_nodelist;
 	foreach my $key (@keys) {
 		my $type = $key->getAttribute('type');
 		my $name = $key->getChildNode(1)->getValue;
