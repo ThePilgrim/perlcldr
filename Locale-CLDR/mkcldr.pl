@@ -433,6 +433,7 @@ sub process_display_key {
 		my $name = $key->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
+		$key = "\t\t\t'$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
@@ -456,6 +457,40 @@ sub process_display_type {
 	say "Processing Display Type"
 		if $verbose;
 
+	my $types = findnodes($xpath, '/ldml/localeDisplayNames/types/type');
+	return unless $types;
+
+	my @types = $types->get_nodelist;
+	my %values;
+	foreach my $type_node (@types) {
+		my $type = $type_node->getAttribute('type');
+		my $key  = $type_node->getAttribute('key');
+		my $value = $type_node->getChildNode(1)->getValue;
+		$type //= 'default';
+		$values{$key}{$type} = $value;
+	}
+	@types = ();
+	foreach my $key (sort keys %values) {
+		push @types, "\t\t\t'$key' => {\n";
+		foreach my $type (sort keys %{$values{$key}}) {
+			push @types, "\t\t\t\t'$type' => '$values{$key}{$type}',\n";
+		}
+		push @types, "\t\t\t},\n";
+	}
+
+	print $file <<EOT;
+has 'display_name_type' => (
+	is		=> 'ro',
+	isa		=> 'HashRef[HashRef[Str]]',
+	init_args	=> undef,
+	default		=> sub {
+		{
+@types
+		}
+	},
+);
+
+EOT
 }
 
 sub process_footer {
