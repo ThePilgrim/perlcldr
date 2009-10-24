@@ -78,10 +78,29 @@ die "Incorrect CLDR Version found $cldrVersion. It should be $VERSION"
 say "Processing files"
 	if $verbose;
 
-# Process main files
+# The en.xml file contains a list of all valid locale codes
+# So we process them first
+my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
+	'main',
+	'en.xml',
+));
+
+open my $file, '>', 
+		File::Spec->catfile($lib_directory, 'ValidCodes.pm');
+
+process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml,
+	File::Spec->catfile($base_directory, 'main', 'en.xml')
+);
+
+process_cp($xml);
+process_valid_languages($file, $xml);
+process_valid_scripts($file, $xml);
+process_valid_territories($file, $xml);
+process_footer($file);
+close $file;
 
 foreach my $file_name ( 'root.xml', 'en.xml') {
-	my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
+	$xml = XML::XPath->new(File::Spec->catfile($base_directory,
 		'main',
 		$file_name
 	));
@@ -92,7 +111,7 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 	my $package = $output_file_name = ucfirst $output_file_name;
 	$package =~s/\.pm$//;
 
-	open my $file,
+	open $file,
 		'>',
 		File::Spec->catfile($lib_directory, $output_file_name);
 
@@ -101,7 +120,7 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 		File::Spec->catfile($base_directory, 'main', $file_name)
 	);
 
-	process_cp($file, $xml);
+	process_cp($xml);
 	process_fallback($file, $xml);
 	process_display_pattern($file, $xml);
 	process_display_language($file, $xml);
@@ -110,12 +129,14 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 	process_display_variant($file, $xml);
 	process_display_key($file, $xml);
 	process_display_type($file,$xml);
+	process_display_measurement_system_name($file, $xml);
+	process_code_patterns($file, $xml);
 	process_footer($file);
 
 	close $file;
 }
 
-# This sub looks fof nodes along an xpath. If it can't find
+# This sub looks for nodes along an xpath. If it can't find
 # any it starts looking for alias nodes
 sub findnodes {
 	my ($xpath, $path ) = @_;
@@ -132,7 +153,6 @@ sub process_header {
 
 	$xml_name =~s/^.*(Data.*)$/$1/;
 	my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
-#	my $xml_generated = $xpath->findnodes('/ldml/identity/generation')
 	my $xml_generated = findnodes($xpath, '/ldml/identity/generation')
 		->get_node
 		->getAttribute('date');
@@ -145,6 +165,98 @@ package $class;
 # XML file generated $xml_generated
 
 use Moose;
+
+EOT
+}
+
+sub process_valid_languages {
+	my ($file, $xpath) = @_;
+	say "Processing Valid Languages"
+		if $verbose;
+
+	my $languages = findnodes($xpath,'/ldml/localeDisplayNames/languages/language');
+	
+	my @languages = $languages->get_nodelist;
+	my %types;
+	foreach my $language (@languages) {
+		my $type = $language->getAttribute('type');
+		$types{$type} = 1;
+	}
+	
+	my @types = map {"\t\t'$_',\n"} sort keys %types;
+
+	print $file <<EOT
+has 'valid_languages' => (
+	is			=> 'ro',
+	isa			=> 'ArayRef',
+	init_args	=> undef,
+	auto_deref	=> 1,
+	default => sub { [
+@types
+	] },
+);
+
+EOT
+}
+
+sub process_valid_scripts {
+	my ($file, $xpath) = @_;
+
+	say "Processing Valid Scripts"
+		if $verbose;
+
+	my $scripts = findnodes($xpath, '/ldml/localeDisplayNames/scripts/script');
+	
+	my @scripts = $scripts->get_nodelist;
+	my %types;
+	foreach my $script (@scripts) {
+		my $type = $script->getAttribute('type');
+		$types{$type} = 1;
+	}
+	
+	my @types = map {"\t\t'$_',\n"} sort keys %types;
+
+	print $file <<EOT
+has 'valid_scripts' => (
+	is			=> 'ro',
+	isa			=> 'ArayRef',
+	init_args	=> undef,
+	auto_deref	=> 1,
+	default => sub { [
+@types
+	] },
+);
+
+EOT
+}
+
+sub process_valid_territories {
+	my ($file, $xpath) = @_;
+
+	say "Processing Valid Territories"
+		if $verbose;
+
+	my $territories = findnodes($xpath, '/ldml/localeDisplayNames/territories/territory');
+	
+	my @territories = $territories->get_nodelist;
+	my %types;
+	foreach my $territory (@territories) {
+		my $type = $territory->getAttribute('type');
+		$types{$type} = 1;
+	}
+	
+	my @types = map {"\t\t'$_',\n"} sort keys %types;
+
+	print $file <<EOT
+has 'valid_teritories' => (
+	is			=> 'ro',
+	isa			=> 'ArayRef',
+	init_args	=> undef,
+	auto_deref	=> 1,
+	default => sub { [
+@types
+	] },
+);
 
 EOT
 }
@@ -185,7 +297,7 @@ sub process_alias {
 }
 
 sub process_cp {
-	my ($file, $xpath) = @_;
+	my ($xpath) = @_;
 
 	say "Processing Cp"
 		if $verbose;
@@ -215,7 +327,6 @@ sub process_fallback {
 	say "Processing Fallback"
 		if $verbose;
 
-#	my $fallback = $xpath->getNodeText('/ldml/fallback') // '';
 	my $fallback = findnodes($xpath, '/ldml/fallback');
 	$fallback = $fallback ? $fallback->get_node->string_value : '';
 
@@ -237,13 +348,11 @@ sub process_display_pattern {
 	say "Processing Display Pattern"
 		if $verbose;
 
-	my $display_pattern = # $xpath
-#		->getNodeText('/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
+	my $display_pattern = 
 		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
 	$display_pattern = defined $display_pattern ? $display_pattern->get_node->string_value : $display_pattern;
 	
-	my $display_seperator = # $xpath
-#		->getNodeText('/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
+	my $display_seperator = 
 		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
 	$display_seperator = $display_seperator ? $display_seperator->get_node->string_value : '';
 	
@@ -486,6 +595,71 @@ has 'display_name_type' => (
 	default		=> sub {
 		{
 @types
+		}
+	},
+);
+
+EOT
+}
+
+sub process_display_measurement_system_name {
+	my ($file, $xpath) = @_;
+
+	say "Processing Display Mesurement System"
+		if $verbose;
+
+	my $names = findnodes($xpath, '/ldml/localeDisplayNames/measurementSystemNames/measurementSystemName');
+	return unless $names;
+
+	my @names = $names->get_nodelist;
+	foreach my $name (@names) {
+		my $type = $name->getAttribute('type');
+		my $value = $name->getChildNode(1)->getValue;
+		$name =~s/\\/\\\\/g;
+		$name =~s/'/\\'/g;
+		$name = "\t\t\t'$type' => '$value',\n";
+	}
+
+	print $file <<EOT;
+has 'display_name_measurement_system' => (
+	is		=> 'ro',
+	isa		=> 'HashRef[Str]',
+	init_args	=> undef,
+	default		=> sub { 
+		{
+@names
+		}
+	},
+);
+
+EOT
+}
+
+sub process_code_patterns {
+	my ($file, $xpath) = @_;
+	say "Processing Display Mesurement System"
+		if $verbose;
+
+	my $patterns = findnodes($xpath, '/ldml/localeDisplayNames/codePatterns/codePattern');
+	return unless $patterns;
+
+	my @patterns = $patterns->get_nodelist;
+	foreach my $pattern (@patterns) {
+		my $type = $pattern->getAttribute('type');
+		my $value = $pattern->getChildNode(1)->getValue;
+		$pattern =~s/\\/\\\\/g;
+		$pattern =~s/'/\\'/g;
+		$pattern = "\t\t\t'$type' => '$value',\n";
+	}
+	
+	print $file <<EOT;
+has 'display_name_code_patterns' => (
+	is		=> 'ro',
+	isa		=> 'HashRef[Str]',
+	init_args	=> undef,
+	default		=> sub { 
+		{
+@patterns
 		}
 	},
 );
