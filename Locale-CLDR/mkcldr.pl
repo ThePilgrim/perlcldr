@@ -7,6 +7,7 @@ use open IO => ':utf8';
 
 use FindBin;
 use File::Spec;
+use File::Path qw(make_path);
 use XML::XPath; 
 use XML::XPath::Node::Text;
 use LWP::UserAgent;
@@ -31,6 +32,11 @@ my $lib_directory  = File::Spec->catdir($FindBin::Bin,
 if (! -d $data_directory ) {
 	mkdir $data_directory
 		or die "Can not create $data_directory: $!";
+}
+
+# Check the lib directory
+if(! -d $lib_directory) {
+	make_path($lib_directory);
 }
 
 # Get the data file from the Unicode Consortium
@@ -674,5 +680,6 @@ sub process_footer {
 		if $verbose;
 
 	say $file 'no Moose;';
+	say $file '__PACKAGE__->meta->make_immutable';
 	say $file '1;';
 }

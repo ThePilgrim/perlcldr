@@ -18,6 +18,7 @@ my $builder = Module::Build->new(
 		'FindBin'			=> 0,
 		'LWP'				=> '5.808',
 		'Archive::Extract'	=> 0.243,
+		'Archive::Zip'		=> 0,
 		'DateTime'			=> 0.47
     },
     add_to_cleanup      => [ 'Locale-CLDR-*' ],
