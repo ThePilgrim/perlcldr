@@ -22,11 +22,7 @@ our $VERSION = '1.7.1';
 my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename  = File::Spec->catfile($data_directory, 'core.zip');
 my $base_directory = File::Spec->catdir($data_directory, 'common'); 
-my $lib_directory  = File::Spec->catdir($FindBin::Bin, 
-	'lib', 
-	'Locale', 
-	'CLDR'
-);
+my $lib_directory  = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale', 'CLDR');
 
 # Check if we have a Data directory
 if (! -d $data_directory ) {
@@ -41,6 +37,9 @@ if(! -d $lib_directory) {
 
 # Get the data file from the Unicode Consortium
 if (! -e $core_filename ) {
+	say "Getting data file from the Unicode Consortium"
+		if $verbose;
+
 	my $ua = LWP::UserAgent->new(
 		agent => "perl Local::CLDR/$VERSION (Written by john.imrie\@vodafoneemail.co.uk)",
 	);
@@ -56,8 +55,9 @@ if (! -e $core_filename ) {
 
 # Now uncompress the file
 if (! -d $base_directory) {
+	say "Extracting Data" if $verbose;
 	my $zip = Archive::Extract->new(archive => $core_filename);
-	$zip->extract(to=>$data_directory)
+	$zip->extract(to => $data_directory)
 		or die $zip->error;
 }
 
@@ -91,8 +91,7 @@ my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
 	'en.xml',
 ));
 
-open my $file, '>', 
-		File::Spec->catfile($lib_directory, 'ValidCodes.pm');
+open my $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
 
 process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml,
 	File::Spec->catfile($base_directory, 'main', 'en.xml')
@@ -117,9 +116,7 @@ foreach my $file_name ( 'root.xml', 'en.xml') {
 	my $package = $output_file_name = ucfirst $output_file_name;
 	$package =~s/\.pm$//;
 
-	open $file,
-		'>',
-		File::Spec->catfile($lib_directory, $output_file_name);
+	open $file, '>', File::Spec->catfile($lib_directory, $output_file_name);
 
 	# Note: The order of these calls is important
 	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, 
@@ -318,7 +315,7 @@ sub process_cp {
 			}
 			else {
 				my $hex = $character->getAttribute('hex');
-       			my $chr = chr(hex $hex);
+       				my $chr = chr(hex $hex);
 				$text .= $chr;
 			}
 			$parent->removeChild($sibling);

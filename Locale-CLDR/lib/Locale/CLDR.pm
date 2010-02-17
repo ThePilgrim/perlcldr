@@ -82,7 +82,13 @@ sub BUILDARGS {
 	my %args;
 	if (1 == @_ && ! ref $_[0]) {
 		my ($language, $script, $region, $variant, $extentions)
-		 	= $_[0]=~/^([a-zA-Z]+)(?:[-_]([a-zA-Z]{4}))?(?:[-_]([a-zA-Z]{2,3}))?(?:[-_]([a-zA-Z]+))?(?:\@(.+))?$/;
+		 	= $_[0]=~/^
+				([a-zA-Z]+)
+				(?:[-_]([a-zA-Z]{4}))?
+				(?:[-_]([a-zA-Z]{2,3}))?
+				(?:[-_]([a-zA-Z]+))?
+				(?:\@(.+))?
+			$/x;
 		%args = (
 			language	=> $language,
 			script		=> $script,
