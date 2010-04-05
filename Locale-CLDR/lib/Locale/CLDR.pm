@@ -62,7 +62,7 @@ has 'modules' => (
 	auto_deref	=> 1,
 );
 
-has 'method_cashe' => (
+has 'method_cache' => (
 	isa			=> 'HashRef[ArrayRef[Object]]',
 	init_arg	=> undef,
 );
@@ -214,18 +214,18 @@ sub stringify {
 # Method to locate the resource bundle with the required data
 sub _find_bundle {
 	my ($self, $method_name) = @_;
-	return $self->method_cashe->{$method_name}
-		if $self->method_cashe->{$method_name};
+	return $self->method_cache->{$method_name}
+		if $self->method_cache->{$method_name};
 
 	foreach my $module ($self->modules) {
 		if ($module->can($method_name)) {
-			push @{$self->method_cashe->{$method_name}}, $module;
+			push @{$self->method_cache->{$method_name}}, $module;
 		}
 	}
 
 	return wantarray
-		? @{$self->method_cashe->{$method_name}}
-		: $self->method_cashe->{$method_name}[0];
+		? @{$self->method_cache->{$method_name}}
+		: $self->method_cache->{$method_name}[0];
 }
 
 # Method to return the given local name in the current locals format
@@ -458,5 +458,3 @@ See http://dev.perl.org/licenses/ for more information.
 =cut
 
 1; # End of Locale::CLDR
-
-#vim:tabstop=4:
