@@ -1,8 +1,8 @@
 #!perl
 
-use Test::More tests => 11;
+use Test::More tests => 12;
 
-use Locale::CLDR;
+use ok 'Locale::CLDR';
 
 my $local = Locale::CLDR->new(language => 'en');
 is("$local", 'en', 'Set Language explicitly');

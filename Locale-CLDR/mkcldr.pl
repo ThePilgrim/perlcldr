@@ -94,14 +94,15 @@ my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
 open my $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
 
 process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml,
-	File::Spec->catfile($base_directory, 'main', 'en.xml')
+	File::Spec->catfile($base_directory, 'main', 'en.xml'),
+	1
 );
 
 process_cp($xml);
 process_valid_languages($file, $xml);
 process_valid_scripts($file, $xml);
 process_valid_territories($file, $xml);
-process_footer($file);
+process_footer($file, 1);
 close $file;
 
 foreach my $file_name ( 'root.xml', 'en.xml') {
@@ -150,9 +151,11 @@ sub findnodes {
 
 # Process the elements of the file note
 sub process_header {
-	my ($file, $class, $version, $xpath, $xml_name) = @_;
+	my ($file, $class, $version, $xpath, $xml_name, $isRole) = @_;
 	say "Processing File $xml_name\nProcessing Header"
 		if $verbose;
+
+	$isRole = $isRole ? '::Role' : '';
 
 	$xml_name =~s/^.*(Data.*)$/$1/;
 	my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
@@ -167,7 +170,7 @@ package $class;
 # 	on $now GMT
 # XML file generated $xml_generated
 
-use Moose;
+use Moose$isRole;
 
 EOT
 }
@@ -191,7 +194,7 @@ sub process_valid_languages {
 	print $file <<EOT
 has 'valid_languages' => (
 	is			=> 'ro',
-	isa			=> 'ArayRef',
+	isa			=> 'ArrayRef',
 	init_args	=> undef,
 	auto_deref	=> 1,
 	default => sub { [
@@ -222,7 +225,7 @@ sub process_valid_scripts {
 	print $file <<EOT
 has 'valid_scripts' => (
 	is			=> 'ro',
-	isa			=> 'ArayRef',
+	isa			=> 'ArrayRef',
 	init_args	=> undef,
 	auto_deref	=> 1,
 	default => sub { [
@@ -253,7 +256,7 @@ sub process_valid_territories {
 	print $file <<EOT
 has 'valid_teritories' => (
 	is			=> 'ro',
-	isa			=> 'ArayRef',
+	isa			=> 'ArrayRef',
 	init_args	=> undef,
 	auto_deref	=> 1,
 	default => sub { [
@@ -672,11 +675,13 @@ EOT
 
 sub process_footer {
 	my $file = shift;
+	my $isRole = shift;
+	$isRole = $isRole ? '::Role' : '';
 
 	say "Processing Footer"
 		if $verbose;
 
-	say $file 'no Moose;';
-	say $file '__PACKAGE__->meta->make_immutable';
+	say $file "no Moose$isRole;";
+	say $file '__PACKAGE__->meta->make_immutable;' unless $isRole;
 	say $file '1;';
 }

@@ -1,6 +1,7 @@
 package Locale::CLDR;
 
 use Moose;
+with 'Locale::CLDR::ValidCodes';
 
 =head1 NAME
 
@@ -63,6 +64,7 @@ has 'modules' => (
 );
 
 has 'method_cache' => (
+	is			=> 'rw',
 	isa			=> 'HashRef[ArrayRef[Object]]',
 	init_arg	=> undef,
 );
