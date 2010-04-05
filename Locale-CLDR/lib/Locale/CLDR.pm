@@ -14,6 +14,7 @@ Version 1.7.1 To match the CLDR Version
 =cut
 
 use version; our $VERSION = qv("1.7.1");
+use List::Util qw(first);
 
 
 =head1 SYNOPSIS
@@ -61,6 +62,7 @@ has 'modules' => (
 	writer		=> '_set_modules',
 	init_arg	=> undef,
 	auto_deref	=> 1,
+	lazy		=> 1,
 );
 
 has 'method_cache' => (
@@ -119,6 +121,13 @@ sub BUILDARGS {
 
 sub BUILD {
 	my ($self, $args) = @_;
+	# Check that the args are valid
+
+	die "Invalid language" unless first { $args->{language} eq $_ } $self->valid_languages;
+	die "Invalid script" if defined $args->{script} 
+		&& ! first { ucfirst lc $args->{script} eq $_ } $self->valid_scripts;
+	die "Invalid teritory" if defined $args->{region} 
+		&& ! first { uc $args->{region} eq $_ } $self->valid_teritories;
 
 	# Create the new path
 	my @path;

@@ -189,15 +189,15 @@ sub process_valid_languages {
 		$types{$type} = 1;
 	}
 	
-	my @types = map {"\t\t'$_',\n"} sort keys %types;
+	my @types = map {"        '$_',\n"} sort keys %types;
 
 	print $file <<EOT
 has 'valid_languages' => (
 	is			=> 'ro',
 	isa			=> 'ArrayRef',
-	init_args	=> undef,
+	init_arg	=> undef,
 	auto_deref	=> 1,
-	default => sub { [
+	default     => sub { [
 @types
 	] },
 );
@@ -220,13 +220,13 @@ sub process_valid_scripts {
 		$types{$type} = 1;
 	}
 	
-	my @types = map {"\t\t'$_',\n"} sort keys %types;
+	my @types = map {"        '$_',\n"} sort keys %types;
 
 	print $file <<EOT
 has 'valid_scripts' => (
 	is			=> 'ro',
 	isa			=> 'ArrayRef',
-	init_args	=> undef,
+	init_arg	=> undef,
 	auto_deref	=> 1,
 	default => sub { [
 @types
@@ -251,15 +251,15 @@ sub process_valid_territories {
 		$types{$type} = 1;
 	}
 	
-	my @types = map {"\t\t'$_',\n"} sort keys %types;
+	my @types = map {"        '$_',\n"} sort keys %types;
 
 	print $file <<EOT
 has 'valid_teritories' => (
 	is			=> 'ro',
 	isa			=> 'ArrayRef',
-	init_args	=> undef,
+	init_arg	=> undef,
 	auto_deref	=> 1,
-	default => sub { [
+	default     => sub { [
 @types
 	] },
 );
@@ -341,7 +341,7 @@ has 'fallback' => (
 	is			=> 'ro',
 	isa			=> 'ArrayRef[Str]',
 	auto_deref	=> 1,
-	init_args	=> undef,
+	init_arg	=> undef,
 	default		=> sub { [ qw( $fallback ) ] },
 );
 
@@ -404,14 +404,14 @@ sub process_display_language {
 		my $name = $language->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$language = "\t\t\t'$type' => '$name',\n";
+		$language = "            '$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_language' => (
-	is		=> 'ro',
-	isa		=> 'HashRef[Str]',
-	init_args	=> undef,
+	is			=> 'ro',
+	isa			=> 'HashRef[Str]',
+	init_arg	=> undef,
 	default		=> sub { 
 		{
 @languages
@@ -441,14 +441,14 @@ sub process_display_script {
 		my $name = $script->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$script = "\t\t\t'$type' => '$name',\n";
+		$script = "            '$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_script' => (
-	is		=> 'ro',
-	isa		=> 'HashRef[Str]',
-	init_args	=> undef,
+	is			=> 'ro',
+	isa			=> 'HashRef[Str]',
+	init_arg	=> undef,
 	default		=> sub { 
 		{
 @scripts
@@ -478,14 +478,14 @@ sub process_display_territory {
 		my $name = $territory->getChildNode(1)->getValue;
 		$name =~s/\\/\/\\/g;
 		$name =~s/'/\\'/g;
-		$territory = "\t\t\t'$type' => '$name',\n";
+		$territory = "            '$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_territory' => (
-	is		=> 'ro',
-	isa		=> 'HashRef[Str]',
-	init_args	=> undef,
+	is			=> 'ro',
+	isa			=> 'HashRef[Str]',
+	init_arg	=> undef,
 	default		=> sub { 
 		{
 @territories
@@ -515,14 +515,14 @@ sub process_display_variant {
 		my $name = $variant->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$variant = "\t\t\t'$type' => '$name',\n";
+		$variant = "            '$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_variant' => (
-	is		=> 'ro',
-	isa		=> 'HashRef[Str]',
-	init_args	=> undef,
+	is			=> 'ro',
+	isa			=> 'HashRef[Str]',
+	init_arg	=> undef,
 	default		=> sub { 
 		{
 @variants
@@ -548,14 +548,14 @@ sub process_display_key {
 		my $name = $key->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$key = "\t\t\t'$type' => '$name',\n";
+		$key = "            '$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_key' => (
-	is		=> 'ro',
-	isa		=> 'HashRef[Str]',
-	init_args	=> undef,
+	is			=> 'ro',
+	isa			=> 'HashRef[Str]',
+	init_arg	=> undef,
 	default		=> sub { 
 		{
 @keys
@@ -586,18 +586,18 @@ sub process_display_type {
 	}
 	@types = ();
 	foreach my $key (sort keys %values) {
-		push @types, "\t\t\t'$key' => {\n";
+		push @types, "            '$key' => {\n";
 		foreach my $type (sort keys %{$values{$key}}) {
-			push @types, "\t\t\t\t'$type' => '$values{$key}{$type}',\n";
+			push @types, "                '$type' => '$values{$key}{$type}',\n";
 		}
-		push @types, "\t\t\t},\n";
+		push @types, "            },\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_type' => (
-	is		=> 'ro',
-	isa		=> 'HashRef[HashRef[Str]]',
-	init_args	=> undef,
+	is			=> 'ro',
+	isa			=> 'HashRef[HashRef[Str]]',
+	init_arg	=> undef,
 	default		=> sub {
 		{
 @types
@@ -623,14 +623,14 @@ sub process_display_measurement_system_name {
 		my $value = $name->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$name = "\t\t\t'$type' => '$value',\n";
+		$name = "            '$type' => '$value',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_measurement_system' => (
-	is		=> 'ro',
-	isa		=> 'HashRef[Str]',
-	init_args	=> undef,
+	is			=> 'ro',
+	isa			=> 'HashRef[Str]',
+	init_arg	=> undef,
 	default		=> sub { 
 		{
 @names
@@ -655,14 +655,14 @@ sub process_code_patterns {
 		my $value = $pattern->getChildNode(1)->getValue;
 		$pattern =~s/\\/\\\\/g;
 		$pattern =~s/'/\\'/g;
-		$pattern = "\t\t\t'$type' => '$value',\n";
+		$pattern = "            '$type' => '$value',\n";
 	}
 	
 	print $file <<EOT;
 has 'display_name_code_patterns' => (
-	is		=> 'ro',
-	isa		=> 'HashRef[Str]',
-	init_args	=> undef,
+    is            => 'ro',
+	isa			=> 'HashRef[Str]',
+	init_arg	=> undef,
 	default		=> sub { 
 		{
 @patterns
