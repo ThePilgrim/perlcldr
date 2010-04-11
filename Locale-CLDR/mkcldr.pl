@@ -74,6 +74,7 @@ my $sdf = XML::XPath->new(File::Spec->catfile($base_directory,
 	'supplemental',
 	'supplementalData.xml'));
 
+say "Checking CLDR version" if $verbose;
 my $cldrVersion = $sdf->findnodes('/supplementalData/cldrVersion')
 	->get_node
 	->getAttribute('version');
@@ -93,11 +94,9 @@ my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
 
 open my $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
 
-process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml,
-	File::Spec->catfile($base_directory, 'main', 'en.xml'),
-	1
-);
-
+my $file_name = File::Spec->catfile($base_directory, 'main', 'en.xml');
+say "Processing file $file_name";
+process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml, $file_name, 1);
 process_cp($xml);
 process_valid_languages($file, $xml);
 process_valid_scripts($file, $xml);
@@ -115,19 +114,19 @@ foreach my $file_name (grep /^[^.]/, readdir($dir)) {
     my $package = join '::', @output_file_parts;
 	$output_file_parts[-1] .= '.pm';
 
-	my $base_directory = File::Spec->catdir(
+	my $out_directory = File::Spec->catdir(
 		$lib_directory, 
 		@output_file_parts[0 .. $#output_file_parts - 1]
 	);
 
-	make_path($base_directory) unless -d $base_directory;
+	make_path($out_directory) unless -d $out_directory;
 
 	open $file, '>', File::Spec->catfile($lib_directory, @output_file_parts);
 
 	# Note: The order of these calls is important
-	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, 
-		File::Spec->catfile($base_directory, 'main', $file_name)
-	);
+	$file_name = File::Spec->catfile($base_directory, 'main', $file_name);
+	say "Processing File $file_name" if $verbose;
+	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, $file_name);
 
 	process_cp($xml);
 	process_fallback($file, $xml);
@@ -177,8 +176,7 @@ sub output_file_name {
 # Process the elements of the file note
 sub process_header {
 	my ($file, $class, $version, $xpath, $xml_name, $isRole) = @_;
-	say "Processing File $xml_name\nProcessing Header"
-		if $verbose;
+	say "Processing Header" if $verbose;
 
 	$isRole = $isRole ? '::Role' : '';
 
@@ -687,7 +685,7 @@ EOT
 
 sub process_code_patterns {
 	my ($file, $xpath) = @_;
-	say "Processing Display Mesurement System"
+	say "Processing Code Patterns"
 		if $verbose;
 
 	my $patterns = findnodes($xpath, '/ldml/localeDisplayNames/codePatterns/codePattern');
