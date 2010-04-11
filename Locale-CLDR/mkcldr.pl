@@ -105,19 +105,24 @@ process_valid_territories($file, $xml);
 process_footer($file, 1);
 close $file;
 
-foreach my $file_name ( 'root.xml', 'en.xml') {
-	$xml = XML::XPath->new(File::Spec->catfile($base_directory,
-		'main',
-		$file_name
-	));
+my $main_directory = File::Spec->catdir($base_directory, 'main');
+opendir ( my $dir, $main_directory);
+foreach my $file_name (grep /^[^.]/, readdir($dir)) {
+	$xml = XML::XPath->new(File::Spec->catfile($main_directory, $file_name));
 
-	my $output_file_name= $file_name;
-	$output_file_name=~s/xml$/pm/;
+	my @output_file_parts = output_file_name($xml);
 
-	my $package = $output_file_name = ucfirst $output_file_name;
-	$package =~s/\.pm$//;
+    my $package = join '::', @output_file_parts;
+	$output_file_parts[-1] .= '.pm';
 
-	open $file, '>', File::Spec->catfile($lib_directory, $output_file_name);
+	my $base_directory = File::Spec->catdir(
+		$lib_directory, 
+		@output_file_parts[0 .. $#output_file_parts - 1]
+	);
+
+	make_path($base_directory) unless -d $base_directory;
+
+	open $file, '>', File::Spec->catfile($lib_directory, @output_file_parts);
 
 	# Note: The order of these calls is important
 	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, 
@@ -147,6 +152,26 @@ sub findnodes {
 	my $nodes = $xpath->findnodes($path);
 	return $nodes if $nodes->size;
 	return process_alias($xpath, $path);
+}
+
+# Calculate the output file name
+sub output_file_name {
+	my $xpath = shift;
+	my @nodes;
+	foreach my $name (qw( language script territory variant )) {
+		my $nodes = findnodes($xpath, "/ldml/identity/$name");
+		if ($nodes->size) {;
+		    push @nodes, $nodes->get_node->getAttribute('type');
+		}
+		else {
+			push @nodes, 'Any';
+		}
+	};
+
+	# Strip of Any's from end of list
+	pop @nodes while $nodes[-1] eq 'Any';
+
+	return map {ucfirst lc} @nodes;
 }
 
 # Process the elements of the file note
@@ -273,6 +298,10 @@ sub process_alias {
 
 	my $nodes;
 	while (1) {
+		# check if we have dropped back into the pre alias part of the path
+		my $test = $xpath->findnodes($path);
+		return $xpath->findnodes($origanal_path) if $test->size;
+
 		$path=~s/\/[^\/]*$/\/alias/;
 		$nodes = $xpath->findnodes($path);
 		unless ($nodes->size) {
@@ -280,25 +309,40 @@ sub process_alias {
 				next;
 			}
 			else {
-				return;
+				return $nodes;
 			}
 		}
 		# now replace the node
-		my $new_path=$nodes->getAttribute('path');
-		my $replace_me = $nodes->getParentNode;
+		my $node = $nodes->get_node;
+		my $new_path=$node->getAttribute('path');
+		my $parent = $node->getParentNode;
 		# Process local nodes
-		if ($nodes->getAttribute('source') eq 'locale' ) {
-			my @replacements = $xpath->findnodes("$new_path/*", $replace_me)
+		if ($node->getAttribute('source') eq 'locale' ) {
+			my @replacements = $xpath->findnodes("$new_path/*", $node)
 				->get_nodelist;
 			foreach my $replacement (@replacements) {
-				$replace_me->insertBefore($replacement,$nodes);
+				$parent->insertBefore($replacement,$node);
 			}
-			$replace_me->removeChild($nodes);
-			return $xpath->findnodes($origanal_path);
+			$parent->removeChild($node);
 		}
 		else {
-			die "Can't process remote aliases";
+			my $filename = File::Spec->catfile(
+				$base_directory,
+				'main',
+				$node->getAttribute('source')
+			);
+
+			$filename .= '.xml';
+			my $new_xpath = XML::XPath->new($filename);
+			my @replacements = $new_xpath->findnodes("$new_path/*")
+				->get_nodelist;
+			foreach my $replacement (@replacements) {
+				$parent->insertBefore($replacement, $node);
+			}
+			$parent->removeChild($node);
 		}
+
+		return $xpath->findnodes($origanal_path);
 	}
 }
 
@@ -334,7 +378,7 @@ sub process_fallback {
 		if $verbose;
 
 	my $fallback = findnodes($xpath, '/ldml/fallback');
-	$fallback = $fallback ? $fallback->get_node->string_value : '';
+	$fallback = $fallback->size ? $fallback->get_node->string_value : '';
 
 	print $file <<EOT;
 has 'fallback' => (
@@ -356,11 +400,11 @@ sub process_display_pattern {
 
 	my $display_pattern = 
 		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
-	$display_pattern = defined $display_pattern ? $display_pattern->get_node->string_value : $display_pattern;
+	$display_pattern = $display_pattern->size ? $display_pattern->get_node->string_value : $display_pattern;
 	
 	my $display_seperator = 
 		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
-	$display_seperator = $display_seperator ? $display_seperator->get_node->string_value : '';
+	$display_seperator = $display_seperator->size ? $display_seperator->get_node->string_value : '';
 	
 	return unless defined $display_pattern;
 	foreach ($display_pattern, $display_seperator) {
