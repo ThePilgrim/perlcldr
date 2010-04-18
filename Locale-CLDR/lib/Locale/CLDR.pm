@@ -33,20 +33,23 @@ has 'language' => (
 
 has 'script' => (
 	is			=> 'ro',
-	isa			=> 'Str|Undef',
-	default		=> undef
+	isa			=> 'Str',
+	default		=> '',
+	predicate	=> 'has_script',
 );
 
 has 'region' => (
 	is			=> 'ro',
-	isa			=> 'Str|Undef',
-	default		=> undef
+	isa			=> 'Str',
+	default		=> '',
+	predicate	=> 'has_region',
 );
 
 has 'variant' => (
 	is			=> 'ro',
-	isa			=> 'Str|Undef',
-	default		=> undef
+	isa			=> 'Str',
+	default		=> '',
+	predicate	=> 'has_variant',
 );
 
 has 'extentions' => (
@@ -69,6 +72,7 @@ has 'method_cache' => (
 	is			=> 'rw',
 	isa			=> 'HashRef[ArrayRef[Object]]',
 	init_arg	=> undef,
+	default		=> sub { return {}},
 );
 
 has 'valid_keys' => (
@@ -93,6 +97,11 @@ sub BUILDARGS {
 				(?:[-_]([a-zA-Z]+))?
 				(?:\@(.+))?
 			$/x;
+
+		foreach ($language, $script, $region, $variant) {
+			$_ = '' unless defined $_;
+		}
+			
 		%args = (
 			language	=> $language,
 			script		=> $script,
@@ -124,16 +133,16 @@ sub BUILD {
 	# Check that the args are valid
 
 	die "Invalid language" unless first { $args->{language} eq $_ } $self->valid_languages;
-	die "Invalid script" if defined $args->{script} 
+	die "Invalid script" if $args->{script} 
 		&& ! first { ucfirst lc $args->{script} eq $_ } $self->valid_scripts;
-	die "Invalid teritory" if defined $args->{region} 
+	die "Invalid teritory" if $args->{region} 
 		&& ! first { uc $args->{region} eq $_ } $self->valid_teritories;
 
 	# Create the new path
 	my @path;
 	my $path = join '::',
 		map { ucfirst lc }
-		grep { defined } (
+		map { $_ ? $_ : 'Any' } (
 			$args->{language},
 			$args->{script},
 			$args->{region},
@@ -146,21 +155,21 @@ sub BUILD {
 	}
 
 	# Fixup language_region if we have a script and a region
-	if (defined $args->{script} && defined $args->{region}) {
-		pop @path;
-		$path = join '::',
-			map { ucfirst lc }
-			grep { defined } (
-				$args->{language},
-				$args->{region},
-				$args->{variant}
-			);
-
-		while ($path) {
-			push (@path, $path);
-			$path=~s/(?:::)?[^:]+$//;
-		}
-	}
+#	if (defined $args->{script} && defined $args->{region}) {
+#		pop @path;
+#		$path = join '::',
+#			map { ucfirst lc }
+##			grep { defined } (
+#				$args->{language},
+#				$args->{region},
+#				$args->{variant}
+#			);
+#
+#		while ($path) {
+#			push (@path, $path);
+#			$path=~s/(?:::)?[^:]+$//;
+#		}
+#	}
 
 	push @path, 'Root' 
 		unless $path[-1] eq 'Root';
@@ -170,21 +179,21 @@ sub BUILD {
 	# fallback to expand the module with it's fallbacks
 	my @modules;
 	foreach my $module (@path) {
-		$module = "Local::CLDR::$module";
+		$module = "Locale::CLDR::$module";
 		eval "require $module";
 		next if $@;
-		my $local_package = $module->new;
+		my $locale_package = $module->new;
 		push @modules, 
-			$local_package, 
-			map {Local::CLDR->new($_)->modules} $local_package->fallback;
+			$locale_package, 
+			map {Locale::CLDR->new($_)->modules} $locale_package->fallback;
 	}
 
 	# If we only have the root module then we have a problem as
 	# none of the language specific data is in the root. So we
 	# fall back to the en module
 	if (1 == @modules ) {
-		require Local::CLDR::En;
-		push @modules, Local::CLDR::En->new
+		require Locale::CLDR::En;
+		push @modules, Locale::CLDR::En->new
 	}
 
 	$self->_set_modules(\@modules);
@@ -198,15 +207,15 @@ sub stringify {
 	my $self = shift;
 	my $string = lc $self->language;
 
-	if (defined $self->script) {
+	if ($self->script) {
 		$string.= '_' . ucfirst lc $self->script;
 	}
 
-	if (defined $self->region) {
+	if ($self->region) {
 		$string.= '_' . uc $self->region;
 	}
 
-	if (defined $self->variant) {
+	if ($self->variant) {
 		$string.= '_' . uc $self->variant;
 	}
 
@@ -225,7 +234,7 @@ sub stringify {
 # Method to locate the resource bundle with the required data
 sub _find_bundle {
 	my ($self, $method_name) = @_;
-	return $self->method_cache->{$method_name}
+	return @{$self->method_cache->{$method_name}}
 		if $self->method_cache->{$method_name};
 
 	foreach my $module ($self->modules) {
@@ -240,7 +249,7 @@ sub _find_bundle {
 }
 
 # Method to return the given local name in the current locals format
-sub local_name {
+sub locale_name {
 	my ($self, $name) = @_;
 	$name //= $self;
 
@@ -255,9 +264,9 @@ sub local_name {
 		return $display_name if defined $display_name;
 	}
 
-	# $name can be a string or a Local::CLDR::*
+	# $name can be a string or a Locale::CLDR::*
 	if (! ref $name) {
-		$name = Local::CLDR->new($name);
+		$name = Locale::CLDR->new($name);
 	}
 
 	# Now we have to process each individual element
@@ -269,7 +278,7 @@ sub local_name {
 
 	my $bundle = $self->_find_bundle('display_name_pattern');
 	return $bundle
-		->display_name_pattern($name, $territory, $script, $variant);
+		->display_name_pattern($language, $territory, $script, $variant);
 }
 
 sub language_name {
@@ -279,19 +288,19 @@ sub language_name {
 
 	my $code = ref $name
 		? $name->language
-		: $name;
+		: eval { Lcale::CLDR->new($name)->language };
 
 	my $language = undef;
 	my @bundles = $self->_find_bundle('display_name_language');
-
-	foreach my $bundle (@bundles) {
-		my $display_name = $bundle->display_name_language->{$code};
-		if (defined $display_name) {
-			$language = $display_name;
-			last;
+	if ($code) {
+		foreach my $bundle (@bundles) {
+			my $display_name = $bundle->display_name_language->{$code};
+			if (defined $display_name) {
+				$language = $display_name;
+				last;
+			}
 		}
 	}
-
 	# If we don't have a display name for the language we try again
 	# with the und tag
 	if (! defined $language ) {
@@ -311,12 +320,12 @@ sub script_name {
 	my ($self, $name) = @_;
 	$name //= $self;
 
-	if ( ref $name && ! $name->has_script ) {
-		return undef;
-	}
-
 	if (! ref $name ) {
 		$name = __PACKAGE__->new(language => 'und', script => $name);
+	}
+
+	if ( ! $name->script ) {
+		return '';
 	}
 
 	my $script = undef;
@@ -328,7 +337,7 @@ sub script_name {
 		}
 	}
 
-	if (! defined $script) {
+	if (! $script) {
 		foreach my $bundle (@bundles) {
 			$script = $bundle->display_name_script->{'Zzzz'};
 			if (defined $script) {
@@ -344,18 +353,18 @@ sub territory_name {
 	my ($self, $name) = @_;
 	$name //= $self;
 
-	if ( ref $name && ! $name->has_territory) {
-		return undef;
-	}
-
 	if (! ref $name ) {
 		$name = __PACKAGE__->new(languge => 'und', territory => $name);
+	}
+
+	if ( ! $name->region) {
+		return '';
 	}
 
 	my $territory = undef;
 	my @bundles = $self->_find_bundle('display_name_territory');
 	foreach my $bundle (@bundles) {
-		$territory = $bundle->display_name_territory->{$name->territory};
+		$territory = $bundle->display_name_territory->{$name->region};
 		if (defined $territory) {
 			last;
 		}
@@ -381,6 +390,7 @@ sub variant_name {
 		$name = __PACKAGE__->new(language=> 'und', variant => $name);
 	}
 
+	return '' unless $name->variant;
 	my $variant = undef;
 	if ($name->has_variant) {
 		my @bundles = $self->_find_bundle('display_name_variant');

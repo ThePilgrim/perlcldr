@@ -106,6 +106,11 @@ close $file;
 
 my $main_directory = File::Spec->catdir($base_directory, 'main');
 opendir ( my $dir, $main_directory);
+# Count the number of files
+my $num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
+my $count_files = 0;
+rewinddir $dir;
+
 foreach my $file_name (grep /^[^.]/, readdir($dir)) {
 	$xml = XML::XPath->new(File::Spec->catfile($main_directory, $file_name));
 
@@ -125,7 +130,8 @@ foreach my $file_name (grep /^[^.]/, readdir($dir)) {
 
 	# Note: The order of these calls is important
 	$file_name = File::Spec->catfile($base_directory, 'main', $file_name);
-	say "Processing File $file_name" if $verbose;
+	my $percent = ++$count_files / $num_files * 100;
+	say sprintf("Processing File %s: %.2f%% done", $file_name, $percent) if $verbose;
 	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, $file_name);
 
 	process_cp($xml);
@@ -398,7 +404,8 @@ sub process_display_pattern {
 
 	my $display_pattern = 
 		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
-	$display_pattern = $display_pattern->size ? $display_pattern->get_node->string_value : $display_pattern;
+	return unless $display_pattern->size;
+	$display_pattern = $display_pattern->get_node->string_value;
 	
 	my $display_seperator = 
 		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
@@ -416,13 +423,14 @@ sub display_name_pattern {
 
 	my \$display_pattern = '$display_pattern';
 	\$display_pattern =~s/\\\{0\\\}/\$name/g;
-	my \$subtags = join '$display_seperator', grep {defined} (
+	my \$subtags = join '$display_seperator', grep {\$_} (
 		\$territory,
 		\$script,
 		\$variant,
 	);
 
 	\$display_pattern =~s/\\\{1\\\}/\$subtags/g;
+	return \$display_pattern;
 }
 
 EOT
