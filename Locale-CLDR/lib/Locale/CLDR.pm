@@ -154,23 +154,6 @@ sub BUILD {
 		$path=~s/(?:::)?[^:]+$//;
 	}
 
-	# Fixup language_region if we have a script and a region
-#	if (defined $args->{script} && defined $args->{region}) {
-#		pop @path;
-#		$path = join '::',
-#			map { ucfirst lc }
-##			grep { defined } (
-#				$args->{language},
-#				$args->{region},
-#				$args->{variant}
-#			);
-#
-#		while ($path) {
-#			push (@path, $path);
-#			$path=~s/(?:::)?[^:]+$//;
-#		}
-#	}
-
 	push @path, 'Root' 
 		unless $path[-1] eq 'Root';
 
@@ -324,19 +307,21 @@ sub script_name {
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = __PACKAGE__->new(language => 'und', script => $name);
+		$name = eval {__PACKAGE__->new(language => 'und', script => $name)};
 	}
 
-	if ( ! $name->script ) {
+	if ( ref $name && ! $name->script ) {
 		return '';
 	}
 
 	my $script = undef;
 	my @bundles = $self->_find_bundle('display_name_script');
-	foreach my $bundle (@bundles) {
-		$script = $bundle->display_name_script->{$name->script};
-		if (defined $script) {
-			last;
+	if ($name) {
+		foreach my $bundle (@bundles) {
+			$script = $bundle->display_name_script->{$name->script};
+			if (defined $script) {
+				last;
+			}
 		}
 	}
 

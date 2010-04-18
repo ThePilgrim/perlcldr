@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 18;
+use Test::More tests => 23;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -48,3 +48,9 @@ $locale = Locale::CLDR->new('en');
 is ($locale->locale_name('fr'), 'French', 'Name without territory');
 is ($locale->locale_name('fr_CA'), 'Canadian French', 'Name with known territory') ;
 is ($locale->locale_name('fr_BE'), 'French (Belgium)', 'Name with unknown territory') ;
+is ($locale->locale_name('fr_BE'), 'French (Belgium)', 'Cached method') ;
+$locale = Locale::CLDR->new('en');
+is ($locale->language_name, 'English', 'Language name');
+is ($locale->language_name('wibble'), 'Unknown or Invalid Language', 'Unknown Language name');
+is ($locale->script_name('Cher'), 'Cherokee', 'Script name');
+is ($locale->script_name('wibl'), 'Unknown or Invalid Script', 'Script name');
