@@ -234,8 +234,11 @@ sub stringify {
 # Method to locate the resource bundle with the required data
 sub _find_bundle {
 	my ($self, $method_name) = @_;
-	return @{$self->method_cache->{$method_name}}
-		if $self->method_cache->{$method_name};
+	if ($self->method_cache->{$method_name}) {
+		return wantarray
+			? @{$self->method_cache->{$method_name}}
+			: $self->method_cache->{$method_name}[0];
+	}
 
 	foreach my $module ($self->modules) {
 		if ($module->can($method_name)) {
