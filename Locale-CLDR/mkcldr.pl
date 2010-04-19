@@ -95,7 +95,7 @@ my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
 open my $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
 
 my $file_name = File::Spec->catfile($base_directory, 'main', 'en.xml');
-say "Processing file $file_name";
+say "Processing file $file_name" if $verbose;
 process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml, $file_name, 1);
 process_cp($xml);
 process_valid_languages($file, $xml);
@@ -283,7 +283,7 @@ sub process_valid_territories {
 	my @types = map {"        '$_',\n"} sort keys %types;
 
 	print $file <<EOT
-has 'valid_teritories' => (
+has 'valid_territories' => (
 	is			=> 'ro',
 	isa			=> 'ArrayRef',
 	init_arg	=> undef,

@@ -38,11 +38,11 @@ has 'script' => (
 	predicate	=> 'has_script',
 );
 
-has 'region' => (
+has 'territory' => (
 	is			=> 'ro',
 	isa			=> 'Str',
 	default		=> '',
-	predicate	=> 'has_region',
+	predicate	=> 'has_territory',
 );
 
 has 'variant' => (
@@ -89,7 +89,7 @@ sub BUILDARGS {
 	my $self = shift;
 	my %args;
 	if (1 == @_ && ! ref $_[0]) {
-		my ($language, $script, $region, $variant, $extentions)
+		my ($language, $script, $territory, $variant, $extentions)
 		 	= $_[0]=~/^
 				([a-zA-Z]+)
 				(?:[-_]([a-zA-Z]{4}))?
@@ -98,14 +98,14 @@ sub BUILDARGS {
 				(?:\@(.+))?
 			$/x;
 
-		foreach ($language, $script, $region, $variant) {
+		foreach ($language, $script, $territory, $variant) {
 			$_ = '' unless defined $_;
 		}
 			
 		%args = (
 			language	=> $language,
 			script		=> $script,
-			region		=> $region,
+			territory		=> $territory,
 			variant		=> $variant,
 			extentions	=> $extentions,
 		);
@@ -135,8 +135,8 @@ sub BUILD {
 	die "Invalid language" unless first { $args->{language} eq $_ } $self->valid_languages;
 	die "Invalid script" if $args->{script} 
 		&& ! first { ucfirst lc $args->{script} eq $_ } $self->valid_scripts;
-	die "Invalid teritory" if $args->{region} 
-		&& ! first { uc $args->{region} eq $_ } $self->valid_teritories;
+	die "Invalid territory" if $args->{territory} 
+		&& ! first { uc $args->{territory} eq $_ } $self->valid_territories;
 
 	# Create the new path
 	my @path;
@@ -145,7 +145,7 @@ sub BUILD {
 		map { $_ ? $_ : 'Any' } (
 			$args->{language},
 			$args->{script},
-			$args->{region},
+			$args->{territory},
 			$args->{variant}
 		);
 
@@ -194,8 +194,8 @@ sub stringify {
 		$string.= '_' . ucfirst lc $self->script;
 	}
 
-	if ($self->region) {
-		$string.= '_' . uc $self->region;
+	if ($self->territory) {
+		$string.= '_' . uc $self->territory;
 	}
 
 	if ($self->variant) {
@@ -240,7 +240,7 @@ sub locale_name {
 	$name //= $self;
 
 	my $code = ref $name
-		? join ('_', $name->language, $name->region)
+		? join ('_', $name->language, $name->territory)
 		: $name;
 	
 	my @bundles = $self->_find_bundle('display_name_language');
@@ -342,17 +342,17 @@ sub territory_name {
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = __PACKAGE__->new(languge => 'und', territory => $name);
+		$name = __PACKAGE__->new(language => 'und', territory => $name);
 	}
 
-	if ( ! $name->region) {
+	if ( ! $name->territory) {
 		return '';
 	}
 
 	my $territory = undef;
 	my @bundles = $self->_find_bundle('display_name_territory');
 	foreach my $bundle (@bundles) {
-		$territory = $bundle->display_name_territory->{$name->region};
+		$territory = $bundle->display_name_territory->{$name->territory};
 		if (defined $territory) {
 			last;
 		}
