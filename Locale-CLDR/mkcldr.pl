@@ -17,7 +17,8 @@ use DateTime;
 our $verbose = 0;
 $verbose = 1 if grep /-v/, @ARGV;
 
-our $VERSION = '1.7.1';
+use version;
+our $VERSION = version->parse('1.8.0');
 
 my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename  = File::Spec->catfile($data_directory, 'core.zip');
@@ -75,12 +76,12 @@ my $sdf = XML::XPath->new(File::Spec->catfile($base_directory,
 	'supplementalData.xml'));
 
 say "Checking CLDR version" if $verbose;
-my $cldrVersion = $sdf->findnodes('/supplementalData/cldrVersion')
+my $cldrVersion = $sdf->findnodes('/supplementalData/version')
 	->get_node
-	->getAttribute('version');
+	->getAttribute('cldrVersion');
 
 die "Incorrect CLDR Version found $cldrVersion. It should be $VERSION"
-	unless $cldrVersion eq $VERSION;
+	unless version->parse("$cldrVersion.0") == $VERSION;
 
 say "Processing files"
 	if $verbose;
@@ -443,7 +444,7 @@ sub process_display_language {
 
 	my $languages = findnodes($xpath,'/ldml/localeDisplayNames/languages/language');
 	
-	return unless $languages;
+	return unless $languages->size;
 	my @languages = $languages->get_nodelist;
 	foreach my $language (@languages) {
 		my $type = $language->getAttribute('type');
@@ -480,7 +481,7 @@ sub process_display_script {
 
 	my $scripts = findnodes($xpath, '/ldml/localeDisplayNames/scripts/script');
 	
-	return unless $scripts;
+	return unless $scripts->size;
 	my @scripts = $scripts->get_nodelist;
 	foreach my $script (@scripts) {
 		my $type = $script->getAttribute('type');
@@ -517,7 +518,7 @@ sub process_display_territory {
 
 	my $territories = findnodes($xpath, '/ldml/localeDisplayNames/territories/territory');
 	
-	return unless $territories;
+	return unless $territories->size;
 	my @territories = $territories->get_nodelist;
 	foreach my $territory (@territories) {
 		my $type = $territory->getAttribute('type');
@@ -525,7 +526,9 @@ sub process_display_territory {
 		if ($variant) {
 			$type .= "\@alt=$variant";
 		}
-		my $name = $territory->getChildNode(1)->getValue;
+
+		my $node = $territory->getChildNode(1);
+		my $name = $node ? $node->getValue : '';
 		$name =~s/\\/\/\\/g;
 		$name =~s/'/\\'/g;
 		$territory = "            '$type' => '$name',\n";
@@ -554,7 +557,7 @@ sub process_display_variant {
 
 	my $variants= findnodes($xpath, '/ldml/localeDisplayNames/variants/variant');
 	
-	return unless $variants;
+	return unless $variants->size;
 	my @variants = $variants->get_nodelist;
 	foreach my $variant (@variants) {
 		my $type = $variant->getAttribute('type');
@@ -591,7 +594,7 @@ sub process_display_key {
 
 	my $keys= findnodes($xpath, '/ldml/localeDisplayNames/keys/key');
 	
-	return unless $keys;
+	return unless $keys->size;
 	my @keys = $keys->get_nodelist;
 	foreach my $key (@keys) {
 		my $type = $key->getAttribute('type');
@@ -623,7 +626,7 @@ sub process_display_type {
 		if $verbose;
 
 	my $types = findnodes($xpath, '/ldml/localeDisplayNames/types/type');
-	return unless $types;
+	return unless $types->size;
 
 	my @types = $types->get_nodelist;
 	my %values;
@@ -665,7 +668,7 @@ sub process_display_measurement_system_name {
 		if $verbose;
 
 	my $names = findnodes($xpath, '/ldml/localeDisplayNames/measurementSystemNames/measurementSystemName');
-	return unless $names;
+	return unless $names->size;
 
 	my @names = $names->get_nodelist;
 	foreach my $name (@names) {
@@ -697,7 +700,7 @@ sub process_code_patterns {
 		if $verbose;
 
 	my $patterns = findnodes($xpath, '/ldml/localeDisplayNames/codePatterns/codePattern');
-	return unless $patterns;
+	return unless $patterns->size;
 
 	my @patterns = $patterns->get_nodelist;
 	foreach my $pattern (@patterns) {
