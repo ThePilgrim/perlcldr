@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 24;
+use Test::More tests => 28;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -53,5 +53,9 @@ $locale = Locale::CLDR->new('en');
 is ($locale->language_name, 'English', 'Language name');
 is ($locale->language_name('wibble'), 'Unknown or Invalid Language', 'Unknown Language name');
 is ($locale->script_name('Cher'), 'Cherokee', 'Script name');
-is ($locale->script_name('wibl'), 'Unknown or Invalid Script', 'Script name');
+is ($locale->script_name('wibl'), 'Unknown or Invalid Script', 'Invalid Script name');
 is ($locale->territory_name('GB'), 'United Kingdom', 'Territory name');
+is ($locale->territory_name('wibble'), 'Unknown or Invalid Region', 'Invalid Territory name');
+is ($locale->variant_name('AREVMDA'), 'Western Armenian', 'Variant name');
+is ($locale->variant_name('WIBBLE'), '', 'Invalid Variant name');
+is ($locale->language_name('i-klingon'), 'Klingon', 'Language alias');

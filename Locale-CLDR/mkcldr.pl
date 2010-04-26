@@ -86,22 +86,29 @@ die "Incorrect CLDR Version found $cldrVersion. It should be $VERSION"
 say "Processing files"
 	if $verbose;
 
-# The en.xml file contains a list of all valid locale codes
-# So we process them first
+# The supplemental/supplementalMetaData.xml file contains a list of all valid
+# locale codes
 my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
-	'main',
-	'en.xml',
+	'supplemental',
+	'supplementalMetadata.xml',
 ));
 
 open my $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
 
-my $file_name = File::Spec->catfile($base_directory, 'main', 'en.xml');
+my $file_name = File::Spec->catfile($base_directory,
+	'supplemental',
+	'supplementalMetadata.xml'
+);
+
 say "Processing file $file_name" if $verbose;
 process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml, $file_name, 1);
 process_cp($xml);
 process_valid_languages($file, $xml);
 process_valid_scripts($file, $xml);
 process_valid_territories($file, $xml);
+process_valid_variants($file, $xml);
+process_valid_currencies($file, $xml);
+process_valid_language_aliases($file,$xml);
 process_footer($file, 1);
 close $file;
 
@@ -189,9 +196,10 @@ sub process_header {
 
 	$xml_name =~s/^.*(Data.*)$/$1/;
 	my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
-	my $xml_generated = findnodes($xpath, '/ldml/identity/generation')
-		->get_node
-		->getAttribute('date');
+	my $xml_generated = ( findnodes($xpath, '/ldml/identity/generation')
+		|| findnodes($xpath, '/supplementalData/generation')
+	)->get_node->getAttribute('date');
+
 	$xml_generated=~s/^\$Date: (.*) \$$/$1/;
 
 	print $file <<EOT;
@@ -210,16 +218,9 @@ sub process_valid_languages {
 	say "Processing Valid Languages"
 		if $verbose;
 
-	my $languages = findnodes($xpath,'/ldml/localeDisplayNames/languages/language');
+	my $languages = findnodes($xpath,'/supplementalData/metadata/validity/variable[@id="$language"]');
 	
-	my @languages = $languages->get_nodelist;
-	my %types;
-	foreach my $language (@languages) {
-		my $type = $language->getAttribute('type');
-		$types{$type} = 1;
-	}
-	
-	my @types = map {"        '$_',\n"} sort keys %types;
+	my @languages = map {"$_\n"} split /\s+/, $languages->get_node->string_value;
 
 	print $file <<EOT
 has 'valid_languages' => (
@@ -227,9 +228,9 @@ has 'valid_languages' => (
 	isa			=> 'ArrayRef',
 	init_arg	=> undef,
 	auto_deref	=> 1,
-	default     => sub { [
-@types
-	] },
+	default     => sub {[qw(
+@languages
+	)]},
 );
 
 EOT
@@ -241,26 +242,19 @@ sub process_valid_scripts {
 	say "Processing Valid Scripts"
 		if $verbose;
 
-	my $scripts = findnodes($xpath, '/ldml/localeDisplayNames/scripts/script');
+	my $scripts = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$script"');
 	
-	my @scripts = $scripts->get_nodelist;
-	my %types;
-	foreach my $script (@scripts) {
-		my $type = $script->getAttribute('type');
-		$types{$type} = 1;
-	}
+	my @scripts = map {"$_\n"} split /\s+/, $scripts->get_node->string_value;
 	
-	my @types = map {"        '$_',\n"} sort keys %types;
-
 	print $file <<EOT
 has 'valid_scripts' => (
 	is			=> 'ro',
 	isa			=> 'ArrayRef',
 	init_arg	=> undef,
 	auto_deref	=> 1,
-	default => sub { [
-@types
-	] },
+	default => sub {[qw(
+@scripts
+	)]},
 );
 
 EOT
@@ -272,16 +266,9 @@ sub process_valid_territories {
 	say "Processing Valid Territories"
 		if $verbose;
 
-	my $territories = findnodes($xpath, '/ldml/localeDisplayNames/territories/territory');
+	my $territories = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$territory"');
 	
-	my @territories = $territories->get_nodelist;
-	my %types;
-	foreach my $territory (@territories) {
-		my $type = $territory->getAttribute('type');
-		$types{$type} = 1;
-	}
-	
-	my @types = map {"        '$_',\n"} sort keys %types;
+	my @territories = map {"$_\n"} split /\s+/, $territories->get_node->string_value;
 
 	print $file <<EOT
 has 'valid_territories' => (
@@ -289,11 +276,84 @@ has 'valid_territories' => (
 	isa			=> 'ArrayRef',
 	init_arg	=> undef,
 	auto_deref	=> 1,
-	default     => sub { [
-@types
-	] },
+	default     => sub {[qw(
+@territories
+	)]},
 );
 
+EOT
+}
+
+sub process_valid_variants {
+	my ($file, $xpath) = @_;
+
+	say "Processing Valid Variants"
+		if $verbose;
+
+	my $variants = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$variant"');
+	
+	my @variants = map {"$_\n" } split /\s+/, $variants->get_node->string_value;
+
+	print $file <<EOT
+has 'valid_variants' => (
+	is			=> 'ro',
+	isa			=> 'ArrayRef',
+	init_arg	=> undef,
+	auto_deref	=> 1,
+	default     => sub {[qw(
+@variants
+	)]},
+);
+
+EOT
+}
+
+sub process_valid_currencies {
+	my ($file, $xpath) = @_;
+
+	say "Processing Valid Currencies"
+		if $verbose;
+
+	my $currencies = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$currency"]');
+	
+	my @currencies = map {"$_\n" } split /\s+/,  $currencies->get_node->string_value;
+
+	print $file <<EOT
+has 'valid_currencies' => (
+	is			=> 'ro',
+	isa			=> 'ArrayRef',
+	init_arg	=> undef,
+	auto_deref	=> 1,
+	default     => sub {[qw(
+@currencies
+	)]},
+);
+
+EOT
+}
+
+sub process_valid_language_aliases {
+	my ($file, $xpath) = @_;
+
+	say "Processing Valid Aliases"
+		if $verbose;
+
+	my $aliases = findnodes($xpath, '/supplementalData/metadata/alias/languageAlias');
+	print $file <<EOT;
+has 'language_aliases' => (
+	is			=> 'ro',
+	isa			=> 'HashRef',
+	init_arg	=> undef,
+	default     => sub { return {
+EOT
+	foreach my $node ($aliases->get_nodelist) {
+		my $from = $node->getAttribute('type');
+		my $to = $node->getAttribute('replacement');
+		print $file "\t'$from' => '$to',\n";
+	}
+	print $file <<EOT;
+	}},
+);
 EOT
 }
 

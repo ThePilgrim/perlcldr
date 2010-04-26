@@ -9,11 +9,11 @@ Locale::CLDR - Main Class for CLDR Locals
 
 =head1 VERSION
 
-Version 1.7.1 To match the CLDR Version
+Version 1.8.0 To match the CLDR Version
 
 =cut
 
-use version; our $VERSION = qv("1.7.1");
+use version; our $VERSION = qv("1.8.0");
 use List::Util qw(first);
 
 
@@ -30,6 +30,13 @@ has 'language' => (
 	isa			=> 'Str',
 	required	=> 1,
 );
+
+# language aliases
+around 'language' => sub {
+	my ($orig, $self) = @_;
+	my $value = $self->$orig;
+	return $self->language_aliases->{$value} // $value;
+};
 
 has 'script' => (
 	is			=> 'ro',
@@ -95,7 +102,7 @@ sub BUILDARGS {
 				(?:[-_]([a-zA-Z]{4}))?
 				(?:[-_]([a-zA-Z]{2,3}))?
 				(?:[-_]([a-zA-Z]+))?
-				(?:\@(.+))?
+				(?:[-_]u[_-](.+))?
 			$/x;
 
 		foreach ($language, $script, $territory, $variant) {
@@ -105,7 +112,7 @@ sub BUILDARGS {
 		%args = (
 			language	=> $language,
 			script		=> $script,
-			territory		=> $territory,
+			territory	=> $territory,
 			variant		=> $variant,
 			extentions	=> $extentions,
 		);
@@ -120,8 +127,7 @@ sub BUILDARGS {
 	# Split up the variant
 	if ( defined $args{extentions} && ! ref $args{extentions} ) {
 		$args{extentions} = {
-			map { split /=/ }
-			split /;/, $args{extentions}
+			split /[_-]/, $args{extentions}
 		};
 	}
 
@@ -130,8 +136,11 @@ sub BUILDARGS {
 
 sub BUILD {
 	my ($self, $args) = @_;
-	# Check that the args are valid
 
+	# Check that the args are valid
+	# also check for aliases
+	$args->{language} = $self->language_aliases->{$args->{language}}
+		// $args->{language};
 	die "Invalid language" unless first { $args->{language} eq $_ } $self->valid_languages;
 	die "Invalid script" if $args->{script} 
 		&& ! first { ucfirst lc $args->{script} eq $_ } $self->valid_scripts;
@@ -274,7 +283,7 @@ sub language_name {
 
 	my $code = ref $name
 		? $name->language
-		: eval { Lcale::CLDR->new($name)->language };
+		: eval { Locale::CLDR->new(language => $name)->language };
 
 	my $language = undef;
 	my @bundles = $self->_find_bundle('display_name_language');
@@ -342,19 +351,21 @@ sub territory_name {
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = __PACKAGE__->new(language => 'und', territory => $name);
+		$name = eval { __PACKAGE__->new(language => 'und', territory => $name); };
 	}
 
-	if ( ! $name->territory) {
+	if ( ref $name && ! $name->territory) {
 		return '';
 	}
 
 	my $territory = undef;
 	my @bundles = $self->_find_bundle('display_name_territory');
-	foreach my $bundle (@bundles) {
-		$territory = $bundle->display_name_territory->{$name->territory};
-		if (defined $territory) {
-			last;
+	if ($name) {
+		foreach my $bundle (@bundles) {
+			$territory = $bundle->display_name_territory->{$name->territory};
+			if (defined $territory) {
+				last;
+			}
 		}
 	}
 
@@ -390,21 +401,7 @@ sub variant_name {
 		}
 	}
 
-	return $variant;
-}
-
-sub key_name {
-	my ($self, $key) = @_;
-	die "No key given" unless defined $key;
-	my $key_name = undef;
-	my @bundles = $self->_find_bundle('display_name_key');
-	foreach my $bundle (@bundles) {
-		$key = $bundle->display_name_key->{$key};
-		if (defined $key) {
-			last;
-		}
-	}
-	return $key_name // $key;
+	return $variant // '';
 }
 
 =head1 AUTHOR
