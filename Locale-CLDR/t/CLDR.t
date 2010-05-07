@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 28;
+use Test::More tests => 31;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -31,14 +31,14 @@ is("$locale", 'en_Latn_GB', 'Set Language, Territory and Script explicitly');
 $locale = Locale::CLDR->new('en-latn-gb');
 is("$locale", 'en_Latn_GB', 'Set Language, Territory and Script implicitly');
 
-$locale = Locale::CLDR->new(language => 'en', variant => 'BOKMAL');
-is("$locale", 'en_BOKMAL', 'Set Language and Variant from string explicitly');
+$locale = Locale::CLDR->new(language => 'en', variant => '1994');
+is("$locale", 'en_1994', 'Set Language and Variant from string explicitly');
 
-$locale = Locale::CLDR->new('en_BOKMAL');
-is("$locale", 'en_BOKMAL', 'Set Language and variant implicitly');
+$locale = Locale::CLDR->new('en_1994');
+is("$locale", 'en_1994', 'Set Language and variant implicitly');
 
-$locale = Locale::CLDR->new('en_latn_gb_BOKMAL');
-is("$locale", 'en_Latn_GB_BOKMAL', 'Set Language, Territory, Script and variant implicitly');
+$locale = Locale::CLDR->new('en_latn_gb_1994');
+is("$locale", 'en_Latn_GB_1994', 'Set Language, Territory, Script and variant implicitly');
 
 throws_ok { $locale = Locale::CLDR->new('wibble') } qr/Invalid language/, "Caught invalid language";
 throws_ok { $locale = Locale::CLDR->new('en_wi') } qr/Invalid territory/, "Caught invalid territory";
@@ -57,5 +57,8 @@ is ($locale->script_name('wibl'), 'Unknown or Invalid Script', 'Invalid Script n
 is ($locale->territory_name('GB'), 'United Kingdom', 'Territory name');
 is ($locale->territory_name('wibble'), 'Unknown or Invalid Region', 'Invalid Territory name');
 is ($locale->variant_name('AREVMDA'), 'Western Armenian', 'Variant name');
-is ($locale->variant_name('WIBBLE'), '', 'Invalid Variant name');
+throws_ok { $locale->variant_name('WIBBLE') } qr/ \A Invalid \s variant /xms, 'Invalid Variant name';
 is ($locale->language_name('i-klingon'), 'Klingon', 'Language alias');
+is ($locale->territory_name('BQ'), 'British Antarctic Territory', 'Territory alias');
+is ($locale->territory_name('830'), 'Channel Islands', 'Territory alias');
+is ($locale->variant_name('BOKMAL'), '', 'Variant alias');

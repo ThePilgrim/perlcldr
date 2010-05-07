@@ -109,6 +109,8 @@ process_valid_territories($file, $xml);
 process_valid_variants($file, $xml);
 process_valid_currencies($file, $xml);
 process_valid_language_aliases($file,$xml);
+process_valid_territory_aliases($file,$xml);
+process_valid_variant_aliases($file,$xml);
 process_footer($file, 1);
 close $file;
 
@@ -335,7 +337,7 @@ EOT
 sub process_valid_language_aliases {
 	my ($file, $xpath) = @_;
 
-	say "Processing Valid Aliases"
+	say "Processing Valid Language Aliases"
 		if $verbose;
 
 	my $aliases = findnodes($xpath, '/supplementalData/metadata/alias/languageAlias');
@@ -352,6 +354,54 @@ EOT
 		print $file "\t'$from' => '$to',\n";
 	}
 	print $file <<EOT;
+	}},
+);
+EOT
+}
+
+sub process_valid_territory_aliases {
+	my ($file, $xpath) = @_;
+
+	say "Processing Valid Territory Aliases"
+		if $verbose;
+
+	my $aliases = findnodes($xpath, '/supplementalData/metadata/alias/territoryAlias');
+	print $file <<EOT;
+has 'territory_aliases' => (
+	is			=> 'ro',
+	isa			=> 'HashRef',
+	init_arg	=> undef,
+	default     => sub { return {
+EOT
+	foreach my $node ($aliases->get_nodelist) {
+		my $from = $node->getAttribute('type');
+		my $to = $node->getAttribute('replacement');
+		print $file "\t'$from' => '$to',\n";
+	}
+	print $file <<EOT;
+	}},
+);
+EOT
+
+}
+
+sub process_valid_variant_aliases {
+	my ($file, $xpath) = @_;
+
+	say "Processing Valid Variant Aliases"
+		if $verbose;
+
+	print $file <<EOT;
+has 'variant_aliases' => (
+	is			=> 'ro',
+	isa			=> 'HashRef',
+	init_arg	=> undef,
+	default     => sub { return {
+		bokmal		=> { language	=> 'nb' },
+		nynorsk		=> { language	=> 'nn' },
+		aaland		=> { territory	=> 'AX' },
+		polytoni	=> { variant	=> 'POLYTON' },
+		saaho		=> { language	=> 'ssy' },
 	}},
 );
 EOT

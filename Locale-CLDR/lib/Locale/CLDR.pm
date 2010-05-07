@@ -52,6 +52,15 @@ has 'territory' => (
 	predicate	=> 'has_territory',
 );
 
+# territory aliases
+around 'territory' => sub {
+	my ($orig, $self) = @_;
+	my $value = $self->$orig;
+	return $value if defined $value;
+	my $alias = $self->territory_aliases->{$value};
+	return (split /\s+/, $alias)[0];
+};
+
 has 'variant' => (
 	is			=> 'ro',
 	isa			=> 'Str',
@@ -92,16 +101,30 @@ has 'valid_keys' => (
 	},
 );
 
+has '_no_fallback' => (
+	is			=> 'ro',
+	isa			=> 'Bool',
+	default		=> 0,
+	lazy		=> 1,
+);
+
 sub BUILDARGS {
 	my $self = shift;
 	my %args;
+
+	# Used for arguments when we call new from our own code
+	my %internal_args = ();
+	if (@_ > 1 && ref $_[-1] eq 'HASH') {
+		%internal_args = %{pop @_};
+	}
+
 	if (1 == @_ && ! ref $_[0]) {
 		my ($language, $script, $territory, $variant, $extentions)
 		 	= $_[0]=~/^
 				([a-zA-Z]+)
 				(?:[-_]([a-zA-Z]{4}))?
 				(?:[-_]([a-zA-Z]{2,3}))?
-				(?:[-_]([a-zA-Z]+))?
+				(?:[-_]([a-zA-Z0-9]+))?
 				(?:[-_]u[_-](.+))?
 			$/x;
 
@@ -124,14 +147,19 @@ sub BUILDARGS {
 			: @_
 	}
 
-	# Split up the variant
+	# Split up the extentions
 	if ( defined $args{extentions} && ! ref $args{extentions} ) {
 		$args{extentions} = {
 			split /[_-]/, $args{extentions}
 		};
 	}
 
-	$self->SUPER::BUILDARGS(%args);
+	# Fix casing of args
+	$args{language}		= lc $args{language}		if defined $args{language};
+	$args{script}		= ucfirst lc $args{script}	if defined $args{script};
+	$args{territory}	= uc $args{territory}		if defined $args{territory};
+
+	$self->SUPER::BUILDARGS(%args, %internal_args);
 }
 
 sub BUILD {
@@ -142,10 +170,27 @@ sub BUILD {
 	$args->{language} = $self->language_aliases->{$args->{language}}
 		// $args->{language};
 	die "Invalid language" unless first { $args->{language} eq $_ } $self->valid_languages;
+
 	die "Invalid script" if $args->{script} 
 		&& ! first { ucfirst lc $args->{script} eq $_ } $self->valid_scripts;
+
 	die "Invalid territory" if $args->{territory} 
-		&& ! first { uc $args->{territory} eq $_ } $self->valid_territories;
+		&&  ( !  ( first { uc $args->{territory} eq $_ } $self->valid_territories )
+			&& ( ! $self->territory_aliases->{$self->{territory}} )
+		);
+    
+	die "Invalid variant" if $args->{variant}
+		&&  ( !  ( first { uc $args->{variant} eq $_ } $self->valid_variants )
+			&& ( ! $self->variant_aliases->{lc $self->{variant}} )
+	);
+
+	# Check for variant aliases
+	if ($args->{variant} && (my $variant_alias = $self->variant_aliases->{lc $self->variant})) {
+		delete $args->{variant};
+		my ($what) = keys %{$variant_alias};
+		my ($value) = values %{$variant_alias};
+		$args->{$what} = $value;
+	}
 
 	# Create the new path
 	my @path;
@@ -177,7 +222,9 @@ sub BUILD {
 		my $locale_package = $module->new;
 		push @modules, 
 			$locale_package, 
-			map {Locale::CLDR->new($_)->modules} $locale_package->fallback;
+			$self->_no_fallback 
+				? ()
+				: map {Locale::CLDR->new($_, {_no_fallback => 1})} $locale_package->fallback;
 	}
 
 	# If we only have the root module then we have a problem as
@@ -212,10 +259,10 @@ sub stringify {
 	}
 
 	if (defined $self->extentions) {
-		$string.= '@';
+		$string.= '_u';
 		foreach my $key (sort keys %{$self->extentions}) {
 			my $value = $self->extentions->{$key};
-			$string .= "$key=$value;";
+			$string .= "_${key}_$value";
 		}
 		chop $string;
 	}
