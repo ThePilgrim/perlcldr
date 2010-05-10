@@ -110,12 +110,13 @@ process_valid_scripts($file, $xml);
 process_valid_territories($file, $xml);
 process_valid_variants($file, $xml);
 process_valid_currencies($file, $xml);
+process_valid_keys($file, $base_directory);
 process_valid_language_aliases($file,$xml);
 process_valid_territory_aliases($file,$xml);
 process_valid_variant_aliases($file,$xml);
 process_footer($file, 1);
 close $file;
-
+exit;
 my $main_directory = File::Spec->catdir($base_directory, 'main');
 opendir ( my $dir, $main_directory);
 # Count the number of files
@@ -331,6 +332,58 @@ has 'valid_currencies' => (
 \tdefault\t=> sub {[qw(
 @currencies
 \t)]},
+);
+
+EOT
+}
+
+sub process_valid_keys {
+	my ($file, $base_directory) = @_;
+
+	say "Processing Valid Keys"
+		if $verbose;
+
+	opendir (my $dir, File::Spec->catdir($base_directory, 'bcp47'))
+		|| die "Can't open directory: $!";
+
+	my @files = map {File::Spec->catfile($base_directory, 'bcp47', $_)}
+		grep /\.xml \z/xms, 
+		readdir $dir;
+
+	closedir $dir;
+	my %keys;
+	foreach my $file_name (@files) {
+		my $xml = XML::XPath->new($file_name);
+		my $key = findnodes($xml, '/ldmlBCP47/keyword/key')->get_node;
+		my ($name, $alias) = ($key->getAttribute('name'), $key->getAttribute('alias'));
+		$keys{$name}{alias} = $alias;
+		my @types = findnodes($xml,'/ldmlBCP47/keyword/key/type')->get_nodelist;
+		foreach my $type (@types) {
+			push @{$keys{$name}{type}}, $type->getAttribute('name');
+		}
+	}
+
+	print $file <<EOT;
+has 'valid_keys' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub { return {
+EOT
+	
+	foreach my $key (sort keys %keys) {
+		my $alias = $keys{$key}{alias};
+		my @types = @{$keys{$key}{type}};
+		foreach my $name ( grep {length} ($key, $keys{$key}{alias}) ) {
+			say $file "\t\t$name\t=> [";
+			print $file map {"\t\t\t'$_',\n"} @types;
+			say $file "\t\t],";
+		}
+	}
+
+	print $file <<EOT;
+\t}},
 );
 
 EOT
