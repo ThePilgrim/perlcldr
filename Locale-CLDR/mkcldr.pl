@@ -101,6 +101,8 @@ my $file_name = File::Spec->catfile($base_directory,
 );
 
 say "Processing file $file_name" if $verbose;
+
+# Note: The order of these calls is important
 process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml, $file_name, 1);
 process_cp($xml);
 process_valid_languages($file, $xml);
@@ -138,12 +140,12 @@ foreach my $file_name (grep /^[^.]/, readdir($dir)) {
 
 	open $file, '>', File::Spec->catfile($lib_directory, @output_file_parts);
 
-	# Note: The order of these calls is important
 	$file_name = File::Spec->catfile($base_directory, 'main', $file_name);
 	my $percent = ++$count_files / $num_files * 100;
 	say sprintf("Processing File %s: %.2f%% done", $file_name, $percent) if $verbose;
-	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, $file_name);
 
+	# Note: The order of these calls is important
+	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, $file_name);
 	process_cp($xml);
 	process_fallback($file, $xml);
 	process_display_pattern($file, $xml);
@@ -176,7 +178,7 @@ sub output_file_name {
 	foreach my $name (qw( language script territory variant )) {
 		my $nodes = findnodes($xpath, "/ldml/identity/$name");
 		if ($nodes->size) {;
-		    push @nodes, $nodes->get_node->getAttribute('type');
+			push @nodes, $nodes->get_node->getAttribute('type');
 		}
 		else {
 			push @nodes, 'Any';
@@ -207,7 +209,7 @@ sub process_header {
 	print $file <<EOT;
 package $class;
 # This file auto generated from $xml_name
-# 	on $now GMT
+#\ton $now GMT
 # XML file generated $xml_generated
 
 use Moose$isRole;
@@ -226,13 +228,13 @@ sub process_valid_languages {
 
 	print $file <<EOT
 has 'valid_languages' => (
-	is			=> 'ro',
-	isa			=> 'ArrayRef',
-	init_arg	=> undef,
-	auto_deref	=> 1,
-	default     => sub {[qw(
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub {[qw(
 @languages
-	)]},
+\t)]},
 );
 
 EOT
@@ -245,18 +247,18 @@ sub process_valid_scripts {
 		if $verbose;
 
 	my $scripts = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$script"');
-	
+
 	my @scripts = map {"$_\n"} split /\s+/, $scripts->get_node->string_value;
 	
 	print $file <<EOT
 has 'valid_scripts' => (
-	is			=> 'ro',
-	isa			=> 'ArrayRef',
-	init_arg	=> undef,
-	auto_deref	=> 1,
-	default => sub {[qw(
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub {[qw(
 @scripts
-	)]},
+\t)]},
 );
 
 EOT
@@ -269,18 +271,18 @@ sub process_valid_territories {
 		if $verbose;
 
 	my $territories = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$territory"');
-	
+
 	my @territories = map {"$_\n"} split /\s+/, $territories->get_node->string_value;
 
 	print $file <<EOT
 has 'valid_territories' => (
-	is			=> 'ro',
-	isa			=> 'ArrayRef',
-	init_arg	=> undef,
-	auto_deref	=> 1,
-	default     => sub {[qw(
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub {[qw(
 @territories
-	)]},
+\t)]},
 );
 
 EOT
@@ -293,18 +295,18 @@ sub process_valid_variants {
 		if $verbose;
 
 	my $variants = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$variant"');
-	
+
 	my @variants = map {"$_\n" } split /\s+/, $variants->get_node->string_value;
 
 	print $file <<EOT
 has 'valid_variants' => (
-	is			=> 'ro',
-	isa			=> 'ArrayRef',
-	init_arg	=> undef,
-	auto_deref	=> 1,
-	default     => sub {[qw(
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub {[qw(
 @variants
-	)]},
+\t)]},
 );
 
 EOT
@@ -317,18 +319,18 @@ sub process_valid_currencies {
 		if $verbose;
 
 	my $currencies = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$currency"]');
-	
+
 	my @currencies = map {"$_\n" } split /\s+/,  $currencies->get_node->string_value;
 
 	print $file <<EOT
 has 'valid_currencies' => (
-	is			=> 'ro',
-	isa			=> 'ArrayRef',
-	init_arg	=> undef,
-	auto_deref	=> 1,
-	default     => sub {[qw(
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub {[qw(
 @currencies
-	)]},
+\t)]},
 );
 
 EOT
@@ -343,10 +345,10 @@ sub process_valid_language_aliases {
 	my $aliases = findnodes($xpath, '/supplementalData/metadata/alias/languageAlias');
 	print $file <<EOT;
 has 'language_aliases' => (
-	is			=> 'ro',
-	isa			=> 'HashRef',
-	init_arg	=> undef,
-	default     => sub { return {
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { return {
 EOT
 	foreach my $node ($aliases->get_nodelist) {
 		my $from = $node->getAttribute('type');
@@ -354,7 +356,7 @@ EOT
 		print $file "\t'$from' => '$to',\n";
 	}
 	print $file <<EOT;
-	}},
+\t}},
 );
 EOT
 }
@@ -368,10 +370,10 @@ sub process_valid_territory_aliases {
 	my $aliases = findnodes($xpath, '/supplementalData/metadata/alias/territoryAlias');
 	print $file <<EOT;
 has 'territory_aliases' => (
-	is			=> 'ro',
-	isa			=> 'HashRef',
-	init_arg	=> undef,
-	default     => sub { return {
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { return {
 EOT
 	foreach my $node ($aliases->get_nodelist) {
 		my $from = $node->getAttribute('type');
@@ -379,7 +381,7 @@ EOT
 		print $file "\t'$from' => '$to',\n";
 	}
 	print $file <<EOT;
-	}},
+\t}},
 );
 EOT
 
@@ -393,16 +395,16 @@ sub process_valid_variant_aliases {
 
 	print $file <<EOT;
 has 'variant_aliases' => (
-	is			=> 'ro',
-	isa			=> 'HashRef',
-	init_arg	=> undef,
-	default     => sub { return {
-		bokmal		=> { language	=> 'nb' },
-		nynorsk		=> { language	=> 'nn' },
-		aaland		=> { territory	=> 'AX' },
-		polytoni	=> { variant	=> 'POLYTON' },
-		saaho		=> { language	=> 'ssy' },
-	}},
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { return {
+\t\tbokmal\t\t=> { language\t=> 'nb' },
+\t\tnynorsk\t\t=> { language\t=> 'nn' },
+\t\taaland\t\t=> { territory\t=> 'AX' },
+\t\tpolytoni\t=> { variant\t=> 'POLYTON' },
+\t\tsaaho\t\t=> { language\t=> 'ssy' },
+\t}},
 );
 EOT
 }
@@ -477,14 +479,14 @@ sub process_cp {
 			}
 			else {
 				my $hex = $character->getAttribute('hex');
-       				my $chr = chr(hex $hex);
+					my $chr = chr(hex $hex);
 				$text .= $chr;
 			}
 			$parent->removeChild($sibling);
 		}
 		$parent->appendChild(XML::XPath::Node::Text->new($text));
- 	}
-}	
+	}
+}
 
 sub process_fallback {
 	my ($file, $xpath) = @_;
@@ -497,11 +499,11 @@ sub process_fallback {
 
 	print $file <<EOT;
 has 'fallback' => (
-	is			=> 'ro',
-	isa			=> 'ArrayRef[Str]',
-	auto_deref	=> 1,
-	init_arg	=> undef,
-	default		=> sub { [ qw( $fallback ) ] },
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef[Str]',
+\tauto_deref\t=> 1,
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { [ qw( $fallback ) ] },
 );
 
 EOT
@@ -517,31 +519,31 @@ sub process_display_pattern {
 		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
 	return unless $display_pattern->size;
 	$display_pattern = $display_pattern->get_node->string_value;
-	
+
 	my $display_seperator = 
 		findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
 	$display_seperator = $display_seperator->size ? $display_seperator->get_node->string_value : '';
-	
+
 	return unless defined $display_pattern;
 	foreach ($display_pattern, $display_seperator) {
 		s/\//\/\//g;
 		s/'/\\'/g;
 	}
-	
+
 	print $file <<EOT;
 sub display_name_pattern {
-	my (\$self, \$name, \$territory, \$script, \$variant) = \@_;
+\tmy (\$self, \$name, \$territory, \$script, \$variant) = \@_;
 
-	my \$display_pattern = '$display_pattern';
-	\$display_pattern =~s/\\\{0\\\}/\$name/g;
-	my \$subtags = join '$display_seperator', grep {\$_} (
-		\$territory,
-		\$script,
-		\$variant,
-	);
+\tmy \$display_pattern = '$display_pattern';
+\t\$display_pattern =~s/\\\{0\\\}/\$name/g;
+\tmy \$subtags = join '$display_seperator', grep {\$_} (
+\t\t\$territory,
+\t\t\$script,
+\t\t\$variant,
+\t);
 
-	\$display_pattern =~s/\\\{1\\\}/\$subtags/g;
-	return \$display_pattern;
+\t\$display_pattern =~s/\\\{1\\\}/\$subtags/g;
+\treturn \$display_pattern;
 }
 
 EOT
@@ -553,7 +555,7 @@ sub process_display_language {
 		if $verbose;
 
 	my $languages = findnodes($xpath,'/ldml/localeDisplayNames/languages/language');
-	
+
 	return unless $languages->size;
 	my @languages = $languages->get_nodelist;
 	foreach my $language (@languages) {
@@ -565,19 +567,19 @@ sub process_display_language {
 		my $name = $language->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$language = "            '$type' => '$name',\n";
+		$language = "\t\t\t'$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_language' => (
-	is			=> 'ro',
-	isa			=> 'HashRef[Str]',
-	init_arg	=> undef,
-	default		=> sub { 
-		{
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { 
+\t\t{
 @languages
-		}
-	},
+\t\t}
+\t},
 );
 
 EOT
@@ -590,7 +592,7 @@ sub process_display_script {
 		if $verbose;
 
 	my $scripts = findnodes($xpath, '/ldml/localeDisplayNames/scripts/script');
-	
+
 	return unless $scripts->size;
 	my @scripts = $scripts->get_nodelist;
 	foreach my $script (@scripts) {
@@ -602,19 +604,19 @@ sub process_display_script {
 		my $name = $script->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$script = "            '$type' => '$name',\n";
+		$script = "\t\t\t'$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_script' => (
-	is			=> 'ro',
-	isa			=> 'HashRef[Str]',
-	init_arg	=> undef,
-	default		=> sub { 
-		{
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { 
+\t\t{
 @scripts
-		}
-	},
+\t\t}
+\t},
 );
 
 EOT
@@ -627,7 +629,7 @@ sub process_display_territory {
 		if $verbose;
 
 	my $territories = findnodes($xpath, '/ldml/localeDisplayNames/territories/territory');
-	
+
 	return unless $territories->size;
 	my @territories = $territories->get_nodelist;
 	foreach my $territory (@territories) {
@@ -641,19 +643,19 @@ sub process_display_territory {
 		my $name = $node ? $node->getValue : '';
 		$name =~s/\\/\/\\/g;
 		$name =~s/'/\\'/g;
-		$territory = "            '$type' => '$name',\n";
+		$territory = "\t\t\t'$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_territory' => (
-	is			=> 'ro',
-	isa			=> 'HashRef[Str]',
-	init_arg	=> undef,
-	default		=> sub { 
-		{
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { 
+\t\t{
 @territories
-		}
-	},
+\t\t}
+\t},
 );
 
 EOT
@@ -666,7 +668,7 @@ sub process_display_variant {
 		if $verbose;
 
 	my $variants= findnodes($xpath, '/ldml/localeDisplayNames/variants/variant');
-	
+
 	return unless $variants->size;
 	my @variants = $variants->get_nodelist;
 	foreach my $variant (@variants) {
@@ -678,19 +680,19 @@ sub process_display_variant {
 		my $name = $variant->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$variant = "            '$type' => '$name',\n";
+		$variant = "\t\t\t'$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_variant' => (
-	is			=> 'ro',
-	isa			=> 'HashRef[Str]',
-	init_arg	=> undef,
-	default		=> sub { 
-		{
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { 
+\t\t{
 @variants
-		}
-	},
+\t\t}
+\t},
 );
 
 EOT
@@ -703,7 +705,7 @@ sub process_display_key {
 		if $verbose;
 
 	my $keys= findnodes($xpath, '/ldml/localeDisplayNames/keys/key');
-	
+
 	return unless $keys->size;
 	my @keys = $keys->get_nodelist;
 	foreach my $key (@keys) {
@@ -711,19 +713,19 @@ sub process_display_key {
 		my $name = $key->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$key = "            '$type' => '$name',\n";
+		$key = "\t\t\t'$type' => '$name',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_key' => (
-	is			=> 'ro',
-	isa			=> 'HashRef[Str]',
-	init_arg	=> undef,
-	default		=> sub { 
-		{
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { 
+\t\t{
 @keys
-		}
-	},
+\t\t}
+\t},
 );
 
 EOT
@@ -749,23 +751,23 @@ sub process_display_type {
 	}
 	@types = ();
 	foreach my $key (sort keys %values) {
-		push @types, "            '$key' => {\n";
+		push @types, "\t\t\t'$key' => {\n";
 		foreach my $type (sort keys %{$values{$key}}) {
-			push @types, "                '$type' => '$values{$key}{$type}',\n";
+			push @types, "\t\t\t\t'$type' => '$values{$key}{$type}',\n";
 		}
-		push @types, "            },\n";
+		push @types, "\t\t\t},\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_type' => (
-	is			=> 'ro',
-	isa			=> 'HashRef[HashRef[Str]]',
-	init_arg	=> undef,
-	default		=> sub {
-		{
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[HashRef[Str]]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub {
+\t\t{
 @types
-		}
-	},
+\t\t}
+\t},
 );
 
 EOT
@@ -786,19 +788,19 @@ sub process_display_measurement_system_name {
 		my $value = $name->getChildNode(1)->getValue;
 		$name =~s/\\/\\\\/g;
 		$name =~s/'/\\'/g;
-		$name = "            '$type' => '$value',\n";
+		$name = "\t\t\t'$type' => '$value',\n";
 	}
 
 	print $file <<EOT;
 has 'display_name_measurement_system' => (
-	is			=> 'ro',
-	isa			=> 'HashRef[Str]',
-	init_arg	=> undef,
-	default		=> sub { 
-		{
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { 
+\t\t{
 @names
-		}
-	},
+\t\t}
+\t},
 );
 
 EOT
@@ -818,19 +820,19 @@ sub process_code_patterns {
 		my $value = $pattern->getChildNode(1)->getValue;
 		$pattern =~s/\\/\\\\/g;
 		$pattern =~s/'/\\'/g;
-		$pattern = "            '$type' => '$value',\n";
+		$pattern = "\t\t\t'$type' => '$value',\n";
 	}
-	
+
 	print $file <<EOT;
 has 'display_name_code_patterns' => (
     is            => 'ro',
-	isa			=> 'HashRef[Str]',
-	init_arg	=> undef,
-	default		=> sub { 
-		{
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { 
+\t\t{
 @patterns
-		}
-	},
+\t\t}
+\t},
 );
 
 EOT
