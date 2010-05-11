@@ -91,16 +91,6 @@ has 'method_cache' => (
 	default		=> sub { return {}},
 );
 
-has 'valid_keys' => (
-	is			=> 'ro',
-	isa			=> 'ArrayRef[Str]',
-	init_arg		=> undef,
-	auto_deref		=> 1,
-	default		=> sub {
-		return [ qw( colation calendar currency numbers timezone ) ];
-	},
-);
-
 has '_no_fallback' => (
 	is			=> 'ro',
 	isa			=> 'Bool',
@@ -150,6 +140,7 @@ sub BUILDARGS {
 	# Split up the extentions
 	if ( defined $args{extentions} && ! ref $args{extentions} ) {
 		$args{extentions} = {
+			map {lc}
 			split /[_-]/, $args{extentions}
 		};
 	}
@@ -184,6 +175,17 @@ sub BUILD {
 			&& ( ! $self->variant_aliases->{lc $self->{variant}} )
 	);
 
+	if ($args->{extention}) {
+		my %valid_keys = $self->valid_keys;
+		foreach my $key ( keys %{$args->{extention}} ) {
+			my %key_aliases = $self->key_aliases;
+			$key = $key_aliases{$key} if exists $key_aliases{$key};
+			die "Invalid extention name" unless exists $valid_keys{$key};
+			die "Invalid extention value" unless 
+				first { $_ eq $args->{extention}{$key} } @{$valid_keys{$key}};
+		}
+	}
+		
 	# Check for variant aliases
 	if ($args->{variant} && (my $variant_alias = $self->variant_aliases->{lc $self->variant})) {
 		delete $args->{variant};
@@ -285,6 +287,7 @@ sub _find_bundle {
 		}
 	}
 
+	return unless $self->method_cache->{$method_name};
 	return wantarray
 		? @{$self->method_cache->{$method_name}}
 		: $self->method_cache->{$method_name}[0];
@@ -451,6 +454,50 @@ sub variant_name {
 	return $variant // '';
 }
 
+sub key_name {
+	my ($self, $name) = @_;
+
+	$name = lc $name;
+	my %key_aliases = $self->key_aliases;
+	my %key_names	= $self->key_names;
+	my %valid_keys	= $self->valid_keys;
+
+	$name = $key_aliases{$name} if exists $key_aliases{$name};
+
+	return '' unless exists $valid_keys{$name};
+	my @bundles = $self->_find_bundle('display_name_key');
+	foreach my $bundle (@bundles) {
+		my $key = $bundle->display_name_key->{$name};
+		return $key if length $key;
+	}
+
+	return ucfirst ($key_names{$name} || $name);
+}
+
+sub type_name {
+	my ($self, $key, $type) = @_;
+
+	$key	= lc $key;
+	$type	= lc $type;
+
+	my %key_aliases = $self->key_aliases;
+	my %valid_keys	= $self->valid_keys;
+	my %key_names	= $self->key_names;
+
+	$key = $key_aliases{$key} if exists $key_aliases{$key};
+
+	return '' unless exists $valid_keys{$key};
+	return '' unless first { $_ eq $type } @{$valid_keys{$key}};
+
+	my @bundles = $self->_find_bundle('display_name_type');
+	foreach my $bundle (@bundles) {
+		my $type = $bundle->display_name_type->{$key_names{$key}}{$type};
+		return $type if defined $type;
+	}
+
+	return '';
+}
+	
 =head1 AUTHOR
 
 John Imrie, C<< <john.imrie at vodafoneemail.co.uk> >>

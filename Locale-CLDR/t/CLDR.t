@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 31;
+use Test::More tests => 33;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -62,3 +62,5 @@ is ($locale->language_name('i-klingon'), 'Klingon', 'Language alias');
 is ($locale->territory_name('BQ'), 'British Antarctic Territory', 'Territory alias');
 is ($locale->territory_name('830'), 'Channel Islands', 'Territory alias');
 is ($locale->variant_name('BOKMAL'), '', 'Variant alias');
+is ($locale->key_name('ca'), 'Calendar', 'Key name');
+is ($locale->type_name('calendar', 'gregorian'), 'Gregorian Calendar', 'Type name');

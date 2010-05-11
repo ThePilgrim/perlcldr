@@ -360,10 +360,36 @@ sub process_valid_keys {
 		my @types = findnodes($xml,'/ldmlBCP47/keyword/key/type')->get_nodelist;
 		foreach my $type (@types) {
 			push @{$keys{$name}{type}}, $type->getAttribute('name');
+			push @{$keys{$name}{type}}, $type->getAttribute('alias')
+				if length $type->getAttribute('alias');
 		}
 	}
 
 	print $file <<EOT;
+has 'key_aliases' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub { return {
+EOT
+	foreach my $key (sort keys %keys) {
+		my $alias = $keys{$key}{alias};
+		next unless $alias;
+		say $file "\t\t$alias => '$key',";
+	}
+	print $file <<EOT;
+\t}},
+);
+
+has 'key_names' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub { return { reverse shift()->key_aliases }; },
+);
+
 has 'valid_keys' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
@@ -373,13 +399,10 @@ has 'valid_keys' => (
 EOT
 	
 	foreach my $key (sort keys %keys) {
-		my $alias = $keys{$key}{alias};
 		my @types = @{$keys{$key}{type}};
-		foreach my $name ( grep {length} ($key, $keys{$key}{alias}) ) {
-			say $file "\t\t$name\t=> [";
-			print $file map {"\t\t\t'$_',\n"} @types;
-			say $file "\t\t],";
-		}
+		say $file "\t\t$key\t=> [";
+		print $file map {"\t\t\t'$_',\n"} @types;
+		say $file "\t\t],";
 	}
 
 	print $file <<EOT;
