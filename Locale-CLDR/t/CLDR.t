@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 35;
+use Test::More tests => 38;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -68,3 +68,9 @@ is ($locale->type_name('calendar', 'gregorian'), 'Gregorian Calendar', 'Type nam
 # Mesurement systems
 is ($locale->measurement_system_name('us'), 'US', 'Measurement system US');
 is ($locale->measurement_system_name('metric'), 'Metric', 'Measurement system Metric');
+
+# Code patterns
+my $test = Locale::CLDR->new('en_Latn_GB');
+is ($locale->code_pattern('language', $test), 'Language: English', 'Code pattern Language');
+is ($locale->code_pattern('script', $test), 'Script: Latin', 'Code pattern script');
+is ($locale->code_pattern('territory', $test), 'Region: United Kingdom', 'Code pattern territory');

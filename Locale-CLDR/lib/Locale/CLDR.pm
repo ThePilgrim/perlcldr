@@ -1,4 +1,5 @@
 package Locale::CLDR;
+use 5.010;
 
 use Moose;
 with 'Locale::CLDR::ValidCodes';
@@ -506,12 +507,39 @@ sub measurement_system_name {
 	$name = 'metric' if $name eq 'METRIC';
 
 	# Check valid values
-	return '' unless $name=~m{ US | metric }xms;
+	return '' unless $name=~m{ \A (?: US | metric ) \z }xms;
 
 	my @bundles = $self->_find_bundle('display_name_measurement_system');
 	foreach my $bundle (@bundles) {
 		my $system = $bundle->display_name_measurement_system->{$name};
 		return $system if defined $system;
+	}
+
+	return '';
+}
+
+sub code_pattern {
+	my ($self, $type, $locale) = @_;
+	$type = lc $type;
+
+	# If locale isnot passed in then we are using ourself
+	$locale //= $self;
+
+	# If locale is not an object then inflate it
+	$locale = __PACKAGE__->new($locale) unless blessed $locale;
+
+	return '' unless $type =~ m{ \A (?: language | script | territory ) \z }xms;
+
+	my $method = $type . '_name';
+	my $substute = $locale->$method;
+
+	my @bundles = $self->_find_bundle('display_name_code_patterns');
+	foreach my $bundle (@bundles) {
+		my $text = $bundle->display_name_code_patterns->{$type};
+		next unless defined $text;
+		my $match = qr{ \{ 0 \} }xms;
+		$text=~ s{ $match }{$substute}gxms;
+		return $text;
 	}
 
 	return '';
