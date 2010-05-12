@@ -498,6 +498,25 @@ sub type_name {
 	return '';
 }
 	
+sub measurement_system_name {
+	my ($self, $name) = @_;
+
+	# Fix case of code
+	$name = uc $name;
+	$name = 'metric' if $name eq 'METRIC';
+
+	# Check valid values
+	return '' unless $name=~m{ US | metric }xms;
+
+	my @bundles = $self->_find_bundle('display_name_measurement_system');
+	foreach my $bundle (@bundles) {
+		my $system = $bundle->display_name_measurement_system->{$name};
+		return $system if defined $system;
+	}
+
+	return '';
+}
+
 =head1 AUTHOR
 
 John Imrie, C<< <john.imrie at vodafoneemail.co.uk> >>
