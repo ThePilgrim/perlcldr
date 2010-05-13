@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 38;
+use Test::More tests => 40;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -74,3 +74,7 @@ my $test = Locale::CLDR->new('en_Latn_GB');
 is ($locale->code_pattern('language', $test), 'Language: English', 'Code pattern Language');
 is ($locale->code_pattern('script', $test), 'Script: Latin', 'Code pattern script');
 is ($locale->code_pattern('territory', $test), 'Region: United Kingdom', 'Code pattern territory');
+
+# Orientation
+is ($locale->text_orientation->{lines}, 'top-to-bottom', 'Line orientation');
+is ($locale->text_orientation->{characters}, 'left-to-right', 'Line orientation');

@@ -116,7 +116,7 @@ process_valid_territory_aliases($file,$xml);
 process_valid_variant_aliases($file,$xml);
 process_footer($file, 1);
 close $file;
-exit;
+
 my $main_directory = File::Spec->catdir($base_directory, 'main');
 opendir ( my $dir, $main_directory);
 # Count the number of files
@@ -158,6 +158,7 @@ foreach my $file_name (grep /^[^.]/, readdir($dir)) {
 	process_display_type($file,$xml);
 	process_display_measurement_system_name($file, $xml);
 	process_code_patterns($file, $xml);
+	process_orientation($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -901,7 +902,7 @@ sub process_code_patterns {
 
 	print $file <<EOT;
 has 'display_name_code_patterns' => (
-    is            => 'ro',
+\tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef[Str]',
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
@@ -909,6 +910,31 @@ has 'display_name_code_patterns' => (
 @patterns
 \t\t}
 \t},
+);
+
+EOT
+}
+
+sub process_orientation {
+	my ($file, $xpath) = @_;
+
+	say "Processing Orientation" if $verbose;
+	my $orientation = findnodes($xpath, '/ldml/layout/orientation');
+	return unless $orientation->size;
+
+	my $node = $orientation->get_node;
+	my $lines = $node->getAttribute('lines') || 'top-to-bottom';
+	my $characters = $node->getAttribute('characters') || 'left-to-right';
+
+	print $file <<EOT;
+has 'text_orientation' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { return {
+\t\t\tlines => '$lines',
+\t\t\tcharacters => '$characters',
+\t\t}}
 );
 
 EOT

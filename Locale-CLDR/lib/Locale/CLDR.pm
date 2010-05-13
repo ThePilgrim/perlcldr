@@ -545,6 +545,19 @@ sub code_pattern {
 	return '';
 }
 
+sub text_orientation {
+	my $self = shift;
+
+	my @bundles = $self->_find_bundle('text_orientation');
+	foreach my $bundle (@bundles) {
+		my $orientation = $bundle->text_orientation;
+		next unless defined $orientation;
+		return wantarray ? %$orientation : $orientation;
+	}
+
+	return;
+}
+
 =head1 AUTHOR
 
 John Imrie, C<< <john.imrie at vodafoneemail.co.uk> >>
