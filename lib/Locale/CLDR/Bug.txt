@@ -1,4 +1,0 @@
-Segmentations
-  Generating of Segmentation Regex's is far to slow
-Regex
-  Variables in Regex::Parse not implimented
