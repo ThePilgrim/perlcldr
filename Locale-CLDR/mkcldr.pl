@@ -1,10 +1,12 @@
 #!/usr/bin/perl
 
+use encoding 'utf8';
 use strict;
 use warnings;
-use 5.010;
-use open IO => ':utf8';
+use 5.012;
+use feature 'unicode_strings';
 
+use open ':encoding(utf8)', ':std';
 use FindBin;
 use File::Spec;
 use File::Path qw(make_path);
@@ -18,7 +20,7 @@ our $verbose = 0;
 $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
-our $VERSION = version->parse('1.8.0');
+our $VERSION = version->parse('1.8.1');
 
 my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename  = File::Spec->catfile($data_directory, 'core.zip');
@@ -81,7 +83,7 @@ my $cldrVersion = $sdf->findnodes('/supplementalData/version')
 	->getAttribute('cldrVersion');
 
 die "Incorrect CLDR Version found $cldrVersion. It should be $VERSION"
-	unless version->parse("$cldrVersion.0") == $VERSION;
+	unless version->parse("$cldrVersion") == $VERSION;
 
 say "Processing files"
 	if $verbose;
@@ -117,15 +119,23 @@ process_valid_variant_aliases($file,$xml);
 process_footer($file, 1);
 close $file;
 
+# Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
 opendir ( my $dir, $main_directory);
+
 # Count the number of files
 my $num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
 my $count_files = 0;
 rewinddir $dir;
 
-foreach my $file_name (grep /^[^.]/, readdir($dir)) {
+my $segmentation_directory = File::Spec->catdir($base_directory, 'segments');
+foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	$xml = XML::XPath->new(File::Spec->catfile($main_directory, $file_name));
+
+	my $segment_xml = undef;
+	if (-f File::Spec->catfile($segmentation_directory, $file_name)) {
+		$segment_xml = XML::XPath->new( File::Spec->catfile($segmentation_directory, $file_name));
+	}
 
 	my @output_file_parts = output_file_name($xml);
 
@@ -147,6 +157,9 @@ foreach my $file_name (grep /^[^.]/, readdir($dir)) {
 
 	# Note: The order of these calls is important
 	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, $file_name);
+	
+
+	process_segments($file, $segment_xml) if $segment_xml;
 	process_cp($xml);
 	process_fallback($file, $xml);
 	process_display_pattern($file, $xml);
@@ -159,6 +172,7 @@ foreach my $file_name (grep /^[^.]/, readdir($dir)) {
 	process_display_measurement_system_name($file, $xml);
 	process_code_patterns($file, $xml);
 	process_orientation($file, $xml);
+	process_in_list($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -208,15 +222,20 @@ sub process_header {
 
 	$xml_generated=~s/^\$Date: (.*) \$$/$1/;
 
-	print $file <<EOT;
+	my $header = <<EOT;
 package $class;
 # This file auto generated from $xml_name
 #\ton $now GMT
 # XML file generated $xml_generated
 
+use 5.012;
+use encoding 'utf8';
+use feature 'unicode_strings';
+
 use Moose$isRole;
 
 EOT
+	print $file $header;
 }
 
 sub process_valid_languages {
@@ -940,6 +959,27 @@ has 'text_orientation' => (
 EOT
 }
 
+sub process_in_list {
+	my ($file, $xpath) = @_;
+
+	say "Processing inList" if $verbose;
+	my $in_list= findnodes($xpath, '/ldml/layout/inList');
+	return unless $in_list->size;
+
+	my $node = $in_list->get_node;
+	my $casing = $node->getChildNode(1)->getValue;
+
+	print $file <<EOT;
+has 'in_list' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> '$casing',
+);
+
+EOT
+}
+
 sub process_footer {
 	my $file = shift;
 	my $isRole = shift;
@@ -951,4 +991,61 @@ sub process_footer {
 	say $file "no Moose$isRole;";
 	say $file '__PACKAGE__->meta->make_immutable;' unless $isRole;
 	say $file '1;';
+}
+
+# Segmentation
+sub process_segments {
+	my ($file, $xpath) = @_;
+	say "Processing Segments" if $verbose;
+
+	foreach my $type (qw( GraphemeClusterBreak WordBreak SentenceBreak LineBreak )) {
+		my $variables = findnodes($xpath, qq(/ldml/segmentations/segmentation[\@type="$type"]/variables/variable));
+		next unless $variables->size;
+
+		print $file <<EOT;
+has '${type}_variables' => (
+	is => 'ro',
+	isa => 'ArrayRef',
+	init_arg => undef,
+	default => sub {[
+EOT
+		foreach my $variable ($variables->get_nodelist) {
+			# Check for deleting variables
+			my $value = $variable->getChildNode(1);
+			if (defined $value) {
+				$value = "'" . $value->getValue . "'";
+			}
+			else {
+				$value = 'undef()';
+			}
+
+			print $file "\t\t'", $variable->getAttribute('id'), "' => ", $value, ",\n";
+		}
+
+		print $file "\t]}\n);\n\n";
+
+		my $rules = findnodes($xpath, qq(/ldml/segmentations/segmentation[\@type="$type"]/segmentRules/rule));
+		next unless $rules->size;
+
+		print $file <<EOT;
+has '${type}_rules' => (
+	is => 'ro',
+	isa => 'HashRef',
+	init_arg => undef,
+	default => sub { {
+EOT
+		foreach my $rule ($rules->get_nodelist) {
+			# Check for deleting rules
+			my $value = $rule->getChildNode(1);
+			if (defined $value) {
+				$value = "'" . $value->getValue . "'";
+			}
+			else {
+				$value = 'undef()';
+			}
+			print $file "\t\t'", $rule->getAttribute('id'), "' => ", $value, ",\n";
+		}
+
+		print $file "\t}}\n);\n\n";
+	}	
 }

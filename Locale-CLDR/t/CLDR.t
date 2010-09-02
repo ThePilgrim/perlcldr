@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 40;
+use Test::More tests => 42;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -57,7 +57,7 @@ is ($locale->script_name('wibl'), 'Unknown or Invalid Script', 'Invalid Script n
 is ($locale->territory_name('GB'), 'United Kingdom', 'Territory name');
 is ($locale->territory_name('wibble'), 'Unknown or Invalid Region', 'Invalid Territory name');
 is ($locale->variant_name('AREVMDA'), 'Western Armenian', 'Variant name');
-throws_ok { $locale->variant_name('WIBBLE') } qr/ \A Invalid \s variant /xms, 'Invalid Variant name';
+throws_ok { $locale->variant_name('WIBBLE') } qr{ \A Invalid \s variant }xms, 'Invalid Variant name';
 is ($locale->language_name('i-klingon'), 'Klingon', 'Language alias');
 is ($locale->territory_name('BQ'), 'British Antarctic Territory', 'Territory alias');
 is ($locale->territory_name('830'), 'Channel Islands', 'Territory alias');
@@ -76,5 +76,11 @@ is ($locale->code_pattern('script', $test), 'Script: Latin', 'Code pattern scrip
 is ($locale->code_pattern('territory', $test), 'Region: United Kingdom', 'Code pattern territory');
 
 # Orientation
-is ($locale->text_orientation->{lines}, 'top-to-bottom', 'Line orientation');
-is ($locale->text_orientation->{characters}, 'left-to-right', 'Line orientation');
+is ($locale->text_orientation('lines'), 'top-to-bottom', 'Line orientation');
+is ($locale->text_orientation('characters'), 'left-to-right', 'Character orientation');
+
+# In list
+is ($locale->in_list('case These words'), 'case These words', 'In list Casing');
+$locale = Locale::CLDR->new('Ca');
+is ($locale->in_list('case These words'), 'Case These words', 'In list Casing for Ca local');
+$locale = Locale::CLDR->new('en');

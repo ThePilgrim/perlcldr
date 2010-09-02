@@ -1,5 +1,8 @@
-package Locale::CLDR;
-use 5.010;
+package Locale::CLDR v1.8.1;
+use 5.012;
+use encoding 'utf8';
+use feature 'unicode_strings';
+use open ':encoding(utf8)';
 
 use Moose;
 with 'Locale::CLDR::ValidCodes';
@@ -14,8 +17,8 @@ Version 1.8.0 To match the CLDR Version
 
 =cut
 
-use version; our $VERSION = qv("1.8.0");
 use List::Util qw(first);
+use Unicode::Set qw(parse);
 
 
 =head1 SYNOPSIS
@@ -98,6 +101,106 @@ has '_no_fallback' => (
 	default		=> 0,
 	lazy		=> 1,
 );
+
+has 'break_grapheme_cluster' => (
+	is => 'ro',
+	isa => 'ArrayRef',
+	init_arg => undef(),
+	lazy => 1,
+	default => sub {shift->_build_break('GraphemeClusterBreak')},
+);
+
+has 'break_word' => (
+	is => 'ro',
+	isa => 'ArrayRef',
+	init_arg => undef(),
+	lazy => 1,
+	default => sub {shift->_build_break('WordBreak')},
+);
+
+has 'break_line' => (
+	is => 'ro',
+	isa => 'ArrayRef',
+	init_arg => undef(),
+	lazy => 1,
+	default => sub {shift->_build_break('LineBreak')},
+);
+
+has 'break_sentence' => (
+	is => 'ro',
+	isa => 'ArrayRef',
+	init_arg => undef(),
+	lazy => 1,
+	default => sub {shift->_build_break('SentenceBreak')},
+);
+
+sub _build_break {
+	my ($self, $what) = @_;
+
+	my $vars = $self->_build_break_vars($what);
+	my $rules = $self->_build_break_rules($vars, $what);
+	return $rules;
+}
+
+sub _build_break_vars {
+	my ($self, $what) = @_;
+
+	my $name = "${what}_variables";
+	my @bundles = $self->_find_bundle($name);
+	my @vars;
+	foreach my $bundle (reverse @bundles) {
+		push @vars, @{$bundle->$name};
+	}
+
+	my %vars = ();
+	while (my ($name, $value) = (shift @vars, shift @vars)) {
+		last unless defined $name;
+		if (! defined $value) {
+			delete $vars{$name};
+			next;
+		}
+
+		$value =~ s{ ( \$ \p{ID_START} \p{ID_CONTINUE}* ) }{$vars{$1}}msxeg;
+		$vars{$name} = $value;
+	}
+
+	return \%vars;
+}
+
+sub _build_break_rules {
+	my ($self, $vars, $what) = @_;
+
+	my $name = "${what}_rules";
+	my @bundles = $self->_find_bundle($name);
+
+	my %rules;
+	foreach my $bundle (reverse @bundles) {
+		%rules = (%rules, %{$bundle->$name});
+	}
+
+	my @rules;
+	foreach my $rule_number ( sort { $a <=> $b } keys %rules ) {
+		# Test for deleted rules
+		next unless defined $rules{$rule_number};
+
+		$rules{$rule_number} =~ s{ ( \$ \p{ID_START} \p{ID_CONTINUE}* ) }{$vars->{$1}}msxeg;
+		my ($first, $opp, $second) = split /(×|÷)/, $rules{$rule_number};
+
+		foreach my $opperand ($first, $second) {
+			if (defined $opperand) {
+				$opperand = parse($opperand) // $opperand;
+			}
+			else {
+				$opperand = '';
+			}
+		}
+
+		$rules{$rule_number} = "$first$opp$second";
+		push @rules, $rules{$rule_number};
+	}
+
+	return \@rules;
+}
 
 sub BUILDARGS {
 	my $self = shift;
@@ -547,15 +650,62 @@ sub code_pattern {
 
 sub text_orientation {
 	my $self = shift;
+	my $type = shift;
 
 	my @bundles = $self->_find_bundle('text_orientation');
 	foreach my $bundle (@bundles) {
 		my $orientation = $bundle->text_orientation;
 		next unless defined $orientation;
-		return wantarray ? %$orientation : $orientation;
+		return $orientation->{$type};
 	}
 
 	return;
+}
+
+# Correctly case $list_entry
+sub in_list {
+	my ($self, $list_entry) = @_; 
+
+	my @bundles = $self->_find_bundle('in_list');
+	foreach my $bundle (@bundles) {
+		my $casing = $bundle->in_list;
+		next unless defined $casing;
+		return $self->_set_casing($casing, $list_entry);
+	}
+
+	return $list_entry;
+}
+
+sub _set_casing {
+	my ($self, $casing, $string) = @_;
+
+	my @words = $self->split_words($string);
+
+	if ($casing eq 'titlecase-firstword') {
+		# Check to see wether $words[0] is whitspace or not
+		my $firstword_location = 0;
+ 		if ($words[0] =~ m{ \A \s }msx) {
+			$firstword_location = 1;
+		}
+
+		$words[$firstword_location] = ucfirst $words[$firstword_location];
+	}
+	elsif($casing eq 'titlecase-words') {
+		@words = map{ ucfirst } @words;
+	}
+
+	return join '', @words;
+}
+
+# Split a string at various points
+sub split_words {
+	my ($self, $string) = @_;
+
+	my @rules = $self->break_word;
+	# Naïve splitting for now
+	my @words = split /\b/, $string;
+
+	return @words;
 }
 
 =head1 AUTHOR
