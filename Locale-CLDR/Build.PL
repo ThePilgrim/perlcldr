@@ -6,9 +6,10 @@ my $builder = Module::Build->new(
     module_name         => 'Locale::CLDR',
     license             => 'perl',
     requires		=> {
-    	'Moose'		=> '0.85',
-	'XML::XPath'	=> '1.13',
-	'version'       => '0.74',
+	    'Moose'				=> '0.85',
+		'XML::XPath'		=> '1.13',
+		'version'       	=> '0.74',
+		'Regexp::Grammas'	=> '1.002',
     },
     dist_author         => q{John Imrie <john.imrie@vodafoneemail.co.uk>},
     dist_version_from   => 'lib/Locale/CLDR.pm',
