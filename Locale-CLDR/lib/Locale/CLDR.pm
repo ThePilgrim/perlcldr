@@ -187,17 +187,18 @@ sub _build_break_rules {
 		my ($first, $opp, $second) = split /(×|÷)/, $rules{$rule_number};
 
 		foreach my $opperand ($first, $second) {
-			if (defined $opperand) {
-				$opperand = parse($opperand) // $opperand;
+			if ($opperand =~ m{ \S }msx) {
+				$opperand = parse($opperand);
 			}
 			else {
-				$opperand = '';
+				$opperand = '.';
 			}
 		}
 
-		$rules{$rule_number} = "$first$opp$second";
-		push @rules, $rules{$rule_number};
+		push @rules, [qr{$first}msx, qr{$second}msx, ($opp eq '×' ? 1 : 0)];
 	}
+
+	push @rules, [ '.', '.', 0 ];
 
 	return \@rules;
 }
@@ -701,16 +702,51 @@ sub _set_casing {
 sub split_words {
 	my ($self, $string) = @_;
 
-	my @rules = $self->break_word;
-	# Naïve splitting for now
-	my @words = split /\b/, $string;
+	my $rules = $self->break_word;
+	my @words = $self->_split($rules, $string);
 
 	return @words;
 }
 
+sub _split {
+	my ($self, $rules, $string) = @_;
+
+	my @split = ();
+
+	$string =~ s{ \A ( \X ) }{}msx;
+
+	my $first = $1;
+	my $capture = $first;
+
+	while ( $string =~ s{ \A ( \X ) }{}msx ) {
+		my $second = $1;
+
+		foreach my $rule (@$rules) {
+			next unless $first =~ $rule->[0] && $second =~ $rule->[1];
+			if ($rule->[2]) {
+				# Can't split here
+				$capture .= $second;
+			}
+			else {
+				push @split, $capture;
+				$capture = $second;
+			}
+
+			$first = $second;
+			last;
+		}
+	}
+	# End of rules
+	push @split, $capture;
+
+	# Naïve splitting for now
+#	@split = split /\b/, $string;
+	return @split;
+}
+
 =head1 AUTHOR
 
-John Imrie, C<< <john.imrie at vodafoneemail.co.uk> >>
+John Imrie, C<< <j dot imrie at virginemail.com> >>
 
 =head1 BUGS
 
