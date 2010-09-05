@@ -1,8 +1,35 @@
+Locale-CLDR
+
 Please note that this is very much alpha code.
 Please note that I know there is inceficient documenation.
-Please note that this code requires Perl 5.10 and above as it uses Unicode version 5.0
+Please note that this code requires Perl 5.12 and above
 
-Unicode::Regex::Parse is propably useable and uses Parse::RecDescent and Unicode::Regex::Set under the hood. If someone could remove the dependency on Unicode::Regex::Set I would be delighted. At that point I will concider the code sutable for CPAN
+The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
+modules that can be loaded from the main Local::CLDR when needed to do what ever is required.
 
-The general overview of the project it to convert the XML of the CLDR into a large number of small Perl modules that can be loaded from the main Local::CLDR when needed to do what ever is required.
+INSTALLATION
+
+To install this module, run the following commands:
+
+	perl Build.PL
+	./Build
+	./Build test
+	./Build install
+
+SUPPORT AND DOCUMENTATION
+
+After installing, you can find documentation for this module with the
+perldoc command.
+
+    perldoc Locale::CLDR
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2009 John Imrie
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of either: the GNU General Public License as published
+by the Free Software Foundation; or the Artistic License.
+
+See http://dev.perl.org/licenses/ for more information.
 
