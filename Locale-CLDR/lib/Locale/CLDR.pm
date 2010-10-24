@@ -699,6 +699,15 @@ sub _set_casing {
 }
 
 # Split a string at various points
+sub split_grapheme_clusters {
+	my ($self, $string) = @_;
+
+	my $rules = $self->break_grapheme_cluster;
+	my @clusters = $self->_split($rules, $string);
+
+	return @clusters;
+}
+
 sub split_words {
 	my ($self, $string) = @_;
 
@@ -708,39 +717,63 @@ sub split_words {
 	return @words;
 }
 
+sub split_sentences {
+	my ($self, $string) = @_;
+
+	my $rules = $self->break_sentence;
+	my @sentences = $self->_split($rules, $string);
+
+	return @sentences;
+}
+
+sub split_lines {
+	my ($self, $string) = @_;
+
+	my $rules = $self->break_line;
+	my @lines = $self->_split($rules, $string);
+
+	return @lines;
+}
+
 sub _split {
 	my ($self, $rules, $string) = @_;
 
-	my @split = ();
+	my @split = (scalar @$rules) x (length($string) - 1);
 
-	$string =~ s{ \A ( \X ) }{}msx;
-
-	my $first = $1;
-	my $capture = $first;
-
-	while ( $string =~ s{ \A ( \X ) }{}msx ) {
-		my $second = $1;
-
+	pos($string)=0;
+	# The Unicode Consortium has deprecated LB=Surigate but the CLDR still
+	# uses it, at last in this version.
+	no warnings 'deprecated';
+	while (length($string) -1 != pos $string) {
+		my $rule_number = 0;
 		foreach my $rule (@$rules) {
-			next unless $first =~ $rule->[0] && $second =~ $rule->[1];
-			if ($rule->[2]) {
-				# Can't split here
-				$capture .= $second;
-			}
-			else {
-				push @split, $capture;
-				$capture = $second;
+			unless( $string =~ m{
+				\G
+				(?<first> $rule->[0] )
+				(?<second> $rule->[1] )
+			}msx) {
+				$rule_number++;
+				next;
 			}
 
-			$first = $second;
-			last;
+			my $location = pos($string) + length($+{first}) -1;
+			$split[$location] = $rule_number if $rule_number < $split[$location];
 		}
+		pos($string)++;
 	}
-	# End of rules
-	push @split, $capture;
 
-	# Naïve splitting for now
-#	@split = split /\b/, $string;
+	@split = map {$rules->[$_][2] ? 1 : 0} @split;
+	my $count = 0;
+	my @sections = ('.');
+	foreach my $split (@split) {
+		$count++ unless $split;
+		$sections[$count] .= '.';
+	}
+	
+	my $regex = '(' . join(')(', @sections) . ')';
+	$regex = qr{ \A $regex \z}msx;
+	@split = $string =~ $regex;
+
 	return @split;
 }
 
