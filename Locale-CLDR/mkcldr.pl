@@ -156,12 +156,12 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	say sprintf("Processing File %s: %.2f%% done", $file_name, $percent) if $verbose;
 
 	# Note: The order of these calls is important
-	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, $file_name);
-	
+	process_class_any($lib_directory, @output_file_parts[0 .. $#output_file_parts -1]);
 
+	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, $file_name);
 	process_segments($file, $segment_xml) if $segment_xml;
 	process_cp($xml);
-	process_fallback($file, $xml);
+	process_fallback($file, $xml, "Locale::CLDR::$package");
 	process_display_pattern($file, $xml);
 	process_display_language($file, $xml);
 	process_display_script($file, $xml);
@@ -173,6 +173,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	process_code_patterns($file, $xml);
 	process_orientation($file, $xml);
 	process_in_list($file, $xml);
+	process_in_text($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -207,6 +208,38 @@ sub output_file_name {
 	return map {ucfirst lc} @nodes;
 }
 
+sub process_class_any {
+	my ($lib_path, @path_parts) = @_;
+	
+	my $package = 'Locale::CLDR';
+	foreach my $path (@path_parts) {
+		my $parent = $package;
+		$parent = 'Locale::CLDR::Root' if $parent eq 'Local::CLDR';
+		$package .= "::$path";
+		$lib_path = File::Spec->catfile($lib_path, $path);
+
+		next unless $path eq 'Any';
+		next if -e "$lib_path.pm";
+
+		my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
+		open my $file, '>:utf8', "$lib_path.pm";
+		print $file <<EOT;
+package $package;
+# This file auto generated
+#\ton $now GMT
+
+use 5.012;
+use encoding 'utf8';
+
+use Moose;
+
+__PACKAGE__->meta->superclasses('$parent');
+__PACKAGE__->meta->make_immutable;
+EOT
+		close $file;
+	}
+}
+
 # Process the elements of the file note
 sub process_header {
 	my ($file, $class, $version, $xpath, $xml_name, $isRole) = @_;
@@ -231,6 +264,7 @@ package $class;
 use 5.012;
 use encoding 'utf8';
 use feature 'unicode_strings';
+use mro 'c3';
 
 use Moose$isRole;
 
@@ -585,24 +619,47 @@ sub process_cp {
 }
 
 sub process_fallback {
-	my ($file, $xpath) = @_;
+	my ($file, $xpath, $package) = @_;
 
 	say "Processing Fallback"
 		if $verbose;
 
+	if ($package eq 'Locale::CLDR::Root') {
+		$package = '';
+	}
+	else {
+		$package =~ s{ :: [^:]+ \z }{}msx;
+		$package = 'Locale::CLDR::Root' if $package eq 'Locale::CLDR';
+	}
+
+
 	my $fallback = findnodes($xpath, '/ldml/fallback');
 	$fallback = $fallback->size ? $fallback->get_node->string_value : '';
+	my @package;
+	foreach my $value (split / +/, $fallback) {
+		my @fallback = split /[-_]/, $value;
 
-	print $file <<EOT;
-has 'fallback' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef[Str]',
-\tauto_deref\t=> 1,
-\tinit_arg\t=> undef,
-\tdefault\t\t=> sub { [ qw( $fallback ) ] },
-);
+		# Check for no script in name
+		if (2 == @fallback && length $fallback[1] < 4) {
+			@fallback = ($fallback[0], 'Any', $fallback[1]);
+		}
 
-EOT
+    	push @package, join '::', map { ucfirst lc } @fallback;
+	}
+
+	if (@package) {
+		$fallback = join "', '",
+			$package eq 'Locale::CLDR::Root'
+				? ()
+				: $package
+			, map { "Locale::CLDR::$_" } @package;
+	}
+	else {
+		$fallback = $package;
+	}
+
+	say $file "__PACKAGE__->meta->superclasses('$fallback');\n"
+		if $fallback;
 }
 
 sub process_display_pattern {
@@ -975,6 +1032,36 @@ has 'in_list' => (
 \tisa\t\t\t=> 'Str',
 \tinit_arg\t=> undef,
 \tdefault\t\t=> '$casing',
+);
+
+EOT
+}
+
+sub process_in_text {
+	my ($file, $xpath) = @_;
+
+	say "Processing inText" if $verbose;
+	my $in_text= findnodes($xpath, '/ldml/layout/inText');
+	return unless $in_text->size;
+
+	my @inText = $in_text->get_nodelist;
+	foreach my $node (@inText) {
+		my $casing = $node->getChildNode(1)->getValue;
+		my $type = $node->getAttribute('type');
+		$node = "\t\t\t\t\t$type => '$casing',\n";
+	}
+
+	my $value = 
+	print $file <<EOT;
+has 'in_text' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub {
+\t return {
+@inText
+\t\t};
+\t},
 );
 
 EOT

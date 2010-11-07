@@ -19,6 +19,7 @@ Version 1.8.0 To match the CLDR Version
 
 use List::Util qw(first);
 use Unicode::Set qw(parse);
+use Class::MOP;
 
 
 =head1 SYNOPSIS
@@ -78,14 +79,12 @@ has 'extentions' => (
 	default		=> undef
 );
 
-has 'modules' => (
+has 'module' => (
 	is			=> 'ro',
-	isa			=> 'ArrayRef[Object]',
-	default		=> 'Root',
-	writer		=> '_set_modules',
+	isa			=> 'Object',
 	init_arg	=> undef,
-	auto_deref	=> 1,
 	lazy		=> 1,
+	builder		=> '_build_module',
 );
 
 has 'method_cache' => (
@@ -298,16 +297,19 @@ sub BUILD {
 		my ($value) = values %{$variant_alias};
 		$args->{$what} = $value;
 	}
+}
 
+sub _build_module {
 	# Create the new path
+	my $self = shift;
 	my @path;
 	my $path = join '::',
 		map { ucfirst lc }
 		map { $_ ? $_ : 'Any' } (
-			$args->{language},
-			$args->{script},
-			$args->{territory},
-			$args->{variant}
+			$self->language,
+			$self->script,
+			$self->territory,
+			$self->variant
 		);
 
 	while ($path) {
@@ -321,28 +323,24 @@ sub BUILD {
 	# Now we go through the path loading each module
 	# And calling new on it. With each module we call
 	# fallback to expand the module with it's fallbacks
-	my @modules;
-	foreach my $module (@path) {
-		$module = "Locale::CLDR::$module";
-		eval "require $module";
+	my $module;
+	foreach my $module_name (@path) {
+		$module_name = "Locale::CLDR::$module_name";
+		eval { Class::MOP::load_class($module_name); };
 		next if $@;
-		my $locale_package = $module->new;
-		push @modules, 
-			$locale_package, 
-			$self->_no_fallback 
-				? ()
-				: map {Locale::CLDR->new($_, {_no_fallback => 1})} $locale_package->fallback;
+		$module = $module_name->new;
+		last;
 	}
 
 	# If we only have the root module then we have a problem as
 	# none of the language specific data is in the root. So we
 	# fall back to the en module
-	if (1 == @modules ) {
+	if (! $module || ref $module eq 'Locale::CLDR::Root') {
 		require Locale::CLDR::En;
-		push @modules, Locale::CLDR::En->new
+		$module = Locale::CLDR::En->new
 	}
 
-	$self->_set_modules(\@modules);
+	return $module;
 }
 
 use overload 
@@ -386,9 +384,9 @@ sub _find_bundle {
 			: $self->method_cache->{$method_name}[0];
 	}
 
-	foreach my $module ($self->modules) {
-		if ($module->can($method_name)) {
-			push @{$self->method_cache->{$method_name}}, $module;
+	foreach my $module ($self->module->meta->linearized_isa) {
+		if ($module->meta->has_method($method_name)) {
+			push @{$self->method_cache->{$method_name}}, $module->new;
 		}
 	}
 
@@ -775,6 +773,10 @@ sub _split {
 	@split = $string =~ $regex;
 
 	return @split;
+}
+
+# Corectly case elements in string
+sub in_text {
 }
 
 =head1 AUTHOR
