@@ -2,10 +2,10 @@ use Test;
 use strict;
 use warnings;
 BEGIN {
-	plan tests => 42;
+	plan tests => 43;
 };
 
-use  Unicode::Set qw(parse);
+use  Unicode::Set qw(unicode_to_perl);
 
 use vars qw(@char $digit $upper $lower $space $punct);
 
@@ -19,7 +19,7 @@ $punct = '!"#$%&\'()*+,-./:;<=>?@[\]^_`{|}~';
 @char = split //, "$digit$upper$lower$space$punct";
 
 sub testregex {
-    my $pat = parse(shift);
+    my $pat = unicode_to_perl(shift);
     join '', grep /^$pat\z/, @char;
 }
 
@@ -148,3 +148,6 @@ ok(testregex('[[[ace][bdf]] - [[abc][def]]]'),
 
 ok(testregex('[[[ace][bdf]] - [[abc][df]]]'),
 	 "e");
+
+my $pat = unicode_to_perl('[a-c{ch}]');
+ok(join ('', grep /^$pat\z/, @char, 'ch') eq 'abcch');

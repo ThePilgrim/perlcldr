@@ -3,13 +3,14 @@ use 5.010;
 use strict;
 use warnings;
 
-use Regexp::Grammars;
 use List::Util qw(first);
 use List::MoreUtils qw(zip);
 use Sub::Exporter -setup => {
-	exports => [ qw(parse) ]
+	exports => [ qw(unicode_to_perl) ]
 };
-#use charnames ':full';
+
+use Regexp::Grammars;
+
 use Readonly;
 Readonly my %POSIX_TO_UNICODE => (
 	alnum	=> '\p{L&}\p{Nd}',
@@ -71,11 +72,35 @@ my $gramma = qr{
 	<rule: expression>
 		(?: <property> | (?: <.neg_open> <[set=negative_set]> \] | \[ <[set]>+ \] ) | <[list]>+ )
 		<MATCH=(?{
-			defined $MATCH{set}
+			my (@list, @cluster) = ();
+			if ($MATCH{list}) {
+				foreach my $test (@{$MATCH{list}}) {
+					if (index($test, "{") == 0) { 
+						chop $test;
+						$test = reverse $test;
+						chop $test;
+						$test = reverse $test;
+						push @cluster, $test;
+					}
+					else {
+						push @list, $test;
+					}
+				} 
+			}
+
+			my $ret = defined $MATCH{set}
 				? mktree ($MATCH{set}, [('|') x (@{$MATCH{set}} - 1)]) 
 				: defined $MATCH{property} 
 					? $MATCH{property} 
-					: '[' . join( '', @{$MATCH{list}}) . ']' 
+					: @list
+						? '[' . join( '', @list) . ']'
+						: '';
+			
+			if (@cluster) {
+				$ret = "(?:" . join('|', @cluster) . "|$ret)"
+			}
+
+			'}' && $ret;
 		})>
 
 	<rule: property>
@@ -102,17 +127,14 @@ my $gramma = qr{
 
 	<rule: list>
 		(?:
-			(?: 
-				<hyphon_range> | <hyphon_minus> )? 
-				(?:
-					<range> | <[litteral]>+? 
-				)
+			(?: <hyphon_range> | <hyphon_minus> )? 
+			(?: <range> | <[grapheme_litteral]>+? )
 			<end_hyphon=hyphon_minus>? 
 		)
 		<MATCH=(?{
 			defined $MATCH{range} 
 				? join '', (( $MATCH{hyphon_minus} // ()), $MATCH{range}) 
-				: join '', (( $MATCH{hyphon_range} // ()), ( $MATCH{hyphon_minus} // () ), @{$MATCH{litteral}}, ( $MATCH{end_hyphon} // () )) 
+				: join '', (( $MATCH{hyphon_range} // ()), ( $MATCH{hyphon_minus} // () ), @{$MATCH{grapheme_litteral}}, ( $MATCH{end_hyphon} // () )) 
 		})>
 
 	<rule: hyphon_range>
@@ -127,14 +149,33 @@ my $gramma = qr{
 			"$MATCH{from}-$MATCH{to}"
 		})>
 
+	<rule: grapheme_litteral>
+		(?: <grapheme> | <litteral> )
+		<MATCH=(?{ $MATCH{grapheme} // $MATCH{litteral} })>
+
+	<rule: grapheme>
+		(?: \{ \p{Any}+? \} )
+
 	<rule: litteral>
-		(?: <char=escape_c> | <char=escapped> | <char=not_meta> )
+		(?: <char=escape_u> | <char=escape_c> | <char=escape_p> | <char=escapped> | <char=not_meta> )
 		<MATCH=(?{
 			$MATCH{char}
 		})>
 
+	<rule: escape_u>
+		(?: \\ u <cp=hexDigits> )
+		<MATCH=(?{
+			chr hex $MATCH{cp}
+		})>
+
+	<token: hexDigits>
+		\p{hexDigit}{1,6}
+
 	<token: escape_c>
-		\\ c \p{Any}
+		\\ c [@-_]
+
+	<token: escape_p>
+		\\ [pP] \{
 
 	<token: escapped>
 		\\ \p{Any}
@@ -143,7 +184,7 @@ my $gramma = qr{
 		[^\[\]-]
 }x;
 
-sub parse {
+sub unicode_to_perl {
 	my $set = shift;
 	$set=~$gramma;
 	my %ret = %/;
