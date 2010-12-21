@@ -154,7 +154,18 @@ my $gramma = qr{
 		<MATCH=(?{ $MATCH{grapheme} // $MATCH{litteral} })>
 
 	<rule: grapheme>
-		(?: \{ \p{Any}+? \} )
+		\{ <grapheme_chars> \} 
+		<MATCH=(?{ '{' . $MATCH{grapheme_chars} . '}' })>
+
+	<rule: grapheme_chars>
+		<[grapheme_char]>+
+		<MATCH=(?{ join '', @{$MATCH{grapheme_char}} })>
+
+	<rule: grapheme_char>
+		(?: <char=escape_u> | <char=escape_c> | <char=escapped> | <char=not_meta> ) 
+		<MATCH=(?{
+			$MATCH{char}
+		})>
 
 	<rule: litteral>
 		(?: <char=escape_u> | <char=escape_c> | <char=escape_p> | <char=escapped> | <char=not_meta> )
