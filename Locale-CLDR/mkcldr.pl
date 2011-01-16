@@ -2,7 +2,7 @@
 
 use encoding 'utf8';
 use strict;
-use warnings;
+use warnings 'FATAL';
 use 5.012;
 use feature 'unicode_strings';
 
@@ -16,8 +16,11 @@ use LWP::UserAgent;
 use Archive::Extract;
 use DateTime;
 
+use Unicode::Set qw(unicode_to_perl);
+
 our $verbose = 0;
 $verbose = 1 if grep /-v/, @ARGV;
+@ARGV = grep !/-v/, @ARGV;
 
 use version;
 our $VERSION = version->parse('1.8.1');
@@ -130,6 +133,9 @@ rewinddir $dir;
 
 my $segmentation_directory = File::Spec->catdir($base_directory, 'segments');
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
+	if (@ARGV) {
+		next unless grep {$file_name eq $_} @ARGV;
+	}
 	$xml = XML::XPath->new(File::Spec->catfile($main_directory, $file_name));
 
 	my $segment_xml = undef;
@@ -174,6 +180,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	process_orientation($file, $xml);
 	process_in_list($file, $xml);
 	process_in_text($file, $xml);
+	process_exemplar_characters($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -208,6 +215,7 @@ sub output_file_name {
 	return map {ucfirst lc} @nodes;
 }
 
+# Fill in any missing script or territory with the psudo class Any
 sub process_class_any {
 	my ($lib_path, @path_parts) = @_;
 	
@@ -233,7 +241,7 @@ use encoding 'utf8';
 
 use Moose;
 
-__PACKAGE__->meta->superclasses('$parent');
+extends('$parent');
 __PACKAGE__->meta->make_immutable;
 EOT
 		close $file;
@@ -658,7 +666,7 @@ sub process_fallback {
 		$fallback = $package;
 	}
 
-	say $file "__PACKAGE__->meta->superclasses('$fallback');\n"
+	say $file "extends('$fallback');\n"
 		if $fallback;
 }
 
@@ -1060,6 +1068,49 @@ has 'in_text' => (
 \tdefault\t\t=> sub {
 \t return {
 @inText
+\t\t};
+\t},
+);
+
+EOT
+}
+
+sub process_exemplar_characters {
+	my ($file, $xpath) = @_;
+
+	say "Processing exemplarCharacters" if $verbose;
+	my $characters = findnodes($xpath, '/ldml/characters/exemplarCharacters');
+	return unless $characters->size;
+
+	my @characters = $characters->get_nodelist;
+	my %data;
+	foreach my $node (@characters) {
+		my $regex = $node->getChildNode(1)->getValue;
+		my $type = $node->getAttribute('type');
+		$type ||= 'main';
+		if ($type eq 'index') {
+			my ($entries) = $regex =~ m{\A \s* \[ (.*) \] \s* \z}msx;
+			$entries = join "', '", split( /\s+/, $entries);
+			$entries =~ s{\{\}}{}g;
+			$data{index} = "['$entries'],";
+		}
+		else {
+			$regex = unicode_to_perl($regex);
+			$data{$type} = "qr{$regex},";
+		}
+	}
+	print $file <<EOT;
+has 'characters' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub {
+\t\treturn {
+EOT
+	foreach my $type (sort keys %data) {
+		say $file "\t\t\t$type => $data{$type}";
+	}
+	print $file <<EOT;
 \t\t};
 \t},
 );

@@ -18,7 +18,7 @@ Version 1.8.0 To match the CLDR Version
 =cut
 
 use List::Util qw(first);
-use Unicode::Set qw(parse);
+use Unicode::Set qw(unicode_to_perl);
 use Class::MOP;
 
 
@@ -87,18 +87,56 @@ has 'module' => (
 	builder		=> '_build_module',
 );
 
+sub _build_module {
+	# Create the new path
+	my $self = shift;
+	my @path;
+	my $path = join '::',
+		map { ucfirst lc }
+		map { $_ ? $_ : 'Any' } (
+			$self->language,
+			$self->script,
+			$self->territory,
+			$self->variant
+		);
+
+	while ($path) {
+		# Strip out paths ending in Any
+		push @path, $path unless $path =~ m{ ::Any \z }msx;
+		$path=~s/(?:::)?[^:]+$//;
+	}
+
+	push @path, 'Root' 
+		unless $path[-1] eq 'Root';
+
+	# Now we go through the path loading each module
+	# And calling new on it. With each module we call
+	# fallback to expand the module with it's fallbacks
+	my $module;
+	foreach my $module_name (@path) {
+		$module_name = "Locale::CLDR::$module_name";
+		eval { Class::MOP::load_class($module_name); };
+		next if $@;
+		$module = $module_name->new;
+		last;
+	}
+
+	# If we only have the root module then we have a problem as
+	# none of the language specific data is in the root. So we
+	# fall back to the en module
+	if (! $module || ref $module eq 'Locale::CLDR::Root') {
+		require Locale::CLDR::En;
+		$module = Locale::CLDR::En->new
+	}
+
+	return $module;
+}
+
 has 'method_cache' => (
 	is			=> 'rw',
 	isa			=> 'HashRef[ArrayRef[Object]]',
 	init_arg	=> undef,
 	default		=> sub { return {}},
-);
-
-has '_no_fallback' => (
-	is			=> 'ro',
-	isa			=> 'Bool',
-	default		=> 0,
-	lazy		=> 1,
 );
 
 has 'break_grapheme_cluster' => (
@@ -187,7 +225,7 @@ sub _build_break_rules {
 
 		foreach my $opperand ($first, $second) {
 			if ($opperand =~ m{ \S }msx) {
-				$opperand = parse($opperand);
+				$opperand = unicode_to_perl($opperand);
 			}
 			else {
 				$opperand = '.';
@@ -297,50 +335,6 @@ sub BUILD {
 		my ($value) = values %{$variant_alias};
 		$args->{$what} = $value;
 	}
-}
-
-sub _build_module {
-	# Create the new path
-	my $self = shift;
-	my @path;
-	my $path = join '::',
-		map { ucfirst lc }
-		map { $_ ? $_ : 'Any' } (
-			$self->language,
-			$self->script,
-			$self->territory,
-			$self->variant
-		);
-
-	while ($path) {
-		push @path, $path;
-		$path=~s/(?:::)?[^:]+$//;
-	}
-
-	push @path, 'Root' 
-		unless $path[-1] eq 'Root';
-
-	# Now we go through the path loading each module
-	# And calling new on it. With each module we call
-	# fallback to expand the module with it's fallbacks
-	my $module;
-	foreach my $module_name (@path) {
-		$module_name = "Locale::CLDR::$module_name";
-		eval { Class::MOP::load_class($module_name); };
-		next if $@;
-		$module = $module_name->new;
-		last;
-	}
-
-	# If we only have the root module then we have a problem as
-	# none of the language specific data is in the root. So we
-	# fall back to the en module
-	if (! $module || ref $module eq 'Locale::CLDR::Root') {
-		require Locale::CLDR::En;
-		$module = Locale::CLDR::En->new
-	}
-
-	return $module;
 }
 
 use overload 
@@ -689,8 +683,11 @@ sub _set_casing {
 
 		$words[$firstword_location] = ucfirst $words[$firstword_location];
 	}
-	elsif($casing eq 'titlecase-words') {
+	elsif ($casing eq 'titlecase-words') {
 		@words = map{ ucfirst } @words;
+	}
+	elsif ($casing eq 'lowercase-words') {
+		@words = map{ lc } @words;
 	}
 
 	return join '', @words;
@@ -777,6 +774,16 @@ sub _split {
 
 # Corectly case elements in string
 sub in_text {
+	my ($self, $type, $string) = @_;
+
+	my @bundles = $self->_find_bundle('in_text');
+	foreach my $bundle (@bundles) {
+		my $casing = $bundle->in_text->{$type};
+		next unless defined $casing;
+		return $self->_set_casing($casing, $string);
+	}
+
+	return $string;
 }
 
 =head1 AUTHOR

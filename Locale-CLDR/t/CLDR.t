@@ -1,9 +1,9 @@
-#!perl
+#!/usr/bin/perl
 use strict;
 use warnings;
 use utf8;
 
-use Test::More tests => 46;
+use Test::More tests => 72;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -114,5 +114,47 @@ is_deeply(\@lines, [
 # In list
 is ($locale->in_list('case These words'), 'case These words', 'In list Casing');
 $locale = Locale::CLDR->new('Ca');
-is ($locale->in_list('case These words'), 'Case These words', 'In list Casing for Ca local');
+is ($locale->in_list('case These words'), 'Case These words', 'In list Casing for Ca locale');
+
+# In Text
 $locale = Locale::CLDR->new('en');
+foreach my $type (
+	[ currency => 'case These words' ],
+	[ dayWidth => 'case These words' ],
+	[ fields => 'case These words' ],
+	[ keys => 'case These words' ],
+	[ languages => 'case These words' ],
+	[ long => 'case These words' ],
+	[ measurementSystemNames => 'case These words' ],
+	[ monthWidth => 'case These words' ],
+	[ quaterWidth => 'case These words' ],
+	[ scripts => 'case These words' ],
+	[ territories => 'case These words' ],
+	[ types => 'case These words' ],
+	[ variants => 'case These words' ],
+	){
+	is( $locale->in_text($type->[0],'case These words'), $type->[1], 
+		"In text casing for " . $type->[0]
+	);
+}
+
+$locale = Locale::CLDR->new('ca');
+foreach my $type (
+	[ currency => 'case these words' ],
+	[ dayWidth => 'case These words' ],
+	[ fields => 'case these words' ],
+	[ keys => 'case these words' ],
+	[ languages => 'case these words' ],
+	[ long => 'case these words' ],
+	[ measurementSystemNames => 'case these words' ],
+	[ monthWidth => 'case These words' ],
+	[ quaterWidth => 'case These words' ],
+	[ scripts => 'case these words' ],
+	[ territories => 'case These words' ],
+	[ types => 'case these words' ],
+	[ variants => 'case These words' ],
+	){
+	is( $locale->in_text($type->[0],'case These words'), $type->[1], 
+		"In text casing for " . $type->[0] . ' Locale ca'
+	);
+}
