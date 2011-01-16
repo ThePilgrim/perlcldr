@@ -144,4 +144,12 @@ is(unicode_to_perl('[a-z{ch\u21}]'),
 is(unicode_to_perl('[a-c{ch}]'),
 	'' . qr'(?:ch|[a-c])'msx);
 
+my $dot = chr(0x307);
+is(unicode_to_perl('[a {i\\u0307} b]'),
+	'' . qr"(?:i$dot|[ab])"msx);
+
+my $dot = chr(0x307);
+is(unicode_to_perl('[a b c ç d e ə f g ğ h x ı i {i\\u0307} j k q l m n o ö p r s ş t u ü v y z]'),
+	'' . qr"(?:i$dot|[abcçdeəfgğhxıijkqlmnoöprsştuüvyz])"msx);
+
 done_testing;

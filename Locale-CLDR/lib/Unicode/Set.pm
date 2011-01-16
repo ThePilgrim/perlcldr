@@ -104,11 +104,9 @@ my $gramma = qr{
 		})>
 
 	<rule: property>
-		(?: <perl_property> | <unicode_property> )
+		(?: <p=perl_property> | <p=unicode_property> )
 		<MATCH=(?{
-			defined $MATCH{perl_property}
-				? $MATCH{perl_property}
-				: $MATCH{unicode_property}
+			$MATCH{p}
 		})>
 
 	<rule: perl_property>
@@ -163,6 +161,7 @@ my $gramma = qr{
 
 	<rule: grapheme_char>
 		(?: <char=escape_u> | <char=escape_c> | <char=escapped> | <char=not_meta> ) 
+		(?(?{ $MATCH{char} eq chr(125) })(*FAIL))
 		<MATCH=(?{
 			$MATCH{char}
 		})>
@@ -173,7 +172,7 @@ my $gramma = qr{
 			$MATCH{char}
 		})>
 
-	<rule: escape_u>
+	<token: escape_u>
 		(?: \\ u <cp=hexDigits> )
 		<MATCH=(?{
 			chr hex $MATCH{cp}
