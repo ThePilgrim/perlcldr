@@ -23,7 +23,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
 
 use version;
-our $VERSION = version->parse('1.8.1');
+our $VERSION = version->parse('1.9.1');
 
 my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename  = File::Spec->catfile($data_directory, 'core.zip');
@@ -47,7 +47,7 @@ if (! -e $core_filename ) {
 		if $verbose;
 
 	my $ua = LWP::UserAgent->new(
-		agent => "perl Local::CLDR/$VERSION (Written by john.imrie\@vodafoneemail.co.uk)",
+		agent => "perl Local::CLDR/$VERSION (Written by j.imrie1\@virginmedia.com)",
 	);
 	my $response = $ua->get("http://unicode.org/Public/cldr/$VERSION/core.zip",
 		':content_file' => $core_filename
@@ -76,12 +76,12 @@ EOM
 	unless -d File::Spec->catdir($base_directory);
 
 # We look at the supplemental data file to get the cldr version number
-my $sdf = XML::XPath->new(File::Spec->catfile($base_directory, 
-	'supplemental',
-	'supplementalData.xml'));
+my $vf = XML::XPath->new(File::Spec->catfile($base_directory, 
+	'main',
+	'root.xml'));
 
 say "Checking CLDR version" if $verbose;
-my $cldrVersion = $sdf->findnodes('/supplementalData/version')
+my $cldrVersion = $vf->findnodes('/ldml/identity/version')
 	->get_node
 	->getAttribute('cldrVersion');
 
@@ -181,6 +181,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	process_in_list($file, $xml);
 	process_in_text($file, $xml);
 	process_exemplar_characters($file, $xml);
+	process_ellipsis($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -545,6 +546,32 @@ has 'variant_aliases' => (
 \t}},
 );
 EOT
+}
+
+sub process_valid_timezone_aliases {
+	my ($file, $xpath) = @_;
+
+	say "Processing Valid Time Zone Aliases"
+		if $verbose;
+
+	my $aliases = findnodes($xpath, '/supplementalData/metadata/alias/zoneAlias');
+	print $file <<EOT;
+has 'zone_aliases' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { return {
+EOT
+	foreach my $node ($aliases->get_nodelist) {
+		my $from = $node->getAttribute('type');
+		my $to = $node->getAttribute('replacement');
+		print $file "\t'$from' => '$to',\n";
+	}
+	print $file <<EOT;
+\t}},
+);
+EOT
+
 }
 
 sub process_alias {
@@ -967,6 +994,39 @@ has 'display_name_measurement_system' => (
 EOT
 }
 
+sub process_display_transform_name {
+	my ($file, $xpath) = @_;
+
+	say "Processing Display Transform Names"
+		if $verbose;
+
+	my $names = findnodes($xpath, '/ldml/localeDisplayNames/transformNames/transformName');
+	return unless $names->size;
+
+	my @names = $names->get_nodelist;
+	foreach my $name (@names) {
+		my $type = $name->getAttribute('type');
+		my $value = $name->getChildNode(1)->getValue;
+		$name =~s/\\/\\\\/g;
+		$name =~s/'/\\'/g;
+		$name = "\t\t\t'$type' => '$value',\n";
+	}
+
+	print $file <<EOT;
+has 'display_name_transform_name' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { 
+\t\t{
+@names
+\t\t}
+\t},
+);
+
+EOT
+}
+
 sub process_code_patterns {
 	my ($file, $xpath) = @_;
 	say "Processing Code Patterns"
@@ -1109,6 +1169,38 @@ has 'characters' => (
 EOT
 	foreach my $type (sort keys %data) {
 		say $file "\t\t\t$type => $data{$type}";
+	}
+	print $file <<EOT;
+\t\t};
+\t},
+);
+
+EOT
+}
+
+sub process_ellipsis {
+	my ($file, $xpath) = @_;
+
+	say "Processing ellipsis" if $verbose;
+	my $ellipsis = findnodes($xpath, '/ldml/characters/ellipsis');
+	return unless $ellipsis->size;
+	my @ellipsis = $ellipsis->get_nodelist;
+	my %data;
+	foreach my $node (@ellipsis) {
+		my $pattern = $node->getChildNode(1)->getValue;
+		my $type = $node->getAttribute('type');
+		$data{$type} = $pattern;
+	}
+	print $file <<EOT;
+has 'ellipsis' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub {
+\t\treturn {
+EOT
+	foreach my $type (sort keys %data) {
+		say $file "\t\t\t$type => '$data{$type}',";
 	}
 	print $file <<EOT;
 \t\t};

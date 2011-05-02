@@ -116,6 +116,7 @@ sub _build_module {
 	foreach my $module_name (@path) {
 		$module_name = "Locale::CLDR::$module_name";
 		eval { Class::MOP::load_class($module_name); };
+		warn $@ if $@;
 		next if $@;
 		$module = $module_name->new;
 		last;
@@ -125,7 +126,7 @@ sub _build_module {
 	# none of the language specific data is in the root. So we
 	# fall back to the en module
 	if (! $module || ref $module eq 'Locale::CLDR::Root') {
-		require Locale::CLDR::En;
+		Class::MOP::load_class('Locale::CLDR::En');
 		$module = Locale::CLDR::En->new
 	}
 
@@ -614,6 +615,20 @@ sub measurement_system_name {
 	return '';
 }
 
+sub transform_name {
+	my ($self, $name) = @_;
+
+	$name = lc $name;
+
+	my @bundles = $self->_find_bundle('display_name_transform_name');
+	foreach my $bundle (@bundles) {
+		my $key = $bundle->display_name_transform_name->{$name};
+		return $key if length $key;
+	}
+
+	return '';
+}
+
 sub code_pattern {
 	my ($self, $type, $locale) = @_;
 	$type = lc $type;
@@ -784,6 +799,58 @@ sub in_text {
 	}
 
 	return $string;
+}
+
+#Exemplar characters
+sub is_exemplar_character {
+	my ($self, @parameters) = @_;
+	unshift @parameters, 'main' if @parameters == 1;
+
+	my @bundles = $self->_find_bundle('characters');
+	foreach my $bundle (@bundles) {
+		my $characters = $bundle->characters->{$parameters[0]};
+		next unless defined $characters;
+		return 1 if lc($parameters[1])=~$characters;
+	}
+
+	return;
+}
+
+sub index_characters {
+	my $self = shift;
+
+	my @bundles = $self->_find_bundle('characters');
+	foreach my $bundle (@bundles) {
+		my $characters = $bundle->characters->{index};
+		next unless defined $characters;
+		return $characters;
+	}
+	return '';
+}
+
+sub _truncated {
+	my ($self, $type, @params) = @_;
+
+	my @bundles = $self->_find_bundle('ellipsis');
+	foreach my $bundle (@bundles) {
+		my $ellipsis = $bundle->ellipsis->{$type};
+		next unless defined $ellipsis;
+		$ellipsis=~s{ \{ 0 \} }{$params[0]}msx;
+		$ellipsis=~s{ \{ 1 \} }{$params[1]}msx;
+		return $ellipsis;
+	}
+}
+
+sub truncated_beginning {
+	shift->_truncated(initial => @_);
+}
+
+sub truncated_between {
+	shift->_truncated(medial => @_);
+}
+
+sub truncated_end {
+	shift->_truncated(final => @_);
 }
 
 =head1 AUTHOR
