@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use utf8;
 
-use Test::More tests => 84;
+use Test::More tests => 85;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -172,5 +172,7 @@ is("@{$locale->index_characters()}", 'A B C D E F G H I J K L M N O P Q R S T U 
 
 # Ellipsis
 is ($locale->truncated_beginning('abc'), '…abc','Truncated beginning');
-is ($locale->truncated_between('abc','def'), 'abc…def','Truncated beginning');
+is ($locale->truncated_between('abc','def'), 'abc…def','Truncated between');
 is ($locale->truncated_end('abc'), 'abc…','Truncated end');
+
+is($locale->more_information(), '?','More Information');

@@ -182,6 +182,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	process_in_text($file, $xml);
 	process_exemplar_characters($file, $xml);
 	process_ellipsis($file, $xml);
+	process_more_information($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -1205,6 +1206,26 @@ EOT
 	print $file <<EOT;
 \t\t};
 \t},
+);
+
+EOT
+}
+
+sub process_more_information {
+	my ($file, $xpath) = @_;
+
+	say 'Processing More Information' if $verbose;
+	my $info = findnodes($xpath, '/ldml/characters/moreInformation');
+	return unless $info->size;
+	my @info = $info->get_nodelist;
+	$info = $info[0]->getChildNode(1)->getValue;
+
+	print $file <<EOT;
+has 'more_information' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> qq{$info},
 );
 
 EOT

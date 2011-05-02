@@ -853,9 +853,21 @@ sub truncated_end {
 	shift->_truncated(final => @_);
 }
 
+sub more_information {
+	my $self = shift;
+
+	my @bundles = $self->_find_bundle('more_information');
+	foreach my $bundle (@bundles) {
+		my $info = $bundle->more_information;
+		next unless defined $info;
+		return $info;
+	}
+	return '';
+}
+
 =head1 AUTHOR
 
-John Imrie, C<< <j dot imrie at virginemail.com> >>
+John Imrie, C<< <j dot imrie1 at virginemail.com> >>
 
 =head1 BUGS
 
@@ -901,7 +913,7 @@ L<http://search.cpan.org/dist/Locale-CLDR/>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 John Imrie.
+Copyright 2009-2011 John Imrie.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
