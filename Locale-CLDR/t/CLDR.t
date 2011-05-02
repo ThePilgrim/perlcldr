@@ -3,7 +3,7 @@ use strict;
 use warnings;
 use utf8;
 
-use Test::More tests => 85;
+use Test::More tests => 91;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -176,3 +176,20 @@ is ($locale->truncated_between('abc','def'), 'abc…def','Truncated between');
 is ($locale->truncated_end('abc'), 'abc…','Truncated end');
 
 is($locale->more_information(), '?','More Information');
+
+# Delimiters
+$locale = Locale::CLDR->new('en_GB');
+my $quoted = $locale->quote('abc');
+is($quoted, '‘abc’', 'Quote en_GB');
+$quoted = $locale->quote("z $quoted z");
+is($quoted, '‘z “abc” z’', 'Quote en_GB');
+$quoted = $locale->quote("dd 'z $quoted z dd");
+is($quoted, '‘dd \'z “z ‘abc’ z” z dd’', 'Quote en_GB');
+
+$locale = Locale::CLDR->new('fr');
+$quoted = $locale->quote('abc');
+is($quoted, '«abc»', 'Quote fr');
+$quoted = $locale->quote("z $quoted z");
+is($quoted, "«z \x{201C}abc\x{201D} z»", 'Quote fr');
+$quoted = $locale->quote("dd 'z $quoted z dd");
+is($quoted, "«dd \'z \x{201C}z «abc» z\x{201D} z dd»", 'Quote fr');

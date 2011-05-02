@@ -865,6 +865,62 @@ sub more_information {
 	return '';
 }
 
+sub quote {
+	my ($self, $text) = @_;
+
+	my %quote;
+	my @bundles = $self->_find_bundle('quote_start');
+	foreach my $bundle (@bundles) {
+		my $quote = $bundle->quote_start;
+		next unless defined $quote;
+		$quote{start} = $quote;
+		last;
+	}
+
+	@bundles = $self->_find_bundle('quote_end');
+	foreach my $bundle (@bundles) {
+		my $quote = $bundle->quote_end;
+		next unless defined $quote;
+		$quote{end} = $quote;
+		last;
+	}
+
+	@bundles = $self->_find_bundle('alternate_quote_start');
+	foreach my $bundle (@bundles) {
+		my $quote = $bundle->alternate_quote_start;
+		next unless defined $quote;
+		$quote{alternate_start} = $quote;
+		last;
+	}
+
+	@bundles = $self->_find_bundle('alternate_quote_end');
+	foreach my $bundle (@bundles) {
+		my $quote = $bundle->alternate_quote_end;
+		next unless defined $quote;
+		$quote{alternate_end} = $quote;
+		last;
+	}
+
+	# Check to see if we need to sitch quotes
+	foreach (qw( start end alternate_start alternate_end)) {
+		$quote{$_} //= '';
+	}
+
+	my $from = join ' | ', map {quotemeta} @quote{qw( start end alternate_start alternate_end)};
+	my %to;
+	@to{@quote{qw( start end alternate_start alternate_end)}}
+		= @quote{qw( alternate_start alternate_end start end)};
+
+	my $outer = index($text, $quote{start});
+	my $inner = index($text, $quote{alternate_start});
+
+	if ($inner == -1 || ($outer > -1 && $inner > -1 && $outer < $inner)) {
+		$text =~ s{ ( $from ) }{ $to{$1} }msxeg;
+	}
+
+	return "$quote{start}$text$quote{end}";
+}
+
 =head1 AUTHOR
 
 John Imrie, C<< <j dot imrie1 at virginemail.com> >>

@@ -183,6 +183,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	process_exemplar_characters($file, $xml);
 	process_ellipsis($file, $xml);
 	process_more_information($file, $xml);
+	process_delimiters($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -1229,6 +1230,39 @@ has 'more_information' => (
 );
 
 EOT
+}
+
+sub process_delimiters {
+	my ($file, $xpath) = @_;
+
+	say 'Processing Delimiters' if $verbose;
+	my %quote;
+	$quote{quote_start}				= findnodes($xpath, '/ldml/delimiters/quotationStart');
+	$quote{quote_end}				= findnodes($xpath, '/ldml/delimiters/quotationEnd');
+	$quote{alternate_quote_start}	= findnodes($xpath, '/ldml/delimiters/alternateQuotationStart');
+	$quote{alternate_quote_end}		= findnodes($xpath, '/ldml/delimiters/alternateQuotationEnd');
+
+	return unless $quote{quote_start}->size 
+		|| $quote{quote_end}->size 
+		|| $quote{alternate_quote_start}->size
+		|| $quote{alternate_quote_end}->size;
+
+	foreach my $quote (qw(quote_start quote_end alternate_quote_start alternate_quote_end)) {
+		next unless ($quote{$quote}->size);
+		
+		my @quote = $quote{$quote}->get_nodelist;
+		my $value = $quote[0]->getChildNode(1)->getValue;
+		
+		print $file <<EOT;
+has '$quote' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> qq{$value},
+);
+
+EOT
+	}
 }
 
 sub process_footer {
