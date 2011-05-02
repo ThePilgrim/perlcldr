@@ -3,8 +3,36 @@ use 5.010;
 use strict;
 use warnings;
 
-use List::Util qw(first);
-use List::MoreUtils qw(zip);
+=head1 NAME
+
+Unicode::Set
+
+=head1 SYNOPSIS
+
+ use Unicode::Set qw(unicode_to_perl);
+ $regex = unicode_to_perl('a[[\p{Latin} & \p{Greak}] - [0-9]]z');
+
+=head1 DESCRIPTION
+
+Perl 5.10.0 misses subtraction and intersection of characters, which is
+described in Unicode Regular Expressions (UTS #18). This module provides a
+mimic syntax of character classes including subtraction and intersection,
+taking advantage of look-ahead assertions.
+
+The code is based heavely on SADAHIRO Tomoyuki's Unicode::Regex::Set. However
+this code parses an entire regex looking for set functions and also allows strings to appear in sets as a unique entity using the {} syntax.
+
+ie for German
+
+ [abc{ch}def]
+
+Would be a set showing that ch is concidered a seperate character from c and h
+
+The code exports one method C<unicode_to_perl>. The method takes one parameter,
+a string represention of the regex to parse and returns a qr() object.
+
+=cut
+
 use Sub::Exporter -setup => {
 	exports => [ qw(unicode_to_perl) ]
 };
@@ -36,6 +64,9 @@ my $gramma = qr{
 		<MATCH=(?{
 			my $regex = ( $MATCH{pre} // '' )
 				. join ' ', @{$MATCH{unicode_set} // []};
+
+			# Make an empty regex an empty set
+			$regex = '[ ]' unless length $regex;
 			qr/$regex/msx; 
 		})>
 
@@ -45,7 +76,7 @@ my $gramma = qr{
 	<rule: unicode_set>
 		(?: <.neg_open> <set=negative_set> \] | \[ <set> \] ) <not_set>?
 		<MATCH=(?{
-			stringify($MATCH{set}) . ( $MATCH{not_set} // '' ); 
+			stringify(($MATCH{set}) // '') . ( $MATCH{not_set} // '' ); 
 	})>
 
 	<token: neg_open>
@@ -60,7 +91,7 @@ my $gramma = qr{
 	<rule: set>
 		(?: <[expression]> ** <[op]>  | <[expression]>+ )
 		<MATCH=(?{
-			mktree(0, $MATCH{expression}, $MATCH{op})
+				mktree(0, $MATCH{expression}, $MATCH{op})
 		})>
 
 	<token: negation>
