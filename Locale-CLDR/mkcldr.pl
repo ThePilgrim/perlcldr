@@ -23,7 +23,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
 
 use version;
-our $VERSION = version->parse('1.9.1');
+our $VERSION = version->parse('0.1');
+my $CLDR_VERSION = version->parse('2.0.1');
 
 my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename  = File::Spec->catfile($data_directory, 'core.zip');
@@ -49,12 +50,12 @@ if (! -e $core_filename ) {
 	my $ua = LWP::UserAgent->new(
 		agent => "perl Local::CLDR/$VERSION (Written by j.imrie1\@virginmedia.com)",
 	);
-	my $response = $ua->get("http://unicode.org/Public/cldr/$VERSION/core.zip",
+	my $response = $ua->get("http://unicode.org/Public/cldr/$CLDR_VERSION/core.zip",
 		':content_file' => $core_filename
 	);
 
 	if (! $response->is_success) {
-		die "Can not access http://unicode.org/Public/cldr/$VERSION/core.zip' "
+		die "Can not access http://unicode.org/Public/cldr/$CLDR_VERSION/core.zip' "
 		 	. $response->status_line;
 	}
 }
@@ -70,11 +71,12 @@ if (! -d $base_directory) {
 # Now check that we have a 'common' directory
 die <<EOM
 I successfully unzipped the core.zip file but don't have a 'common' 
-directory. Is this version $VERSION of the Unicode core.zip file?
+directory. Is this version $CLDR_VERSION of the Unicode core.zip file?
 EOM
 
 	unless -d File::Spec->catdir($base_directory);
 
+=for comments
 # We look at the supplemental data file to get the cldr version number
 my $vf = XML::XPath->new(File::Spec->catfile($base_directory, 
 	'main',
@@ -85,8 +87,10 @@ my $cldrVersion = $vf->findnodes('/ldml/identity/version')
 	->get_node
 	->getAttribute('cldrVersion');
 
-die "Incorrect CLDR Version found $cldrVersion. It should be $VERSION"
-	unless version->parse("$cldrVersion") == $VERSION;
+die "Incorrect CLDR Version found $cldrVersion. It should be $CLDR_VERSION"
+	unless version->parse("$cldrVersion") == $CLDR_VERSION;
+
+=cut
 
 say "Processing files"
 	if $verbose;
@@ -108,7 +112,7 @@ my $file_name = File::Spec->catfile($base_directory,
 say "Processing file $file_name" if $verbose;
 
 # Note: The order of these calls is important
-process_header($file, 'Locale::CLDR::ValidCodes', $VERSION, $xml, $file_name, 1);
+process_header($file, 'Locale::CLDR::ValidCodes', $CLDR_VERSION, $xml, $file_name, 1);
 process_cp($xml);
 process_valid_languages($file, $xml);
 process_valid_scripts($file, $xml);
@@ -164,7 +168,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	# Note: The order of these calls is important
 	process_class_any($lib_directory, @output_file_parts[0 .. $#output_file_parts -1]);
 
-	process_header($file, "Locale::CLDR::$package", $VERSION, $xml, $file_name);
+	process_header($file, "Locale::CLDR::$package", $CLDR_VERSION, $xml, $file_name);
 	process_segments($file, $segment_xml) if $segment_xml;
 	process_cp($xml);
 	process_fallback($file, $xml, "Locale::CLDR::$package");
