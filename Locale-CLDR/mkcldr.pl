@@ -184,6 +184,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 	process_ellipsis($file, $xml);
 	process_more_information($file, $xml);
 	process_delimiters($file, $xml);
+	process_calendars($file, $xml);
 	process_footer($file);
 
 	close $file;
@@ -1262,6 +1263,32 @@ has '$quote' => (
 );
 
 EOT
+	}
+}
+
+# Dates
+#/ldml/dates/calendars/
+sub process_calendars {
+	my ($file, $xpath) = @_;
+
+	say "Processing Calendars" if $verbose;
+	
+	my $calendars = findnodes($xpath, '/ldml/dates/calendars/calendar');
+
+	return unless $calendars->size;
+
+	my %calenders;
+	foreach my $calendar ($calendars->get_nodelist) {
+		my $type = $calendar->grtAttribute('type');
+		$calendars{$type}{months} 			= process_months($file, $xpath, $type);
+		$calendars{$type}{days}				= process_days($file, $xpath, $type);
+		$calendars{$type}{quarters}			= process_quarters($file, $xpath, $type);
+		$calendars{$type}{day_periods}		= process_day_periods($file, $xpath, $type);
+		$calendars{$type}{eras}				= process_eras($file, $xpath, $type);
+		$calendars{$type}{date_formats}		= process_date_formats($file, $xpath, $type);
+		$calendars{$type}{time_formats}		= process_time_formats($file, $xpath, $type);
+		$calendars{$type}{datetime_formats}	= process_datetime_formats($file, $xpath, $type);
+		$calendars{$type}{fields}			= process_fields($file, $xpath, $type);
 	}
 }
 

@@ -5,7 +5,10 @@ use feature 'unicode_strings';
 use open ':encoding(utf8)';
 
 use Moose;
+use MooseX:ClassAttribute;
 with 'Locale::CLDR::ValidCodes';
+
+use namespace::autoclean;
 
 =head1 NAME
 
@@ -30,27 +33,27 @@ This module handles Local Data from the CLDR
 
 =cut
 
-has 'language' => (
+has 'language_id' => (
 	is			=> 'ro',
 	isa			=> 'Str',
 	required	=> 1,
 );
 
 # language aliases
-around 'language' => sub {
+around 'language_id' => sub {
 	my ($orig, $self) = @_;
 	my $value = $self->$orig;
 	return $self->language_aliases->{$value} // $value;
 };
 
-has 'script' => (
+has 'script_id' => (
 	is			=> 'ro',
 	isa			=> 'Str',
 	default		=> '',
 	predicate	=> 'has_script',
 );
 
-has 'territory' => (
+has 'territory_id' => (
 	is			=> 'ro',
 	isa			=> 'Str',
 	default		=> '',
@@ -58,7 +61,7 @@ has 'territory' => (
 );
 
 # territory aliases
-around 'territory' => sub {
+around 'territory_id' => sub {
 	my ($orig, $self) = @_;
 	my $value = $self->$orig;
 	return $value if defined $value;
@@ -66,7 +69,7 @@ around 'territory' => sub {
 	return (split /\s+/, $alias)[0];
 };
 
-has 'variant' => (
+has 'variant_id' => (
 	is			=> 'ro',
 	isa			=> 'Str',
 	default		=> '',
@@ -94,10 +97,10 @@ sub _build_module {
 	my $path = join '::',
 		map { ucfirst lc }
 		map { $_ ? $_ : 'Any' } (
-			$self->language,
-			$self->script,
-			$self->territory,
-			$self->variant
+			$self->language_id,
+			$self->script_id,
+			$self->territory_id,
+			$self->variant_id
 		);
 
 	while ($path) {
@@ -133,9 +136,9 @@ sub _build_module {
 	return $module;
 }
 
-has 'method_cache' => (
+class_has 'method_cache' => (
 	is			=> 'rw',
-	isa			=> 'HashRef[ArrayRef[Object]]',
+	isa			=> 'HashRef[HashRef[ArrayRef[Object]]]',
 	init_arg	=> undef,
 	default		=> sub { return {}},
 );
@@ -170,6 +173,103 @@ has 'break_sentence' => (
 	init_arg => undef(),
 	lazy => 1,
 	default => sub {shift->_build_break('SentenceBreak')},
+);
+
+foreach my $property (qw( name language script territory variant)) {
+	has $property => (
+		is => 'ro',
+		isa => 'Str',
+		init_arg => undef,
+		lazy => 1,
+		builder => "_build_$property",
+	);
+
+	has "native_$property" => (
+		is => 'ro',
+		isa => 'Str',
+		init_arg => undef,
+		lazy => 1,
+		builder => "_build_native_$property",
+	);
+}
+
+#DateTime::Local
+foreach my $property (qw( 
+	month_format_wide month_format_abbreviated month_format_narrow
+	month_stand_alone_wide month_stand_alone_abreviated month_stand_alone_narrow
+	day_format_wide day_format_abbreviated day_format_narrow
+	day_stand_alone_wide day_stand_alone_abreviated day_stand_alone_narrow
+	quater_format_wide quater_format_abbreviated quater_format_narrow
+	quater_stand_alone_wide quater_stand_alone_abreviated quater_stand_alone_narrow
+	am_pm_abbreviated
+	era_wide era_abbreviated era_narrow
+)) {
+	has $property => (
+		is => 'ro',
+		isa => 'ArrayRef',
+		init_arg => undef,
+		lazy => 1,
+		builder => "_build_$property",
+	);
+}
+
+foreach my $property (qw(
+	id
+	date_format_full date_formart_long 
+	date_format_medium date_format_short date_format_default
+	time_format_full time_formart_long
+	time_format_medium time_format_short timeformat_default
+	datetime_format_full datetime_formart_long
+	datetime_format_medium datetime_format_short datetimeformat_default
+)) {
+	has $property => (
+		is => 'ro',
+		isa => 'Str',
+		init_arg => undef,
+		lazy => 1,
+		builder => "_build_$property",
+	);
+}
+
+has 'available_formats' => (
+	is => 'ro',
+	isa => 'HashRef',
+	init_arg => undef,
+	lazy => 1,
+	builder => "_build_$property",
+);
+		
+sub format_for {
+	my ($self, $format) = @_;
+}
+
+foreach my $property (qw(
+	default_date_format_length efault_time_format_length
+)) {
+	has $property => (
+		is => 'ro',
+		isa => 'Str',
+		init_arg => undef,
+		lazy => 1,
+		builder => "_build_$property",
+		writer => "set_$property" 
+	);
+}
+
+has 'prefers_24_hour_time' => (
+	is => 'ro',
+	isa => 'Bool',
+	init_arg => undef,
+	lazy => 1,
+	builder => "_build_prefers_24_hour_time",
+);
+
+has 'first_day_of_week' => (
+	is => 'ro',
+	isa => 'Bool',
+	init_arg => undef,
+	lazy => 1,
+	builder => "_build_first_day_of_week",
 );
 
 sub _build_break {
@@ -266,10 +366,10 @@ sub BUILDARGS {
 		}
 			
 		%args = (
-			language	=> $language,
-			script		=> $script,
-			territory	=> $territory,
-			variant		=> $variant,
+			language_id	=> $language,
+			script_id		=> $script,
+			territory_id	=> $territory,
+			variant_id		=> $variant,
 			extentions	=> $extentions,
 		);
 	}
@@ -289,9 +389,9 @@ sub BUILDARGS {
 	}
 
 	# Fix casing of args
-	$args{language}		= lc $args{language}		if defined $args{language};
-	$args{script}		= ucfirst lc $args{script}	if defined $args{script};
-	$args{territory}	= uc $args{territory}		if defined $args{territory};
+	$args{language_id}		= lc $args{language_id}		if defined $args{language_id};
+	$args{script_id}		= ucfirst lc $args{script_id}	if defined $args{script_id};
+	$args{territory_id}	= uc $args{territory_id}		if defined $args{territory_id};
 
 	$self->SUPER::BUILDARGS(%args, %internal_args);
 }
@@ -301,21 +401,21 @@ sub BUILD {
 
 	# Check that the args are valid
 	# also check for aliases
-	$args->{language} = $self->language_aliases->{$args->{language}}
-		// $args->{language};
-	die "Invalid language" unless first { $args->{language} eq $_ } $self->valid_languages;
+	$args->{language_id} = $self->language_aliases->{$args->{language_id}}
+		// $args->{language_id};
+	die "Invalid language" unless first { $args->{language_id} eq $_ } $self->valid_languages;
 
-	die "Invalid script" if $args->{script} 
-		&& ! first { ucfirst lc $args->{script} eq $_ } $self->valid_scripts;
+	die "Invalid script" if $args->{script_id} 
+		&& ! first { ucfirst lc $args->{script_id} eq $_ } $self->valid_scripts;
 
-	die "Invalid territory" if $args->{territory} 
-		&&  ( !  ( first { uc $args->{territory} eq $_ } $self->valid_territories )
-			&& ( ! $self->territory_aliases->{$self->{territory}} )
+	die "Invalid territory" if $args->{territory_id} 
+		&&  ( !  ( first { uc $args->{territory_id} eq $_ } $self->valid_territories )
+			&& ( ! $self->territory_aliases->{$self->{territory_id}} )
 		);
     
-	die "Invalid variant" if $args->{variant}
-		&&  ( !  ( first { uc $args->{variant} eq $_ } $self->valid_variants )
-			&& ( ! $self->variant_aliases->{lc $self->{variant}} )
+	die "Invalid variant" if $args->{variant_id}
+		&&  ( !  ( first { uc $args->{variant_id} eq $_ } $self->valid_variants )
+			&& ( ! $self->variant_aliases->{lc $self->{variant_id}} )
 	);
 
 	if ($args->{extention}) {
@@ -330,8 +430,8 @@ sub BUILD {
 	}
 		
 	# Check for variant aliases
-	if ($args->{variant} && (my $variant_alias = $self->variant_aliases->{lc $self->variant})) {
-		delete $args->{variant};
+	if ($args->{variant_id} && (my $variant_alias = $self->variant_aliases->{lc $self->variant_id})) {
+		delete $args->{variant_id};
 		my ($what) = keys %{$variant_alias};
 		my ($value) = values %{$variant_alias};
 		$args->{$what} = $value;
@@ -340,22 +440,22 @@ sub BUILD {
 
 use overload 
   'bool'	=> sub { 1 },
-  '""'		=> \&stringify;
+  '""'		=> sub {shift->id};
 
-sub stringify {
+sub _build_id {
 	my $self = shift;
-	my $string = lc $self->language;
+	my $string = lc $self->language_id;
 
-	if ($self->script) {
-		$string.= '_' . ucfirst lc $self->script;
+	if ($self->script_id) {
+		$string.= '_' . ucfirst lc $self->script_id;
 	}
 
-	if ($self->territory) {
-		$string.= '_' . uc $self->territory;
+	if ($self->territory_id) {
+		$string.= '_' . uc $self->territory_id;
 	}
 
-	if ($self->variant) {
-		$string.= '_' . uc $self->variant;
+	if ($self->variant_id) {
+		$string.= '_' . uc $self->variant_id;
 	}
 
 	if (defined $self->extentions) {
@@ -370,25 +470,99 @@ sub stringify {
 	return $string;
 }
 
+sub _get_english {
+	my $self = shift;
+	my $english;
+	if ($self->language_id eq 'en') {
+		$english = $self;
+	}
+	else {
+		$english = Local::CLDR->new('en');
+	}
+
+	return $english;
+}
+
+sub _build_name {
+	my $self = shift;
+
+	return $self->_get_english->native_name($self);
+}
+
+sub _build_native_name {
+	my $self = shift;
+
+	return $self->local_name();
+}
+
+sub _build_language {
+	my $self = shift;
+
+	return $self->_get_english->native_language($self);
+}
+
+sub _build_native_language {
+	my $self = shift;
+
+	return $self->language_name();
+}
+
+sub _build_script {
+	my $self = shift;
+
+	return $self->_get_english->native_script($self);
+}
+
+sub _build_native_script {
+	my $self = shift;
+
+	return $self->script_name();
+}
+
+sub _build_territory {
+	my $self = shift;
+
+	return $self->_get_english->native_territory($self);
+}
+
+sub _build_native_territory {
+	my $self = shift;
+
+	return $self->territory_name();
+}
+
+sub _build_variant {
+	my $self = shift;
+
+	return $self->_get_english->native_variant($self);
+}
+
+sub _build_native_variant {
+	my $self = shift;
+
+	return $self->variant_name();
+}
+
 # Method to locate the resource bundle with the required data
 sub _find_bundle {
 	my ($self, $method_name) = @_;
-	if ($self->method_cache->{$method_name}) {
+	my $id = $self->id(); 
+	if ($self->method_cache->{$id}{$method_name}) {
 		return wantarray
-			? @{$self->method_cache->{$method_name}}
-			: $self->method_cache->{$method_name}[0];
+			? @{$self->method_cache->{$id}{$method_name}}
+			: $self->method_cache->{$id}{$method_name}[0];
 	}
 
 	foreach my $module ($self->module->meta->linearized_isa) {
 		if ($module->meta->has_method($method_name)) {
-			push @{$self->method_cache->{$method_name}}, $module->new;
+			push @{$self->method_cache->{$id}{$method_name}}, $module->new;
 		}
 	}
 
-	return unless $self->method_cache->{$method_name};
+	return unless $self->method_cache->{$id}{$method_name};
 	return wantarray
-		? @{$self->method_cache->{$method_name}}
-		: $self->method_cache->{$method_name}[0];
+		? @{$self->method_cache->{$id}{$method_name}}
+		: $self->method_cache->{$id}{$method_name}[0];
 }
 
 # Method to return the given local name in the current locals format
@@ -397,7 +571,7 @@ sub locale_name {
 	$name //= $self;
 
 	my $code = ref $name
-		? join ('_', $name->language, $name->territory)
+		? join ('_', $name->language_id, $name->territory_id)
 		: $name;
 	
 	my @bundles = $self->_find_bundle('display_name_language');
@@ -430,8 +604,8 @@ sub language_name {
 	$name //= $self;
 
 	my $code = ref $name
-		? $name->language
-		: eval { Locale::CLDR->new(language => $name)->language };
+		? $name->language_id
+		: eval { Locale::CLDR->new(language_id => $name)->language_id };
 
 	my $language = undef;
 	my @bundles = $self->_find_bundle('display_name_language');
@@ -464,10 +638,10 @@ sub script_name {
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = eval {__PACKAGE__->new(language => 'und', script => $name)};
+		$name = eval {__PACKAGE__->new(language_id => 'und', script_id => $name)};
 	}
 
-	if ( ref $name && ! $name->script ) {
+	if ( ref $name && ! $name->script_id ) {
 		return '';
 	}
 
@@ -475,7 +649,7 @@ sub script_name {
 	my @bundles = $self->_find_bundle('display_name_script');
 	if ($name) {
 		foreach my $bundle (@bundles) {
-			$script = $bundle->display_name_script->{$name->script};
+			$script = $bundle->display_name_script->{$name->script_id};
 			if (defined $script) {
 				last;
 			}
@@ -499,10 +673,10 @@ sub territory_name {
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = eval { __PACKAGE__->new(language => 'und', territory => $name); };
+		$name = eval { __PACKAGE__->new(language_id => 'und', territory_id => $name); };
 	}
 
-	if ( ref $name && ! $name->territory) {
+	if ( ref $name && ! $name->territory_id) {
 		return '';
 	}
 
@@ -510,7 +684,7 @@ sub territory_name {
 	my @bundles = $self->_find_bundle('display_name_territory');
 	if ($name) {
 		foreach my $bundle (@bundles) {
-			$territory = $bundle->display_name_territory->{$name->territory};
+			$territory = $bundle->display_name_territory->{$name->territory_id};
 			if (defined $territory) {
 				last;
 			}
@@ -534,15 +708,15 @@ sub variant_name {
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = __PACKAGE__->new(language=> 'und', variant => $name);
+		$name = __PACKAGE__->new(language_id=> 'und', variant_id => $name);
 	}
 
-	return '' unless $name->variant;
+	return '' unless $name->variant_id;
 	my $variant = undef;
 	if ($name->has_variant) {
 		my @bundles = $self->_find_bundle('display_name_variant');
 		foreach my $bundle (@bundles) {
-			$variant= $bundle->display_name_variant->{$name->variant};
+			$variant= $bundle->display_name_variant->{$name->variant_id};
 			if (defined $variant) {
 				last;
 			}

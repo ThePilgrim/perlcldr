@@ -8,31 +8,31 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new(language => 'en');
+my $locale = Locale::CLDR->new(language_id => 'en');
 is("$locale", 'en', 'Set Language explicitly');
 
 $locale = Locale::CLDR->new('en');
 is("$locale", 'en', 'Set Language implicitly');
 
-$locale = Locale::CLDR->new(language => 'en', territory => 'gb');
+$locale = Locale::CLDR->new(language_id => 'en', territory_id => 'gb');
 is("$locale", 'en_GB', 'Set Language and Territory explicitly');
 
 $locale = Locale::CLDR->new('en-gb');
 is("$locale", 'en_GB', 'Set Language and Territory implicitly');
 
-$locale = Locale::CLDR->new(language => 'en', script => 'latn');
+$locale = Locale::CLDR->new(language_id => 'en', script_id => 'latn');
 is("$locale", 'en_Latn', 'Set Language and Script explicitly');
 
 $locale = Locale::CLDR->new('en-latn');
 is("$locale", 'en_Latn', 'Set Language and Script implicitly');
 
-$locale = Locale::CLDR->new(language => 'en', territory => 'gb', script => 'latn');
+$locale = Locale::CLDR->new(language_id => 'en', territory_id => 'gb', script_id => 'latn');
 is("$locale", 'en_Latn_GB', 'Set Language, Territory and Script explicitly');
 
 $locale = Locale::CLDR->new('en-latn-gb');
 is("$locale", 'en_Latn_GB', 'Set Language, Territory and Script implicitly');
 
-$locale = Locale::CLDR->new(language => 'en', variant => '1994');
+$locale = Locale::CLDR->new(language_id => 'en', variant_id => '1994');
 is("$locale", 'en_1994', 'Set Language and Variant from string explicitly');
 
 $locale = Locale::CLDR->new('en_1994');
