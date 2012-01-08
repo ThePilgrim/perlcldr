@@ -1,5 +1,5 @@
 package Unicode::Set;
-use 5.010;
+use 5.014;
 use strict;
 use warnings;
 
@@ -67,7 +67,7 @@ my $gramma = qr{
 
 			# Make an empty regex an empty set
 			$regex = '[ ]' unless length $regex;
-			qr/$regex/msx; 
+			qr/$regex/msxu; 
 		})>
 
 	<rule: not_set>
