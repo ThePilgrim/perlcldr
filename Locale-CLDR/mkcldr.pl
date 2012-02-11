@@ -1901,7 +1901,7 @@ sub process_months {
 			my $month_nodes = findnodes($xpath, 
 				qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$context_type"]/monthWidth[\@type="$width_type"]/month));
 			foreach my $month ($month_nodes->get_nodelist) {
-				my $month_type = $month->getAttribute('type');
+				my $month_type = $month->getAttribute('type') -1;
 				my $year_type = $month->getAttribute('yeartype') || 'nonleap';
 				$months{$context_type}{$width_type}{$year_type}[$month_type] = 
 					$month->getChildNode(1)->getValue();
@@ -1975,7 +1975,7 @@ sub process_quarters {
 			my $quarter_nodes = findnodes($xpath, 
 				qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext[\@type="$context_type"]/quarterWidth[\@type="$width_type"]/quarter));
 			foreach my $quarter ($quarter_nodes->get_nodelist) {
-				my $quarter_type = $quarter->getAttribute('type');
+				my $quarter_type = $quarter->getAttribute('type') -1;
 				$quarters{$context_type}{$width_type}[$quarter_type] = 
 					$quarter->getChildNode(1)->getValue();
 			}
