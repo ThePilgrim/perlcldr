@@ -3,43 +3,44 @@ use strict;
 use warnings;
 use utf8;
 
+
 use Test::More tests => 91;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
 
 my $locale = Locale::CLDR->new(language_id => 'en');
-is("$locale", 'en', 'Set Language explicitly');
+is($locale->id, 'en', 'Set Language explicitly');
 
 $locale = Locale::CLDR->new('en');
-is("$locale", 'en', 'Set Language implicitly');
+is($locale->id, 'en', 'Set Language implicitly');
 
 $locale = Locale::CLDR->new(language_id => 'en', territory_id => 'gb');
-is("$locale", 'en_GB', 'Set Language and Territory explicitly');
+is($locale->id, 'en_GB', 'Set Language and Territory explicitly');
 
 $locale = Locale::CLDR->new('en-gb');
-is("$locale", 'en_GB', 'Set Language and Territory implicitly');
+is($locale->id, 'en_GB', 'Set Language and Territory implicitly');
 
 $locale = Locale::CLDR->new(language_id => 'en', script_id => 'latn');
-is("$locale", 'en_Latn', 'Set Language and Script explicitly');
+is($locale->id, 'en_Latn', 'Set Language and Script explicitly');
 
 $locale = Locale::CLDR->new('en-latn');
-is("$locale", 'en_Latn', 'Set Language and Script implicitly');
+is($locale->id, 'en_Latn', 'Set Language and Script implicitly');
 
 $locale = Locale::CLDR->new(language_id => 'en', territory_id => 'gb', script_id => 'latn');
-is("$locale", 'en_Latn_GB', 'Set Language, Territory and Script explicitly');
+is($locale->id, 'en_Latn_GB', 'Set Language, Territory and Script explicitly');
 
 $locale = Locale::CLDR->new('en-latn-gb');
-is("$locale", 'en_Latn_GB', 'Set Language, Territory and Script implicitly');
+is($locale->id, 'en_Latn_GB', 'Set Language, Territory and Script implicitly');
 
 $locale = Locale::CLDR->new(language_id => 'en', variant_id => '1994');
-is("$locale", 'en_1994', 'Set Language and Variant from string explicitly');
+is($locale->id, 'en_1994', 'Set Language and Variant from string explicitly');
 
 $locale = Locale::CLDR->new('en_1994');
-is("$locale", 'en_1994', 'Set Language and variant implicitly');
+is($locale->id, 'en_1994', 'Set Language and variant implicitly');
 
 $locale = Locale::CLDR->new('en_latn_gb_1994');
-is("$locale", 'en_Latn_GB_1994', 'Set Language, Territory, Script and variant implicitly');
+is($locale->id, 'en_Latn_GB_1994', 'Set Language, Territory, Script and variant implicitly');
 
 throws_ok { $locale = Locale::CLDR->new('wibble') } qr/Invalid language/, "Caught invalid language";
 throws_ok { $locale = Locale::CLDR->new('en_wi') } qr/Invalid territory/, "Caught invalid territory";
@@ -60,7 +61,7 @@ is ($locale->territory_name('wibble'), 'Unknown Region', 'Invalid Territory name
 is ($locale->variant_name('AREVMDA'), 'Western Armenian', 'Variant name');
 throws_ok { $locale->variant_name('WIBBLE') } qr{ \A Invalid \s variant }xms, 'Invalid Variant name';
 is ($locale->language_name('i-klingon'), 'Klingon', 'Language alias');
-is ($locale->territory_name('BQ'), 'British Antarctic Territory', 'Territory alias');
+is ($locale->territory_name('BQ'), 'Bonaire, Saint Eustatius, and Saba', 'Territory alias');
 is ($locale->territory_name('830'), 'Channel Islands', 'Territory alias');
 is ($locale->variant_name('BOKMAL'), '', 'Variant alias');
 is ($locale->key_name('ca'), 'Calendar', 'Key name');
@@ -160,6 +161,8 @@ foreach my $type (
 }
 
 #exemplar characters
+SKIP: {
+skip 'Exampler characters use lots of unicode properties, causing segfaults',9;
 ok($locale->is_exemplar_character("A"), 'Is Exemplar Character');
 ok(!$locale->is_exemplar_character('@'), 'Is not Exemplar Character');
 ok($locale->is_exemplar_character('auxiliary', "ê"), 'Is Auxiliary Exemplar Character');
@@ -169,13 +172,13 @@ ok(!$locale->is_exemplar_character('punctuation', '@'), 'Is not Punctiation Exem
 ok($locale->is_exemplar_character('currencySymbol', "A"), 'Is Currency Exemplar Character');
 ok(!$locale->is_exemplar_character('currencySymbol', '@'), 'Is not Currency Exemplar Character');
 is("@{$locale->index_characters()}", 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z', 'Index Characters');
-
+}
 # Ellipsis
-is ($locale->truncated_beginning('abc'), '…abc','Truncated beginning');
-is ($locale->truncated_between('abc','def'), 'abc…def','Truncated between');
+is ($locale->truncated_beginning('abc'), '… abc','Truncated beginning');
+is ($locale->truncated_between('abc','def'), 'abc… def','Truncated between');
 is ($locale->truncated_end('abc'), 'abc…','Truncated end');
 
-is($locale->more_information(), '?','More Information');
+is($locale->more_information(), '[...]','More Information');
 
 # Delimiters
 $locale = Locale::CLDR->new('en_GB');
