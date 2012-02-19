@@ -48,7 +48,7 @@ if (! -e $core_filename ) {
         if $verbose;
 
     my $ua = LWP::UserAgent->new(
-        agent => "perl Local::CLDR/$VERSION (Written by j.imrie1\@virginmedia.com)",
+        agent => "perl Locale::CLDR/$VERSION (Written by j.imrie1\@virginmedia.com)",
     );
     my $response = $ua->get("http://unicode.org/Public/cldr/$CLDR_VERSION/core.zip",
         ':content_file' => $core_filename
@@ -140,7 +140,7 @@ say "Processing file $file_name" if $verbose;
 
 
 # Note: The order of these calls is important
-process_header($file, 'Local::CLDR::EraBoundries', $CLDR_VERSION, $xml, $file_name, 1);
+process_header($file, 'Locale::CLDR::EraBoundries', $CLDR_VERSION, $xml, $file_name, 1);
 process_era_boundries($file, $xml);
 process_footer($file, 1);
 close $file;
@@ -149,7 +149,7 @@ close $file;
 open $file, '>', File::Spec->catfile($lib_directory, 'CalendarPreferences.pm');
 
 # Note: The order of these calls is important
-process_header($file, 'Local::CLDR::CalendarPreferences', $CLDR_VERSION, $xml, $file_name, 1);
+process_header($file, 'Locale::CLDR::CalendarPreferences', $CLDR_VERSION, $xml, $file_name, 1);
 process_calendar_preferences($file, $xml);
 process_footer($file, 1);
 close $file;
@@ -229,8 +229,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 sub findnodes {
     my ($xpath, $path ) = @_;
     my $nodes = $xpath->findnodes($path);
-    return $nodes;# if $nodes->size;
-#    return process_alias($xpath, $path);
+    return $nodes;
 }
 
 # Calculate the output file name
@@ -260,7 +259,7 @@ sub process_class_any {
     my $package = 'Locale::CLDR';
     foreach my $path (@path_parts) {
         my $parent = $package;
-        $parent = 'Locale::CLDR::Root' if $parent eq 'Local::CLDR';
+        $parent = 'Locale::CLDR::Root' if $parent eq 'Locale::CLDR';
         $package .= "::$path";
         $lib_path = File::Spec->catfile($lib_path, $path);
 
@@ -596,7 +595,7 @@ has 'era_boundry' => (
 \tdefault\t\t=> sub { sub {
 \t\tmy (\$self, \$type, \$date) = \@_;
 \t\t# \$date in yyyymmdd format
-\t\t\$return = -1;
+\t\tmy \$return = -1;
 \t\tgiven(\$type) {
 EOT
 	foreach my $calendar ($calendars->get_nodelist) {
@@ -631,7 +630,8 @@ EOT
 	print $file <<EOT;
 \t\t} return \$return; }
 \t}
-)
+);
+
 EOT
 }
 
@@ -711,12 +711,17 @@ sub process_alias {
 
         # Process locale nodes
         if ($node->getAttribute('source') eq 'locale' ) {
-			if (() = $parent->getAttributes) {
+			my $replacing_with_types
+				= $xpath->findnodes("$new_path", $parent)
+					->get_nodelist
+					> 1;
+
+			if (! $replacing_with_types) {
             	my @replacements = $xpath->findnodes("$new_path/*", $parent)
                 	->get_nodelist;
             	foreach my $replacement (@replacements) {
 					process_alias($xpath,$replacement);
-                	$parent->insertBefore($replacement,$node);
+	               	$parent->insertBefore($replacement,$node);
             	}
             	$parent->removeChild($node);
 			}
@@ -726,7 +731,7 @@ sub process_alias {
                 	->get_nodelist;
             	foreach my $replacement (@replacements) {
 					process_alias($xpath,$replacement);
-                	$grandparent->insertBefore($replacement,$parent);
+	               	$grandparent->insertBefore($replacement,$parent);
             	}
             	$grandparent->removeChild($parent);
 			}
@@ -1068,7 +1073,7 @@ sub process_display_type {
     foreach my $key (sort keys %values) {
         push @types, "\t\t\t'$key' => {\n";
         foreach my $type (sort keys %{$values{$key}}) {
-            push @types, "\t\t\t\t'$type' => '$values{$key}{$type}',\n";
+            push @types, "\t\t\t\t'$type' => q{$values{$key}{$type}},\n";
         }
         push @types, "\t\t\t},\n";
     }
@@ -1103,7 +1108,7 @@ sub process_display_measurement_system_name {
         my $value = $name->getChildNode(1)->getValue;
         $name =~s/\\/\\\\/g;
         $name =~s/'/\\'/g;
-        $name = "\t\t\t'$type' => '$value',\n";
+        $name = "\t\t\t'$type' => q{$value},\n";
     }
 
     print $file <<EOT;
@@ -1485,9 +1490,9 @@ EOT
 							$month = "'$month'";
 						} @{$calendars{months}{$type}{$context}{$width}{leap}};
 					say $file "\t\t\t\t\t\t],";
-					say $file "\t\t\t\t\t}";
+					say $file "\t\t\t\t\t},";
 				}
-				say $file "\t\t\t\t}";
+				say $file "\t\t\t\t},";
 			}
 			say $file "\t\t\t},";
 		}
@@ -1544,11 +1549,11 @@ EOT
 							$day = "'$day'";
 							"$key => $day";
 						} @days;
-					say $file "\t\t\t\t\t}";
+					say $file "\t\t\t\t\t},";
 				}
-				say $file "\t\t\t\t}";
+				say $file "\t\t\t\t},";
 			}
-			say $file "\t\t\t}";
+			say $file "\t\t\t},";
 		}
 		print $file <<EOT;
 \t} },
@@ -1578,11 +1583,11 @@ EOT
 							$quarter =~ s/'/\\'/;
 							$quarter = "'$quarter'";
 						} @{$calendars{quarters}{$type}{$context}{$width}};
-					say $file "\t\t\t\t\t]";
+					say $file "\t\t\t\t\t],";
 				}
-				say $file "\t\t\t\t}";
+				say $file "\t\t\t\t},";
 			}
-			say $file "\t\t\t}";
+			say $file "\t\t\t},";
 		}
 		print $file <<EOT;
 \t} },
@@ -1652,7 +1657,7 @@ EOT
 				foreach my $width (keys %{$calendars{day_periods}{$ctype}{$type}}) {
 					say $file "\t\t\t\t'$width' => {";
 					foreach my $period (keys %{$calendars{day_periods}{$ctype}{$type}{$width}}) {
-						say $file "\t\t\t\t\t'$period' => q{$calendars{day_periods}{$ctype}{$type}{$width}{$period}};"
+						say $file "\t\t\t\t\t'$period' => q{$calendars{day_periods}{$ctype}{$type}{$width}{$period}},"
 					}
 					say $file "\t\t\t\t},";
 				}
@@ -1775,7 +1780,7 @@ EOT
 			if (exists $calendars{datetime_formats}{$ctype}{available_formats}) {
 				say $file "\t\t'$ctype' => {";
 				foreach my $type (sort keys %{$calendars{datetime_formats}{$ctype}{available_formats}}) {
-					say $file "\t\t\t$type => '$calendars{datetime_formats}{$ctype}{available_formats}{$type}',";
+					say $file "\t\t\t$type => q{$calendars{datetime_formats}{$ctype}{available_formats}{$type}},";
 				}
 				say $file "\t\t},";
 			}
@@ -1821,7 +1826,7 @@ EOT
 					}
 					say $file "\t\t\t$format_id => {";
 					foreach my $greatest_difference (sort keys %{$calendars{datetime_formats}{$ctype}{interval}{$format_id}}) {
-						say $file "\t\t\t\t$greatest_difference => '$calendars{datetime_formats}{$ctype}{interval}{$format_id}{$greatest_difference}',";
+						say $file "\t\t\t\t$greatest_difference => q{$calendars{datetime_formats}{$ctype}{interval}{$format_id}{$greatest_difference}},";
 					}
 					say $file "\t\t\t},";
 				}
@@ -2255,6 +2260,7 @@ sub process_datetime_formats {
 	return \%dateTimeFormats;
 }
 
+#/ldml/dates/calendars/calendar/fields/field
 sub process_fields {
 	my ($xpath, $type) = @_;
 
