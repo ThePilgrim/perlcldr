@@ -4,7 +4,7 @@ use warnings;
 use utf8;
 
 
-use Test::More tests => 91;
+use Test::More tests => 97;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -51,7 +51,6 @@ is ($locale->locale_name('fr'), 'French', 'Name without territory');
 is ($locale->locale_name('fr_CA'), 'Canadian French', 'Name with known territory') ;
 is ($locale->locale_name('fr_BE'), 'French (Belgium)', 'Name with unknown territory') ;
 is ($locale->locale_name('fr_BE'), 'French (Belgium)', 'Cached method') ;
-$locale = Locale::CLDR->new('en');
 is ($locale->language_name, 'English', 'Language name');
 is ($locale->language_name('wibble'), 'Unknown Language', 'Unknown Language name');
 is ($locale->script_name('Cher'), 'Cherokee', 'Script name');
@@ -196,3 +195,18 @@ $quoted = $locale->quote("z $quoted z");
 is($quoted, "«z \x{201C}abc\x{201D} z»", 'Quote fr');
 $quoted = $locale->quote("dd 'z $quoted z dd");
 is($quoted, "«dd \'z \x{201C}z «abc» z\x{201D} z dd»", 'Quote fr');
+
+# Calendars
+$locale = Locale::CLDR->new('en_GB');
+my $months = $locale->month_format_wide();
+is_deeply ($months, [qw( January February March April May June July August September October November December )], 'Month format wide');
+$months = $locale->month_format_abbreviated();
+is_deeply ($months, [qw( Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec )], 'Month format abbreviated');
+$months = $locale->month_format_narrow();
+is_deeply ($months, [qw( 1 2 3 4 5 6 7 8 9 10 11 12 )], 'Month format abbreviated');
+$months = $locale->month_stand_alone_wide();
+is_deeply ($months, [qw( January February March April May June July August September October November December )], 'Month stand alone wide');
+$months = $locale->month_stand_alone_abbreviated();
+is_deeply ($months, [qw( Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec )], 'Month stand alone abbreviated');
+$months = $locale->month_stand_alone_narrow();
+is_deeply ($months, [qw( 1 2 3 4 5 6 7 8 9 10 11 12 )], 'Month stand alone narrow');

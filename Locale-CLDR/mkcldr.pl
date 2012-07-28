@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-use 5.014;
+use v5.14;
 use encoding 'utf8';
 use strict;
 use warnings 'FATAL';
@@ -154,6 +154,15 @@ process_calendar_preferences($file, $xml);
 process_footer($file, 1);
 close $file;
 
+#Week data
+open $file, '>', File::Spec->catfile($lib_directory, 'WeekData.pm');
+
+# Note: The order of these calls is important
+process_header($file, 'Locale::CLDR::WeekData', $CLDR_VERSION, $xml, $file_name, 1);
+process_week_data($file, $xml);
+process_footer($file, 1);
+close $file;
+
 # Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
 opendir ( my $dir, $main_directory);
@@ -164,7 +173,14 @@ my $count_files = 0;
 rewinddir $dir;
 
 my $segmentation_directory = File::Spec->catdir($base_directory, 'segments');
-foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
+# Sort files ASCIIbetically but make sure root.xml is first so we can get 
+# the aliases 
+my @aliases;
+foreach my $file_name ( 'root.xml',
+	sort 
+	grep {$_ ne 'root.xml'} 
+	grep /^[^.]/, readdir($dir)
+	) {
     if (@ARGV) {
         next unless grep {$file_name eq $_} @ARGV;
     }
@@ -190,16 +206,16 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 
     open $file, '>', File::Spec->catfile($lib_directory, @output_file_parts);
 
-    $file_name = File::Spec->catfile($base_directory, 'main', $file_name);
+    my $full_file_name = File::Spec->catfile($base_directory, 'main', $file_name);
     my $percent = ++$count_files / $num_files * 100;
-    say sprintf("Processing File %s: %.2f%% done", $file_name, $percent) if $verbose;
+    say sprintf("Processing File %s: %.2f%% done", $full_file_name, $percent) if $verbose;
 
     # Note: The order of these calls is important
     process_class_any($lib_directory, @output_file_parts[0 .. $#output_file_parts -1]);
 
-    process_header($file, "Locale::CLDR::$package", $CLDR_VERSION, $xml, $file_name);
+    process_header($file, "Locale::CLDR::$package", $CLDR_VERSION, $xml, $full_file_name);
     process_segments($file, $segment_xml) if $segment_xml;
-	process_alias($xml);
+#	process_alias($xml);
     process_cp($xml);
     process_fallback($file, $xml, "Locale::CLDR::$package");
     process_display_pattern($file, $xml);
@@ -229,6 +245,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir)) {
 sub findnodes {
     my ($xpath, $path ) = @_;
     my $nodes = $xpath->findnodes($path);
+
     return $nodes;
 }
 
@@ -587,11 +604,9 @@ sub process_era_boundries {
 	
 	print $file <<EOT;
 has 'era_boundry' => (
-\ttraits\t\t=> ['Code'],
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'CodeRef',
 \tinit_arg\t=> undef,
-\thandles\t\t=> { call => 'execute_method' },
 \tdefault\t\t=> sub { sub {
 \t\tmy (\$self, \$type, \$date) = \@_;
 \t\t# \$date in yyyymmdd format
@@ -633,6 +648,106 @@ EOT
 );
 
 EOT
+}
+
+sub process_week_data {
+	my ($file, $xpath) = @_;
+
+	say "Processing Week Data"
+		if $verbose;
+	
+	my $week_data_min_days = findnodes($xpath, 
+		q(/supplementalData/weekData/minDays));
+	
+	print $file <<EOT;
+has 'week_data_min_days' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { {
+EOT
+	foreach my $node ($week_data_min_days->get_nodelist) {
+		my @territories = split / /,$node->getAttribute('territories');
+		my $count = $node->getAttribute('count');
+		foreach my $territory (@territories) {
+			say $file "\t\t$territory => $count,";
+		}
+	}
+	print $file <<EOT;
+\t}},
+);
+
+EOT
+	
+	my $week_data_first_day = findnodes($xpath,
+		q(/supplementalData/weekData/firstDay));
+
+	print $file <<EOT;
+has 'week_data_first_day' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { {
+EOT
+	foreach my $node ($week_data_first_day->get_nodelist) {
+		my @territories = split / /,$node->getAttribute('territories');
+		my $day = $node->getAttribute('day');
+		foreach my $territory (@territories) {
+			say $file "\t\t$territory => '$day',";
+		}
+	}
+	print $file <<EOT;
+\t}},
+);
+
+EOT
+	
+	my $week_data_weekend_start= findnodes($xpath,
+		q(/supplementalData/weekData/weekendStart));
+
+	print $file <<EOT;
+has 'week_data_weekend_start' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { {
+EOT
+	foreach my $node ($week_data_weekend_start->get_nodelist) {
+		my @territories = split / /,$node->getAttribute('territories');
+		my $day = $node->getAttribute('day');
+		foreach my $territory (@territories) {
+			say $file "\t\t$territory => '$day',";
+		}
+	}
+	print $file <<EOT;
+\t}},
+);
+
+EOT
+	
+	my $week_data_weekend_end = findnodes($xpath,
+		q(/supplementalData/weekData/weekendEnd));
+
+	print $file <<EOT;
+has 'week_data_weekend_end' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { {
+EOT
+	foreach my $node ($week_data_weekend_end->get_nodelist) {
+		my @territories = split / /,$node->getAttribute('territories');
+		my $day = $node->getAttribute('day');
+		foreach my $territory (@territories) {
+			say $file "\t\t$territory => '$day',";
+		}
+	}
+	print $file <<EOT;
+\t}},
+);
+
+EOT
+	
 }
 
 sub process_calendar_preferences {
@@ -754,6 +869,7 @@ sub process_alias {
             $parent->removeChild($node);
         }
     }
+
 }
 
 # CP elements are used to encode characters outside the character range 
@@ -887,17 +1003,23 @@ sub process_display_language {
 		$name = $name->getValue;
         $name =~s/\\/\\\\/g;
         $name =~s/'/\\'/g;
-        $language = "\t\t\t'$type' => '$name',\n";
+        $language = "\t\t\t\t'$type' => '$name',\n";
     }
 
     print $file <<EOT;
 has 'display_name_language' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> 'CodeRef',
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
-\t\t{
+\t\t sub {
+\t\t\t my %languages = (
 @languages
+\t\t\t);
+\t\t\tif (\@_) {
+\t\t\t\treturn \$languages{\$_[0]};
+\t\t\t}
+\t\t\treturn \\%languages;
 \t\t}
 \t},
 );
@@ -930,13 +1052,19 @@ sub process_display_script {
     print $file <<EOT;
 has 'display_name_script' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> 'CodeRef',
 \tinit_arg\t=> undef,
-\tdefault\t\t=> sub { 
-\t\t{
+\tdefault\t\t=> sub {
+\t\tsub {
+\t\t\tmy %scripts = (
 @scripts
+\t\t\t);
+\t\t\tif ( \@_ ) {
+\t\t\t\treturn \$scripts{\$_[0]};
+\t\t\t}
+\t\t\treturn \\%scripts;
 \t\t}
-\t},
+\t}
 );
 
 EOT
@@ -1877,9 +2005,6 @@ sub process_months {
 
 	say "Processing Months ($type)" if $verbose;
 
-	my $months_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext));
-	return 0 unless $months_nodes->size;
-
 	my %months;
 	my $default_context = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/default));
 	if ($default_context->size) {
@@ -1887,6 +2012,15 @@ sub process_months {
 		my $choice = $default_node->getAttribute('choice');
 		$months{default} = $choice;
 	}
+
+	my $months_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/alias));
+	if ($months_alias->size) {
+		$type = 'gregorian';
+	}
+
+	my $months_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext));
+
+	return 0 unless $months_nodes->size;
 
 	foreach my $context_node ($months_nodes->get_nodelist) {
 		my $context_type = $context_node->getAttribute('type');
@@ -1901,10 +2035,23 @@ sub process_months {
 
 		my $width = findnodes($xpath,
 			qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$context_type"]/monthWidth));
+
 		foreach my $width_node ($width->get_nodelist) {
-			my $width_type = $width_node->getAttribute('type');
+			my $width_type;
+			my $width_context = $context_type;
+
+			if ($width_node->getLocalName() eq 'alias') {
+				my $path = $width_node->getAttribute('path');
+				my ($new_width_context) = $path =~ /monthContext\[\@type='([^']+)'\]/;
+				$width_context = $new_width_context if $new_width_context;
+				($width_type) = $path =~ /monthWidth\[\@type='([^']})'\]/;
+			}
+			else {
+				$width_type = $width_node->getAttribute('type');
+			}
+
 			my $month_nodes = findnodes($xpath, 
-				qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$context_type"]/monthWidth[\@type="$width_type"]/month));
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$width_context"]/monthWidth[\@type="$width_type"]/month));
 			foreach my $month ($month_nodes->get_nodelist) {
 				my $month_type = $month->getAttribute('type') -1;
 				my $year_type = $month->getAttribute('yeartype') || 'nonleap';
@@ -1922,10 +2069,14 @@ sub process_days {
 
 	say "Processing Days ($type)" if $verbose;
 
+	my %days;
+	my $days_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/alias));
+	if ($days_alias->size) {
+		$type = 'gregorian';
+	}
+
 	my $days_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext));
 	return 0 unless $days_nodes->size;
-
-	my %days;
 
 	my $default_context = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/default));
 	if ($default_context->size) {
@@ -1967,15 +2118,25 @@ sub process_quarters {
 
 	say "Processing Quarters ($type)" if $verbose;
 
+	my %quarters;
+
+	my $quarters_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/alias));
+	if ($quarters_alias->size) {
+		$type = 'gregorian';
+	}
+
 	my $quarters_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext));
 	return 0 unless $quarters_nodes->size;
 
-	my %quarters;
 	foreach my $context_node ($quarters_nodes->get_nodelist) {
 		my $context_type = $context_node->getAttribute('type');
 		my $width = findnodes($xpath,
 			qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext[\@type="$context_type"]/quarterWidth));
 		foreach my $width_node ($width->get_nodelist) {
+			if ($width_node->getLocalName() eq 'alias') {
+				my $path = $width_node->getAttribute('path');
+				
+			}
 			my $width_type = $width_node->getAttribute('type');
 			my $quarter_nodes = findnodes($xpath, 
 				qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext[\@type="$context_type"]/quarterWidth[\@type="$width_type"]/quarter));
@@ -2041,10 +2202,15 @@ sub process_day_periods {
 
 	say "Processing Day Periods ($type)" if $verbose;
 
+	my %dayPeriods;
+	my $dayPeriods_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/alias));
+	if ($dayPeriods_alias->size) {
+		$type = 'gregorian';
+	}
+
 	my $dayPeriods_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext));
 	return 0 unless $dayPeriods_nodes->size;
 
-	my %dayPeriods;
 	foreach my $context_node ($dayPeriods_nodes->get_nodelist) {
 		my $context_type = $context_node->getAttribute('type');
 		my $width = findnodes($xpath,
@@ -2080,6 +2246,15 @@ sub process_eras {
 			$eras{wide}[$era_type] = $eraName->getChildNode(1)->getValue();
 		}
 	}
+	else {
+		if(findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNames/alias))->size) {
+			$eraNames = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraAbbr/era));
+			foreach my $eraName ($eraNames->get_nodelist) {
+				my $era_type = $eraName->getAttribute('type');
+				$eras{wide}[$era_type] = $eraName->getChildNode(1)->getValue();
+			}
+		}
+	}
 	my $eraAbbrs = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraAbbr/era));
 	if ($eraAbbrs->size) {
 		foreach my $eraAbbr ($eraAbbrs->get_nodelist) {
@@ -2092,6 +2267,15 @@ sub process_eras {
 		foreach my $eraNarrow ($eraNarrows->get_nodelist) {
 			my $era_type = $eraNarrow->getAttribute('type');
 			$eras{narrow}[$era_type] = $eraNarrow->getChildNode(1)->getValue();
+		}
+	}
+	else {
+		if(findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNarrow/alias))->size) {
+			$eraNarrows = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraAbbr/era));
+			foreach my $eraNarrow ($eraNarrows->get_nodelist) {
+				my $era_type = $eraNarrow->getAttribute('type');
+				$eras{narrow}[$era_type] = $eraNarrow->getChildNode(1)->getValue();
+			}
 		}
 	}
 	return \%eras;
@@ -2147,6 +2331,10 @@ sub process_time_formats {
 
 	my %timeFormats;
 
+	if (findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/alias))->size) {
+		$type = 'gregorian';
+	}
+
 	my $default_context = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/default));
 	if ($default_context->size) {
 		my $default_node = ($default_context->get_nodelist)[0];
@@ -2191,6 +2379,14 @@ sub process_datetime_formats {
 		$dateTimeFormats{default} = $choice;
 	}
 
+	my $dateTimeFormatLength_alias = findnodes($xpath,
+		qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/dateTimeFormatLength/alias)
+		);
+
+	if ($dateTimeFormatLength_alias->size){
+		$type = 'gregorian';
+	}
+
 	my $dateTimeFormatLength_nodes = findnodes($xpath,
 		qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/dateTimeFormatLength)
 		);
@@ -2231,6 +2427,14 @@ sub process_datetime_formats {
 	}
 
 	# Interval formats
+	my $intervalFormats_alias = findnodes($xpath,
+		qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/alias)
+	);
+
+	if ($intervalFormats_alias->size) {
+		$type = 'gregorian';
+	}
+
 	my $intervalFormats_nodes = findnodes($xpath,
 		qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/intervalFormatItem)
 		);

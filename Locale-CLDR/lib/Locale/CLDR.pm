@@ -1,12 +1,12 @@
-package Locale::CLDR v1.8.1;
-use 5.012;
+package Locale::CLDR v2.0.1;
+use v5.14;
 use encoding 'utf8';
 use feature 'unicode_strings';
 use open ':encoding(utf8)';
 
 use Moose;
-use MooseX:ClassAttribute;
-with 'Locale::CLDR::ValidCodes';
+use MooseX::ClassAttribute;
+with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData';
 
 use namespace::autoclean;
 
@@ -23,7 +23,7 @@ Version 1.8.0 To match the CLDR Version
 use List::Util qw(first);
 use Unicode::Set qw(unicode_to_perl);
 use Class::MOP;
-
+use DateTime::Locale;
 
 =head1 SYNOPSIS
 
@@ -79,7 +79,8 @@ has 'variant_id' => (
 has 'extentions' => (
 	is			=> 'ro',
 	isa			=> 'Undef|HashRef',
-	default		=> undef
+	default		=> undef,
+	writer		=> '_set_extentions',
 );
 
 has 'module' => (
@@ -119,7 +120,6 @@ sub _build_module {
 	foreach my $module_name (@path) {
 		$module_name = "Locale::CLDR::$module_name";
 		eval { Class::MOP::load_class($module_name); };
-		warn $@ if $@;
 		next if $@;
 		$module = $module_name->new;
 		last;
@@ -196,12 +196,12 @@ foreach my $property (qw( name language script territory variant)) {
 #DateTime::Local
 foreach my $property (qw( 
 	month_format_wide month_format_abbreviated month_format_narrow
-	month_stand_alone_wide month_stand_alone_abreviated month_stand_alone_narrow
+	month_stand_alone_wide month_stand_alone_abbreviated month_stand_alone_narrow
 	day_format_wide day_format_abbreviated day_format_narrow
 	day_stand_alone_wide day_stand_alone_abreviated day_stand_alone_narrow
 	quater_format_wide quater_format_abbreviated quater_format_narrow
 	quater_stand_alone_wide quater_stand_alone_abreviated quater_stand_alone_narrow
-	am_pm_abbreviated
+	am_pm_wide am_pm_abbreviated am_pm_narrow
 	era_wide era_abbreviated era_narrow
 )) {
 	has $property => (
@@ -210,6 +210,7 @@ foreach my $property (qw(
 		init_arg => undef,
 		lazy => 1,
 		builder => "_build_$property",
+		clearer => "_clear_$property",
 	);
 }
 
@@ -228,23 +229,34 @@ foreach my $property (qw(
 		init_arg => undef,
 		lazy => 1,
 		builder => "_build_$property",
+		clearer => "_clear_$property",
 	);
 }
 
-has 'available_formats' => (
+has '_available_formats' => (
+	traits => ['Array'],
+	is => 'ro',
+	isa => 'ArrayRef',
+	init_arg => undef,
+	lazy => 1,
+	builder => "_build_available_formats",
+	clearer => "_clear_available_formats",
+	handles => {
+		available_formats => 'elements',
+	},
+);
+
+has 'format_data' => (
 	is => 'ro',
 	isa => 'HashRef',
 	init_arg => undef,
 	lazy => 1,
-	builder => "_build_$property",
+	builder => "_build_format_data",
+	clearer => "_clear_format_data",
 );
-		
-sub format_for {
-	my ($self, $format) = @_;
-}
 
 foreach my $property (qw(
-	default_date_format_length efault_time_format_length
+	default_date_format_length default_time_format_length default_calendar
 )) {
 	has $property => (
 		is => 'ro',
@@ -255,6 +267,11 @@ foreach my $property (qw(
 		writer => "set_$property" 
 	);
 }
+
+after 'set_default_calendar' => sub {
+	my $self = shift;
+	$self->_clear_calendar_data;
+};
 
 has 'prefers_24_hour_time' => (
 	is => 'ro',
@@ -392,6 +409,7 @@ sub BUILDARGS {
 	$args{language_id}		= lc $args{language_id}		if defined $args{language_id};
 	$args{script_id}		= ucfirst lc $args{script_id}	if defined $args{script_id};
 	$args{territory_id}	= uc $args{territory_id}		if defined $args{territory_id};
+	$args{variant_id}	= uc $args{variant_id}		if defined $args{variant_id};
 
 	$self->SUPER::BUILDARGS(%args, %internal_args);
 }
@@ -418,17 +436,27 @@ sub BUILD {
 			&& ( ! $self->variant_aliases->{lc $self->{variant_id}} )
 	);
 
-	if ($args->{extention}) {
+	if ($args->{extentions}) {
 		my %valid_keys = $self->valid_keys;
-		foreach my $key ( keys %{$args->{extention}} ) {
-			my %key_aliases = $self->key_aliases;
-			$key = $key_aliases{$key} if exists $key_aliases{$key};
+		my %key_aliases = $self->key_aliases;
+		my @keys = keys %{$args->{extentions}};
+
+		foreach my $key ( @keys ) {
+			my $canonical_key = $key_aliases{$key} if exists $key_aliases{$key};
+			$canonical_key //= $key;
+			if ($canonical_key ne $key) {
+				$args->{extentions}{$canonical_key} = delete $args->{extentions}{$key};
+			}
+
+			$key = $canonical_key;
 			die "Invalid extention name" unless exists $valid_keys{$key};
 			die "Invalid extention value" unless 
-				first { $_ eq $args->{extention}{$key} } @{$valid_keys{$key}};
+				first { $_ eq $args->{extentions}{$key} } @{$valid_keys{$key}};
+
+			$self->_set_extentions($args->{extentions})
 		}
 	}
-		
+
 	# Check for variant aliases
 	if ($args->{variant_id} && (my $variant_alias = $self->variant_aliases->{lc $self->variant_id})) {
 		delete $args->{variant_id};
@@ -437,6 +465,17 @@ sub BUILD {
 		$args->{$what} = $value;
 	}
 }
+
+after 'BUILD' => sub {
+	# Register with DateTime::Locale
+	my $self = shift;
+	DateTime::Locale->register(
+		id 	    => $self->id,
+		en_language => $self->language,
+		class   => __PACKAGE__,
+		replace => 1,
+	);
+};
 
 use overload 
   'bool'	=> sub { 1 },
@@ -477,7 +516,7 @@ sub _get_english {
 		$english = $self;
 	}
 	else {
-		$english = Local::CLDR->new('en');
+		$english = Locale::CLDR->new('en');
 	}
 
 	return $english;
@@ -498,7 +537,7 @@ sub _build_native_name {
 sub _build_language {
 	my $self = shift;
 
-	return $self->_get_english->native_language($self);
+	return $self->_get_english->native_language();
 }
 
 sub _build_native_language {
@@ -577,7 +616,7 @@ sub locale_name {
 	my @bundles = $self->_find_bundle('display_name_language');
 
 	foreach my $bundle (@bundles) {
-		my $display_name = $bundle->display_name_language->{$code};
+		my $display_name = $bundle->display_name_language->($code);
 		return $display_name if defined $display_name;
 	}
 
@@ -611,7 +650,7 @@ sub language_name {
 	my @bundles = $self->_find_bundle('display_name_language');
 	if ($code) {
 		foreach my $bundle (@bundles) {
-			my $display_name = $bundle->display_name_language->{$code};
+			my $display_name = $bundle->display_name_language->($code);
 			if (defined $display_name) {
 				$language = $display_name;
 				last;
@@ -622,7 +661,7 @@ sub language_name {
 	# with the und tag
 	if (! defined $language ) {
 		foreach my $bundle (@bundles) {
-			my $display_name = $bundle->display_name_language->{'und'};
+			my $display_name = $bundle->display_name_language->('und');
 			if (defined $display_name) {
 				$language = $display_name;
 				last;
@@ -631,6 +670,24 @@ sub language_name {
 	}
 
 	return $language;
+}
+
+sub all_languages {
+	my $self = shift;
+
+	my @bundles = $self->_find_bundle('display_name_language');
+	my %languages;
+	foreach my $bundle (@bundles) {
+		my $languages = $bundle->display_name_language;
+
+		# Remove existing languages
+		delete @{$languages}{keys %languages};
+
+		# Assign new ones to the hash
+		@languages{keys %$languages} = values %$languages;
+	}
+
+	return \%languages;
 }
 
 sub script_name {
@@ -649,7 +706,7 @@ sub script_name {
 	my @bundles = $self->_find_bundle('display_name_script');
 	if ($name) {
 		foreach my $bundle (@bundles) {
-			$script = $bundle->display_name_script->{$name->script_id};
+			$script = $bundle->display_name_script->($name->script_id);
 			if (defined $script) {
 				last;
 			}
@@ -658,7 +715,7 @@ sub script_name {
 
 	if (! $script) {
 		foreach my $bundle (@bundles) {
-			$script = $bundle->display_name_script->{'Zzzz'};
+			$script = $bundle->display_name_script->('Zzzz');
 			if (defined $script) {
 				last;
 			}
@@ -666,6 +723,24 @@ sub script_name {
 	}
 
 	return $script;
+}
+
+sub all_scripts {
+	my $self = shift;
+
+	my @bundles = $self->_find_bundle('display_name_script');
+	my %scripts;
+	foreach my $bundle (@bundles) {
+		my $scripts = $bundle->display_name_script;
+
+		# Remove existing scripts
+		delete @{$scripts}{keys %scripts};
+
+		# Assign new ones to the hash
+		@scripts{keys %$scripts} = values %$scripts;
+	}
+
+	return \%scripts;
 }
 
 sub territory_name {
@@ -701,6 +776,24 @@ sub territory_name {
 	}
 
 	return $territory;
+}
+
+sub all_territories {
+	my $self = shift;
+
+	my @bundles = $self->_find_bundle('display_name_territory');
+	my %territories;
+	foreach my $bundle (@bundles) {
+		my $territories = $bundle->display_name_territory;
+
+		# Remove existing territories
+		delete @{$territories}{keys %territories};
+
+		# Assign new ones to the hash
+		@territories{keys %$territories} = values %$territories;
+	}
+
+	return \%territories;
 }
 
 sub variant_name {
@@ -999,7 +1092,7 @@ sub index_characters {
 		next unless defined $characters;
 		return $characters;
 	}
-	return '';
+	return [];
 }
 
 sub _truncated {
@@ -1093,6 +1186,784 @@ sub quote {
 	}
 
 	return "$quote{start}$text$quote{end}";
+}
+
+sub _build_default_calendar {
+	my $self = shift;
+	
+	my $extentions = $self->extentions;
+	if (defined $extentions) {
+		return $extentions->{ca} if $extentions->{ca};
+	}
+
+	my $bundle = $self->_find_bundle('calendar_default');
+	return $bundle->calendar_default;
+}
+
+sub _clear_calendar_data {
+	my $self = shift;
+
+	foreach my $property (qw(
+		month_format_wide month_format_abbreviated month_format_narrow
+		month_stand_alone_wide month_stand_alone_abbreviated
+		month_stand_alone_narrow day_format_wide day_format_abbreviated
+		day_format_narrow day_stand_alone_wide day_stand_alone_abreviated
+		day_stand_alone_narrow quater_format_wide quater_format_abbreviated
+		quater_format_narrow quater_stand_alone_wide
+		quater_stand_alone_abreviated quater_stand_alone_narrow
+		am_pm_wide am_pm_abbreviated am_pm_narrow era_wide era_abbreviated
+		era_narrow date_format_full date_formart_long date_format_medium
+		date_format_short date_format_default time_format_full
+		time_formart_long time_format_medium time_format_short
+		timeformat_default datetime_format_full datetime_formart_long
+		datetime_format_medium datetime_format_short datetimeformat_default
+		available_formats format_data
+	)) {
+		my $method = "_clear_$property";
+		$self->$method;
+	}
+}
+
+sub _build_month_format_wide {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $months = $bundle->calendar_months;
+			my $result = $months->{$calendar}{format}{wide}{nonleap};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_month_format_abbreviated {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $months = $bundle->calendar_months;
+			my $result = $months->{$calendar}{format}{abbreviated}{nonleap};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_month_format_narrow {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $months = $bundle->calendar_months;
+			my $result = $months->{$calendar}{format}{narrow}{nonleap};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_month_stand_alone_wide {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $months = $bundle->calendar_months;
+			my $result = $months->{$calendar}{'stand-alone'}{wide}{nonleap};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_month_stand_alone_abbreviated {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $months = $bundle->calendar_months;
+			my $result = $months->{$calendar}{'stand-alone'}{abbreviated}{nonleap};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_month_stand_alone_narrow {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $months = $bundle->calendar_months;
+			my $result = $months->{$calendar}{'stand-alone'}{narrow}{nonleap};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_day_format_wide {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_days');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $days = $bundle->calendar_days;
+			my $result = $days->{$calendar}{format}{wide};
+			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_day_format_abbreviated {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_days');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $days= $bundle->calendar_days;
+			my $result = $days->{$calendar}{format}{abbreviated};
+			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_day_format_narrow {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_days');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $days = $bundle->calendar_days;
+			my $result = $days->{$calendar}{format}{narrow};
+			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_day_stand_alone_wide {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_days');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $days= $bundle->calendar_days;
+			my $result = $days->{$calendar}{'stand-alone'}{wide};
+			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_day_stand_alone_abbreviated {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_days');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $days= $bundle->calendar_days;
+			my $result = $days->{$calendar}{'stand-alone'}{abbreviated};
+			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_day_stand_alone_narrow {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_days');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $days= $bundle->calendar_days;
+			my $result = $days->{$calendar}{'stand-alone'}{narrow};
+			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_quarter_format_wide {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_quarters');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $quarters = $bundle->calendar_quarters;
+			my $result = $quarters->{$calendar}{format}{wide};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_quarter_format_abbreviated {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_quarters');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $quarters = $bundle->calendar_quarters;
+			my $result = $quarters->{$calendar}{format}{abbreviated};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_quarter_format_narrow {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_quarters');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $quarters = $bundle->calendar_quarters;
+			my $result = $quarters->{$calendar}{format}{narrow};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_quarter_stand_alone_wide {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_quarters');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $quarters = $bundle->calendar_quarters;
+			my $result = $quarters->{$calendar}{'stand-alone'}{wide};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_quarter_stand_alone_abbreviated {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_quarters');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $quarters = $bundle->calendar_quarters;
+			my $result = $quarters->{$calendar}{'stand-alone'}{abbreviated};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_quarter_stand_alone_narrow {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_quarters');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $quarters= $bundle->calendar_quarters;
+			my $result = $quarters->{$calendar}{'stand-alone'}{narrow};
+			return $result if defined $result;
+		}
+	}
+
+	return [];
+}
+
+sub _build_am_pm_wide {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @result;
+	my @bundles = $self->_find_bundle('day_periods');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $am_pm = $bundle->day_periods;
+			my $result = $am_pm->{$calendar}{format}{wide};
+			$result[0] //= $result->{am};
+			$result[1] //= $result->{pm};
+			return \@result if ((map {defined} @result) == 2);
+		}
+	}
+
+	return [];
+}
+
+sub _build_am_pm_abbrivated {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @result;
+	my @bundles = $self->_find_bundle('day_periods');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $am_pm = $bundle->day_periods;
+			my $result = $am_pm->{$calendar}{format}{abbrivated} ;
+			$result[0] //= $result->{am};
+			$result[1] //= $result->{pm};
+			return \@result if ((map {defined} @result) == 2);
+		}
+	}
+
+	return [];
+}
+
+sub _build_am_pm_narrow {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @result;
+	my @bundles = $self->_find_bundle('day_periods');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $am_pm = $bundle->day_periods;
+			my $result = $am_pm->{$calendar}{format}{narrow};
+			$result[0] //= $result->{am};
+			$result[1] //= $result->{pm};
+			return \@result if ((map {defined} @result) == 2);
+		}
+	}
+
+	return [];
+}
+
+sub _build_era_wide {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('eras');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $eras = $bundle->eras;
+			my $result = $eras->{$calendar}{wide};
+			return $result if $result;
+		}
+	}
+
+	return 0;
+}
+
+sub _build_era_abbrivated {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('eras');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $eras = $bundle->eras;
+			my $result = $eras->{$calendar}{abbrivated} ;
+			return $result if $result;
+		}
+	}
+
+	return 0;
+}
+
+sub _build_era_narrow {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('eras');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $eras = $bundle->day_periods;
+			my $result = $eras->{$calendar}{narrow};
+			return $result if $result;
+		}
+	}
+
+	return 0;
+}
+
+sub _build_date_format_full {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('date_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $date_formats = $bundle->date_formats;
+			my $result = $date_formats->{$calendar}{full};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_date_format_long {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('date_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $date_formats = $bundle->date_formats;
+			my $result = $date_formats->{$calendar}{long};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_date_format_medium {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('date_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $date_formats = $bundle->date_formats;
+			my $result = $date_formats->{$calendar}{medium};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_date_format_short {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('date_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $date_formats = $bundle->date_formats;
+			my $result = $date_formats->{$calendar}{short};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_date_format_default {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('date_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $date_formats = $bundle->date_formats;
+			my $result = $date_formats->{$calendar}{default};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_time_format_full {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('time_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $time_formats = $bundle->time_formats;
+			my $result = $time_formats->{$calendar}{full};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_time_format_long {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('time_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $time_formats = $bundle->time_formats;
+			my $result = $time_formats->{$calendar}{long};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_time_format_medium {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('time_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $time_formats = $bundle->time_formats;
+			my $result = $time_formats->{$calendar}{medium};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_time_format_short {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('time_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $time_formats = $bundle->time_formats;
+			my $result = $time_formats->{$calendar}{short};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_time_format_default {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('time_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $time_formats = $bundle->time_formats;
+			my $result = $time_formats->{$calendar}{default};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_datetime_format_full {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('datetime_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $datetime_formats = $bundle->datetime_formats;
+			my $result = $datetime_formats->{$calendar}{full};
+			next unless $result;
+			my $date_format_full = $self->date_format_full;
+			my $time_format_full = $self->time_format_full;
+			$result =~ s/ \{ 0 \} /$time_format_full/gx;
+			$result =~ s/ \{ 1 \} /$date_format_full/gx;
+		}
+	}
+
+	return '';
+}
+
+sub _build_datetime_format_long {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('datetime_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $datetime_formats = $bundle->datetime_formats;
+			my $result = $datetime_formats->{$calendar}{long};
+			next unless $result;
+			my $date_format_long = $self->date_format_long;
+			my $time_format_long = $self->time_format_long;
+			$result =~ s/ \{ 0 \} /$time_format_long/gx;
+			$result =~ s/ \{ 1 \} /$date_format_long/gx;
+		}
+	}
+
+	return '';
+}
+
+sub _build_datetime_format_medium {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('datetime_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $datetime_formats = $bundle->datetime_formats;
+			my $result = $datetime_formats->{$calendar}{medium};
+			next unless $result;
+			my $date_format_medium = $self->date_format_medium;
+			my $time_format_medium = $self->time_format_medium;
+			$result =~ s/ \{ 0 \} /$time_format_medium/gx;
+			$result =~ s/ \{ 1 \} /$date_format_medium/gx;
+		}
+	}
+
+	return '';
+}
+
+sub _build_datetime_format_short {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('datetime_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $datetime_formats = $bundle->datetime_formats;
+			my $result = $datetime_formats->{$calendar}{short};
+			next unless $result;
+			my $date_format_short = $self->date_format_short;
+			my $time_format_short = $self->time_format_short;
+			$result =~ s/ \{ 0 \} /$time_format_short/gx;
+			$result =~ s/ \{ 1 \} /$date_format_short/gx;
+		}
+	}
+
+	return '';
+}
+
+sub _build_datetime_format_default {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('datetime_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $datetime_formats = $bundle->datetime_formats;
+			my $result = $datetime_formats->{$calendar}{default};
+			return $result if $result;
+		}
+	}
+
+	return '';
+}
+
+sub _build_format_data {
+	my $self = shift;
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('datetime_formats_available_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $datetime_formats_available_formats = $bundle->datetime_formats_available_formats;
+			my $result = $datetime_formats_available_formats->{$calendar};
+			return $result if $result;
+		}
+	}
+
+	return {};
+}
+
+sub format_for {
+	my ($self, $format) = @_;
+
+	my $format_data = $self->format_data;
+
+	return $format_data->{$format} // '';
+}
+
+sub _build_available_formats {
+	my $self = shift;
+
+	my $format_data = $self->format_data;
+
+	return [keys %$format_data];
+}
+
+sub _build_default_date_format_length {
+	my $self = shift;
+	
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('date_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $date_formats = $bundle->date_formats;
+			my $result = $date_formats->{$calendar}{default};
+			return $result if $result;
+		}
+	}
+}
+
+sub _build_default_time_format_length {
+	my $self = shift;
+	
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('time_formats');
+	foreach my $calendar ($default_calendar, 'gregorian') {
+		foreach my $bundle (@bundles) {
+			my $time_formats = $bundle->time_formats;
+			my $result = $time_formats->{$calendar}{default};
+			return $result if $result;
+		}
+	}
+}
+
+sub _build_prefers_24_hour_time {
+	my $self = shift;
+
+	return $self->time_format_short() =~ /h|K/ ? 0 : 1;
+}
+
+{
+	my %days_2_number = (
+		mon => 1,
+		tue => 2,
+		wen => 3,
+		thu => 4,
+		fri => 5,
+		sat => 6,
+		sun => 7,
+	);
+
+	sub _build_first_day_of_week {
+
+		my $self = shift;
+
+		my $territory_id = $self->territory_id || '001';
+
+		my $first_day_hash = $self->week_data_first_day;
+		my $first_day = $first_day_hash->{$territory_id}
+			|| $first_day_hash->{'001'};
+
+		return $days_2_number{$first_day};
+	}
 }
 
 =head1 AUTHOR
