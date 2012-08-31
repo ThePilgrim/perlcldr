@@ -1228,15 +1228,21 @@ sub _build_month_format_wide {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
 
-	my @bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	my @bundles = $self->_find_bundle('calendar_months_alias');
+	my %month_aliases;
+	foreach my $aliases (@bundles) {
+		my $alias = $aliases->calendar_months_alias;
+		$month_aliases{$alias[0]} = $alias[1];
+	}
+
+	@bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, $month_alases{$default_calendar}) {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
 			my $result = $months->{$calendar}{format}{wide}{nonleap};
 			return $result if defined $result;
 		}
 	}
-
 	return [];
 }
 
@@ -1244,8 +1250,15 @@ sub _build_month_format_abbreviated {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
 
-	my @bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	my @bundles = $self->_find_bundle('calendar_months_alias');
+	my %month_aliases;
+	foreach my $aliases (@bundles) {
+		my $alias = $aliases->calendar_months_alias;
+		$month_aliases{$alias[0]} = $alias[1];
+	}
+
+	@bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
 			my $result = $months->{$calendar}{format}{abbreviated}{nonleap};
@@ -1260,8 +1273,14 @@ sub _build_month_format_narrow {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
 
-	my @bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	my @bundles = $self->_find_bundle('calendar_months_alias');
+	my $month_aliases;
+	foreach my $aliases (@bundles) {
+		$month_alias = $aliases->calendar_months_alias()->{$default_calendar};
+	}
+
+	@bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, $month_alias) {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
 			my $result = $months->{$calendar}{format}{narrow}{nonleap};
@@ -1276,8 +1295,15 @@ sub _build_month_stand_alone_wide {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
 
-	my @bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	my @bundles = $self->_find_bundle('calendar_months_alias');
+	my %month_aliases;
+	foreach my $aliases (@bundles) {
+		my $alias = $aliases->calendar_months_alias;
+		$month_aliases{$alias[0]} = $alias[1];
+	}
+
+	@bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
 			my $result = $months->{$calendar}{'stand-alone'}{wide}{nonleap};
@@ -1292,8 +1318,15 @@ sub _build_month_stand_alone_abbreviated {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
 
-	my @bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	my @bundles = $self->_find_bundle('calendar_months_alias');
+	my %month_aliases;
+	foreach my $aliases (@bundles) {
+		my $alias = $aliases->calendar_months_alias;
+		$month_aliases{$alias[0]} = $alias[1];
+	}
+
+	@bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
 			my $result = $months->{$calendar}{'stand-alone'}{abbreviated}{nonleap};
@@ -1308,8 +1341,15 @@ sub _build_month_stand_alone_narrow {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
 
-	my @bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	my @bundles = $self->_find_bundle('calendar_months_alias');
+	my %month_aliases;
+	foreach my $aliases (@bundles) {
+		my $alias = $aliases->calendar_months_alias;
+		$month_aliases{$alias[0]} = $alias[1];
+	}
+
+	@bundles = $self->_find_bundle('calendar_months');
+	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
 			my $result = $months->{$calendar}{'stand-alone'}{narrow}{nonleap};
