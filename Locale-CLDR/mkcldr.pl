@@ -15,6 +15,7 @@ use XML::XPath::Node::Text;
 use LWP::UserAgent;
 use Archive::Extract;
 use POSIX qw(strftime);
+use XML::Parser;
 
 use Unicode::Set qw(unicode_to_perl);
 
@@ -26,6 +27,7 @@ use version;
 our $VERSION = version->parse('0.1');
 my $CLDR_VERSION = version->parse('21');
 
+chdir $FindBin::Bin;
 my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename  = File::Spec->catfile($data_directory, 'core.zip');
 my $base_directory = File::Spec->catdir($data_directory, 'common'); 
@@ -77,9 +79,16 @@ EOM
     unless -d File::Spec->catdir($base_directory);
 
 # We look at the supplemental data file to get the cldr version number
-my $vf = XML::XPath->new(File::Spec->catfile($base_directory, 
+my $vf = XML::XPath->new(
+    parser => XML::Parser->new(
+        NoLWP => 1,
+        ErrorContext => 2,
+        ParseParamEnt => 1,
+    ),
+    filename => File::Spec->catfile($base_directory, 
     'main',
-    'root.xml'));
+    'root.xml')
+);
 
 say "Checking CLDR version" if $verbose;
 my $cldrVersion = $vf->findnodes('/ldml/identity/version')
