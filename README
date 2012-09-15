@@ -5,7 +5,7 @@ Please note that I know there is inceficient documenation.
 Please note that this code requires Perl 5.14 and above
 
 The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
-modules that can be loaded from the main Local::CLDR when needed to do what ever is required.
+modules that can be loaded from the main Local::CLDR when needed to do what ever localisation is required.
 
 INSTALLATION
 
