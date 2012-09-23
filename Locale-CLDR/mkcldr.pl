@@ -25,7 +25,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 our $VERSION = version->parse('0.1');
-my $CLDR_VERSION = version->parse('21');
+my $CLDR_VERSION = version->parse('22.0');
 
 chdir $FindBin::Bin;
 my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -182,13 +182,8 @@ my $count_files = 0;
 rewinddir $dir;
 
 my $segmentation_directory = File::Spec->catdir($base_directory, 'segments');
-# Sort files ASCIIbetically but make sure root.xml is first so we can get 
-# the aliases 
-foreach my $file_name ( 'root.xml',
-	sort 
-	grep {$_ ne 'root.xml'} 
-	grep /^[^.]/, readdir($dir)
-	) {
+# Sort files ASCIIbetically
+foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     if (@ARGV) {
         next unless grep {$file_name eq $_} @ARGV;
     }
@@ -223,9 +218,7 @@ foreach my $file_name ( 'root.xml',
 
     process_header($file, "Locale::CLDR::$package", $CLDR_VERSION, $xml, $full_file_name);
     process_segments($file, $segment_xml) if $segment_xml;
-#	process_alias($xml);
     process_cp($xml);
-    process_fallback($file, $xml, "Locale::CLDR::$package");
     process_display_pattern($file, $xml);
     process_display_language($file, $xml);
     process_display_script($file, $xml);
@@ -236,8 +229,6 @@ foreach my $file_name ( 'root.xml',
     process_display_measurement_system_name($file, $xml);
     process_code_patterns($file, $xml);
     process_orientation($file, $xml);
-    process_in_list($file, $xml);
-    process_in_text($file, $xml);
 #    process_exemplar_characters($file, $xml);
     process_ellipsis($file, $xml);
     process_more_information($file, $xml);
@@ -248,8 +239,7 @@ foreach my $file_name ( 'root.xml',
     close $file;
 }
 
-# This sub looks for nodes along an xpath. If it can't find
-# any it starts looking for alias nodes
+# This sub looks for nodes along an xpath.
 sub findnodes {
     my ($xpath, $path ) = @_;
     my $nodes = $xpath->findnodes($path);
@@ -517,7 +507,7 @@ has 'valid_keys' => (
 EOT
     
     foreach my $key (sort keys %keys) {
-        my @types = @{$keys{$key}{type}};
+         my @types = @{$keys{$key}{type} // []};
         say $file "\t\t$key\t=> [";
         print $file map {"\t\t\t'$_',\n"} @types;
         say $file "\t\t],";
@@ -871,50 +861,6 @@ sub process_cp {
     }
 }
 
-sub process_fallback {
-    my ($file, $xpath, $package) = @_;
-
-    say "Processing Fallback"
-        if $verbose;
-
-    if ($package eq 'Locale::CLDR::Root') {
-        $package = '';
-    }
-    else {
-        $package =~ s{ :: [^:]+ \z }{}msx;
-        $package = 'Locale::CLDR::Root' if $package eq 'Locale::CLDR';
-    }
-
-
-    my $fallback = findnodes($xpath, '/ldml/fallback');
-    $fallback = $fallback->size ? $fallback->get_node->string_value : '';
-    my @package;
-    foreach my $value (split / +/, $fallback) {
-        my @fallback = split /[-_]/, $value;
-
-        # Check for no script in name
-        if (2 == @fallback && length $fallback[1] < 4) {
-            @fallback = ($fallback[0], 'Any', $fallback[1]);
-        }
-
-        push @package, join '::', map { ucfirst lc } @fallback;
-    }
-
-    if (@package) {
-        $fallback = join "', '",
-            $package eq 'Locale::CLDR::Root'
-                ? ()
-                : $package
-            , map { "Locale::CLDR::$_" } @package;
-    }
-    else {
-        $fallback = $package;
-    }
-
-    say $file "extends('$fallback');\n"
-        if $fallback;
-}
-
 sub process_display_pattern {
     my ($file, $xpath) = @_;
 
@@ -930,13 +876,18 @@ sub process_display_pattern {
         findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
     $display_seperator = $display_seperator->size ? $display_seperator->get_node->string_value : '';
 
+    my $display_key_type = 
+        findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeKeyTypePattern');
+    $display_key_type = $display_key_type->size ? $display_key_type->get_node->string_value : '';
+
     return unless defined $display_pattern;
-    foreach ($display_pattern, $display_seperator) {
+    foreach ($display_pattern, $display_seperator, $display_key_type) {
         s/\//\/\//g;
         s/'/\\'/g;
     }
 
     print $file <<EOT;
+# Need to add code for Key type pattern
 sub display_name_pattern {
 \tmy (\$self, \$name, \$territory, \$script, \$variant) = \@_;
 
@@ -1311,57 +1262,6 @@ has 'text_orientation' => (
 \t\t\tlines => '$lines',
 \t\t\tcharacters => '$characters',
 \t\t}}
-);
-
-EOT
-}
-
-sub process_in_list {
-    my ($file, $xpath) = @_;
-
-    say "Processing inList" if $verbose;
-    my $in_list= findnodes($xpath, '/ldml/layout/inList');
-    return unless $in_list->size;
-
-    my $node = $in_list->get_node;
-    my $casing = $node->getChildNode(1)->getValue;
-
-    print $file <<EOT;
-has 'in_list' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
-\tinit_arg\t=> undef,
-\tdefault\t\t=> '$casing',
-);
-
-EOT
-}
-
-sub process_in_text {
-    my ($file, $xpath) = @_;
-
-    say "Processing inText" if $verbose;
-    my $in_text= findnodes($xpath, '/ldml/layout/inText');
-    return unless $in_text->size;
-
-    my @inText = $in_text->get_nodelist;
-    foreach my $node (@inText) {
-        my $casing = $node->getChildNode(1)->getValue;
-        my $type = $node->getAttribute('type');
-        $node = "\t\t\t\t\t$type => '$casing',\n";
-    }
-
-    my $value = 
-    print $file <<EOT;
-has 'in_text' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
-\tinit_arg\t=> undef,
-\tdefault\t\t=> sub {
-\t return {
-@inText
-\t\t};
-\t},
 );
 
 EOT
