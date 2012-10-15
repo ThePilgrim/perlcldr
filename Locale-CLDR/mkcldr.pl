@@ -26,6 +26,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 our $VERSION = version->parse('0.1');
 my $CLDR_VERSION = version->parse('22.0');
+my $CLDR_PATH = 22;
 
 chdir $FindBin::Bin;
 my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -52,7 +53,7 @@ if (! -e $core_filename ) {
     my $ua = LWP::UserAgent->new(
         agent => "perl Locale::CLDR/$VERSION (Written by j.imrie1\@virginmedia.com)",
     );
-    my $response = $ua->get("http://unicode.org/Public/cldr/$CLDR_VERSION/core.zip",
+    my $response = $ua->get("http://unicode.org/Public/cldr/$CLDR_PATH/core.zip",
         ':content_file' => $core_filename
     );
 
