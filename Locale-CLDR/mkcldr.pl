@@ -14,7 +14,7 @@ use XML::XPath;
 use XML::XPath::Node::Text;
 use LWP::UserAgent;
 use Archive::Extract;
-use POSIX qw(strftime);
+use DateTime;
 use XML::Parser;
 
 use Unicode::Set qw(unicode_to_perl);
@@ -282,7 +282,7 @@ sub process_class_any {
         next unless $path eq 'Any';
         next if -e "$lib_path.pm";
 
-        my $now = strftime('%a %e %b %l:%M:%S %P', gmtime);
+        my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
         open my $file, '>:utf8', "$lib_path.pm";
         print $file <<EOT;
 package $package;
@@ -312,7 +312,7 @@ sub process_header {
     $isRole = $isRole ? '::Role' : '';
 
     $xml_name =~s/^.*(Data.*)$/$1/;
-    my $now = strftime('%a %e %b %l:%M:%S %P', gmtime);
+    my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
     my $xml_generated = ( findnodes($xpath, '/ldml/identity/generation')
         || findnodes($xpath, '/supplementalData/generation')
     )->get_node->getAttribute('date');
