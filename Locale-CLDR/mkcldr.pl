@@ -235,6 +235,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_more_information($file, $xml);
     process_delimiters($file, $xml);
     process_calendars($file, $xml, $current_locale);
+    process_time_zone_names($file, $xml);
     process_footer($file);
 
     close $file;
@@ -2392,6 +2393,35 @@ sub process_fields {
 	return \%fields;
 }
 
+#/ldml/dates/timeZoneNames/
+sub process_time_zone_names {
+    my ($file, $xpath) = @_;
+
+    say "Processing Time Zone Names"
+	if $verbose;
+
+    my $time_zone_names = findnodes($xpath,
+        q(/ldml/dates/timeZoneNames/*));
+
+	next unless $time_zone_names->size;
+
+	print $file <<EOT;
+has 'time_zone_names' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { {
+EOT
+	foreach my $node($time_zone_names->get_nodelist) {
+	    given ($node->getLocalName) {
+		    when(/^(?:hourFormat|gmtFormat|regionFormat|fallbackRegion|Format)$/) {
+				my $value = $node->string_value;
+			    say $file "\t\t$_ => q($value)";
+		    }
+	    }
+    }
+}
+
 sub process_footer {
     my $file = shift;
     my $isRole = shift;
@@ -2402,7 +2432,10 @@ sub process_footer {
 
     say $file "no Moose$isRole;";
     say $file '__PACKAGE__->meta->make_immutable;' unless $isRole;
+    say $file '';
     say $file '1;';
+    say $file '';
+    say $file '# vim:tabstop=4:encoding=utf8';
 }
 
 # Segmentation
@@ -2461,3 +2494,5 @@ EOT
         print $file "\t}}\n);\n\n";
     }    
 }
+
+# vim:tabstop=4

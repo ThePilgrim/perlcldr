@@ -1232,7 +1232,7 @@ sub _build_month_format_wide {
 	my %month_aliases;
 	foreach my $aliases (@bundles) {
 		my $alias = $aliases->calendar_months_alias;
-		$month_aliases{$alias[0]} = $alias[1];
+		$month_aliases{$alias->[0]} = $alias->[1];
 	}
 
 	@bundles = $self->_find_bundle('calendar_months');
