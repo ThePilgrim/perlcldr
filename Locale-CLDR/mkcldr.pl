@@ -2412,14 +2412,72 @@ has 'time_zone_names' => (
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { {
 EOT
+	my (%zone, %metazone);
 	foreach my $node($time_zone_names->get_nodelist) {
 	    given ($node->getLocalName) {
-		    when(/^(?:hourFormat|gmtFormat|regionFormat|fallbackRegion|Format)$/) {
+		    when (/^(?:
+					hourFormat
+					|gmtFormat
+					|gmtZeroFormat
+					|regionFormat
+					|fallbackFormat
+					|fallbackRegionFormat
+				)$/x) {
 				my $value = $node->string_value;
 			    say $file "\t\t$_ => q($value)";
 		    }
+			when ('singleCountries') {
+				my $value = $node->getAttribute('list');
+				my @value = split / /, $value;
+				say $file "\t\tsingleCountries => [ ", 
+					join (', ',
+					map {"'$_'"}
+					@value),
+					' ]';
+			}
+			when (/(?:meta)*zone/) {
+				my $name = $node->getAttribute('type');
+				$zone{$name} //= {};
+				my $length_nodes = findnodes($xpath,
+        			qq(/ldml/dates/timeZoneNames/$_) . qq([\@type="$name"]/*));
+				foreach my $length_node ($length_nodes->get_nodelist) {
+					my $length = $length_node->getLocalName;
+					if ($length eq 'exemplarCity') {
+						$zone{$name}{exemplarCity} = $length_node->string_value;
+						next;
+					}
+
+					$zone{$name}{$length} //= {};
+					my $tz_type_nodes = findnodes($xpath,
+        				qq(/ldml/dates/timeZoneNames/$_) . qq([\@type="$name"]/$length/*));
+					foreach my $tz_type_node ($tz_type_nodes->get_nodelist) {
+						my $type = $tz_type_node->getLocalName;
+						my $value = $tz_type_node->string_value;
+						$zone{$name}{$length}{$type} = $value;
+					}
+				}
+			}
 	    }
     }
+
+	foreach my $name (sort keys %zone) {
+		say $file "\t\t'$name' => {";
+		foreach my $length (sort keys %{$zone{$name}}) {
+			if ($length eq 'exemplarCity') {
+				say $file "\t\t\texemplarCity => q($zone{$name}{exemplarCity}),";
+				next;
+			}
+			say $file "\t\t\t$length => {";
+			foreach my $type (sort keys %{$zone{$name}{$length}}) {
+				say $file "\t\t\t\t'$type' => '$zone{$name}{$length}{$type}',";
+			}
+			say $file "\t\t\t},";
+		}
+		say $file "\t\t},";
+	}
+
+	say $file "\t } }";
+	say $file ")";
 }
 
 sub process_footer {
@@ -2435,7 +2493,7 @@ sub process_footer {
     say $file '';
     say $file '1;';
     say $file '';
-    say $file '# vim:tabstop=4:encoding=utf8';
+    say $file '# vim: tabstop=4';
 }
 
 # Segmentation
