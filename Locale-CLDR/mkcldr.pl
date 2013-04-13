@@ -25,14 +25,15 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 our $VERSION = version->parse('0.1');
-my $CLDR_VERSION = version->parse('22.0');
-my $CLDR_PATH = 22;
+my $CLDR_VERSION = version->parse('23.0');
+my $CLDR_PATH = 23;
 
 chdir $FindBin::Bin;
-my $data_directory = File::Spec->catdir($FindBin::Bin, 'Data');
-my $core_filename  = File::Spec->catfile($data_directory, 'core.zip');
-my $base_directory = File::Spec->catdir($data_directory, 'common'); 
-my $lib_directory  = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale', 'CLDR');
+my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
+my $core_filename             = File::Spec->catfile($data_directory, 'core.zip');
+my $base_directory            = File::Spec->catdir($data_directory, 'common'); 
+my $lib_directory             = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale', 'CLDR');
+my $transformations_directory = File::Spec->catdir($lib_directory, 'Transformations');
 
 # Check if we have a Data directory
 if (! -d $data_directory ) {
@@ -51,7 +52,7 @@ if (! -e $core_filename ) {
         if $verbose;
 
     my $ua = LWP::UserAgent->new(
-        agent => "perl Locale::CLDR/$VERSION (Written by j.imrie1\@virginmedia.com)",
+        agent => "perl Locale::CLDR/$VERSION (Written by john.imrie1\@gmail.com)",
     );
     my $response = $ua->get("http://unicode.org/Public/cldr/$CLDR_PATH/core.zip",
         ':content_file' => $core_filename
@@ -80,12 +81,14 @@ EOM
     unless -d File::Spec->catdir($base_directory);
 
 # We look at the supplemental data file to get the cldr version number
+my $xml_parser = XML::Parser->new(
+    NoLWP => 1,
+    ErrorContext => 2,
+    ParseParamEnt => 1,
+);
+
 my $vf = XML::XPath->new(
-    parser => XML::Parser->new(
-        NoLWP => 1,
-        ErrorContext => 2,
-        ParseParamEnt => 1,
-    ),
+    parser => $xml_parser,
     filename => File::Spec->catfile($base_directory, 
     'main',
     'root.xml')
@@ -104,10 +107,12 @@ say "Processing files"
 
 # The supplemental/supplementalMetaData.xml file contains a list of all valid
 # locale codes
-my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
-    'supplemental',
-    'supplementalMetadata.xml',
-));
+my $xml = XML::XPath->new(
+    File::Spec->catfile($base_directory,
+        'supplemental',
+        'supplementalMetadata.xml',
+    )
+);
 
 open my $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
 
@@ -125,7 +130,7 @@ process_valid_languages($file, $xml);
 process_valid_scripts($file, $xml);
 process_valid_territories($file, $xml);
 process_valid_variants($file, $xml);
-process_valid_currencies($file, $xml);
+#process_valid_currencies($file, $xml);
 process_valid_keys($file, $base_directory);
 process_valid_language_aliases($file,$xml);
 process_valid_territory_aliases($file,$xml);
@@ -134,10 +139,12 @@ process_footer($file, 1);
 close $file;
 
 # File for era boundries
-$xml = XML::XPath->new(File::Spec->catfile($base_directory,
-    'supplemental',
-    'supplementalData.xml',
-));
+$xml = XML::XPath->new(
+    File::Spec->catfile($base_directory,
+        'supplemental',
+        'supplementalData.xml',
+    )
+);
 
 open $file, '>', File::Spec->catfile($lib_directory, 'EraBoundries.pm');
 
@@ -173,13 +180,29 @@ process_week_data($file, $xml);
 process_footer($file, 1);
 close $file;
 
+# Transformations
+opendir (my $dir, $transformations_directory);
+my $num_files = grep { -f File::Spec->catfile($transformations_directory,$_)} readdir $dir;
+my $count_files = 0;
+rewinddir $dir;
+
+foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
+    my $percent = ++$count_files / $num_files * 100;
+    my $full_file_name = File::Spec->catfile($transformations_directory, $file_name);
+    say sprintf("Processing Transformation File %s: %.2f%% done", $full_file_name, $percent) if $verbose;
+    $xml = XML::XPath->new(
+        File::Spec->catfile($transformations_directory, $file_name)
+    );
+    process_transforms() 
+}
+
 # Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
 opendir ( my $dir, $main_directory);
 
 # Count the number of files
-my $num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
-my $count_files = 0;
+$num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
+$count_files = 0;
 rewinddir $dir;
 
 my $segmentation_directory = File::Spec->catdir($base_directory, 'segments');
@@ -188,11 +211,15 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     if (@ARGV) {
         next unless grep {$file_name eq $_} @ARGV;
     }
-    $xml = XML::XPath->new(File::Spec->catfile($main_directory, $file_name));
+    $xml = XML::XPath->new(
+        File::Spec->catfile($main_directory, $file_name)
+    );
 
     my $segment_xml = undef;
     if (-f File::Spec->catfile($segmentation_directory, $file_name)) {
-        $segment_xml = XML::XPath->new( File::Spec->catfile($segmentation_directory, $file_name));
+        $segment_xml = XML::XPath->new(
+            File::Spec->catfile($segmentation_directory, $file_name)
+        );
     }
 
     my @output_file_parts = output_file_name($xml);
@@ -228,12 +255,15 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_display_key($file, $xml);
     process_display_type($file,$xml);
     process_display_measurement_system_name($file, $xml);
+    process_display_transform_name($file,$xml);
     process_code_patterns($file, $xml);
     process_orientation($file, $xml);
-#    process_exemplar_characters($file, $xml);
+    process_exemplar_characters($file, $xml);
     process_ellipsis($file, $xml);
     process_more_information($file, $xml);
     process_delimiters($file, $xml);
+    process_units($file, $xml);
+    process_posix($file, $xml);
     process_calendars($file, $xml, $current_locale);
     process_time_zone_names($file, $xml);
     process_footer($file);
@@ -461,7 +491,10 @@ sub process_valid_keys {
     closedir $dir;
     my %keys;
     foreach my $file_name (@files) {
-        my $xml = XML::XPath->new($file_name);
+        my $xml = XML::XPath->new(
+            $file_name
+        );
+
         my @keys = findnodes($xml, '/ldmlBCP47/keyword/key')->get_nodelist;
 		foreach my $key (@keys) {
         	my ($name, $alias) = ($key->getAttribute('name'), $key->getAttribute('alias'));
@@ -1248,12 +1281,15 @@ sub process_orientation {
     my ($file, $xpath) = @_;
 
     say "Processing Orientation" if $verbose;
-    my $orientation = findnodes($xpath, '/ldml/layout/orientation');
-    return unless $orientation->size;
+    my $character_orientation = findnodes($xpath, '/ldml/layout/orientation/characterOrder');
+    my $line_orientation = findnodes($xpath, '/ldml/layout/orientation/lineOrder');
+    return unless $character_orientation->size 
+        || $line_orientation->size;
 
-    my $node = $orientation->get_node;
-    my $lines = $node->getAttribute('lines') || 'top-to-bottom';
-    my $characters = $node->getAttribute('characters') || 'left-to-right';
+    my ($lines) = $line_orientation->get_nodelist;
+        $lines = ($lines && $lines->getChildNode(1)->getValue) || '';
+    my ($characters) = $character_orientation->get_nodelist;
+        $characters = ($characters && $characters->getChildNode(1)->getValue) || '';
 
     print $file <<EOT;
 has 'text_orientation' => (
@@ -1315,7 +1351,7 @@ EOT
 sub process_ellipsis {
     my ($file, $xpath) = @_;
 
-    say "Processing ellipsis" if $verbose;
+    say "Processing Ellipsis" if $verbose;
     my $ellipsis = findnodes($xpath, '/ldml/characters/ellipsis');
     return unless $ellipsis->size;
     my @ellipsis = $ellipsis->get_nodelist;
@@ -1395,6 +1431,92 @@ has '$quote' => (
 
 EOT
     }
+}
+
+sub process_units {
+    my ($file, $xpath) = @_;
+
+    say 'Processing Units' if $verbose;
+    my $units = findnodes($xpath, '/ldml/units/*');
+    next unless $units->size;
+
+    my @units;
+    foreach my $unit ($units->get_nodelist) {
+        my $type = $unit->getAttribute('type');
+        push @units, {type => $type};
+        foreach my $unit_pattern ($unit->getChildNodes) {
+            next if $unit_pattern->isTextNode;
+
+            my $count = $unit_pattern->getAttribute('count');
+            my $alt = $unit_pattern->getAttribute('alt') || 'default';
+            my $pattern = $unit_pattern->getChildNode(1)->getValue;
+	    $units[-1]{$alt}{$count} = $pattern;
+        }
+    }
+        
+    print $file <<EOT;
+has 'units' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[HashRef[HashRef[Str]]]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+    foreach my $unit (@units) {
+        print $file "\t\t\t\t",$unit->{type}," => {\n";
+        foreach my $length (grep { $_ ne 'type' } keys %$unit) {
+            print $file "\t\t\t\t\t$length => {\n";
+                foreach my $count (keys %{$unit->{$length}}) {
+                    print $file "\t\t\t\t\t\t$count => ",
+                        $unit->{$length}{$count},
+                        ",\n";
+                }
+            print $file "\t\t\t\t\t},\n";
+        }
+        print $file "\t\t\t\t},\n";
+    }
+    print $file <<EOT;
+\t\t\t} }
+);
+EOT
+}
+
+sub process_posix {
+    my ($file, $xpath) = @_;
+
+    say 'Processing Posix' if $verbose;
+    my $yes = findnodes($xpath, '/ldml/posix/messages/yesstr/text()');
+    my $no  = findnodes($xpath, '/ldml/posix/messages/nostr/text()');
+    next unless $yes->size || $no->size;
+    $yes = $yes->size
+      ? ($yes->get_nodelist)[0]->getValue()
+      : '';
+
+    $no = $no->size
+      ? ($no->get_nodelist)[0]->getValue()
+      : '';
+        
+    $yes .= 'yes:y' unless (grep /^y/i, split /:/, "$yes:$no");
+    $no  .= 'no:n'  unless (grep /^n/i, split /:/, "$yes:$no");
+
+    s/:/|/g foreach ($yes, $no);
+
+    print $file <<EOT if defined $yes;
+has 'yesstr' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> '(?i:$yes)'
+);
+EOT
+
+    print $file <<EOT if defined $no;
+has 'yesstr' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> '(?i:$no)'
+);
+EOT
 }
 
 # Dates
@@ -2054,10 +2176,13 @@ sub process_quarters {
 
 # The supplemental/dayPeriods.xml file contains a list of all valid
 # day periods
-			my $xml = XML::XPath->new(File::Spec->catfile($base_directory,
-    			'supplemental',
-    			'dayPeriods.xml',
-			));
+			my $xml = XML::XPath->new(
+                            File::Spec->catfile($base_directory,
+    			        'supplemental',
+    			        'dayPeriods.xml',
+			    )
+                        );
+
 			my $dayPeriodRules = findnodes($xml, 
 				q(/supplementalData/dayPeriodRuleSet/dayPeriodRules)
 			);
@@ -2551,6 +2676,9 @@ EOT
 
         print $file "\t}}\n);\n\n";
     }    
+}
+
+sub process_transforms {
 }
 
 # vim:tabstop=4
