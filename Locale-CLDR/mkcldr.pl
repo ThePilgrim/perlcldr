@@ -5,8 +5,8 @@ use encoding 'utf8';
 use strict;
 use warnings 'FATAL';
 use feature 'unicode_strings';
-
 use open ':encoding(utf8)', ':std';
+
 use FindBin;
 use File::Spec;
 use File::Path qw(make_path);
@@ -16,6 +16,8 @@ use LWP::UserAgent;
 use Archive::Extract;
 use DateTime;
 use XML::Parser;
+use Text::ParseWords;
+use List::MoreUtils qw( any );
 
 use Unicode::Set qw(unicode_to_perl);
 
@@ -32,6 +34,7 @@ chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename             = File::Spec->catfile($data_directory, 'core.zip');
 my $base_directory            = File::Spec->catdir($data_directory, 'common'); 
+my $transform_directory       = File::Spec->catdir($base_directory, 'transforms');
 my $lib_directory             = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale', 'CLDR');
 my $transformations_directory = File::Spec->catdir($lib_directory, 'Transformations');
 
@@ -181,19 +184,18 @@ process_footer($file, 1);
 close $file;
 
 # Transformations
-opendir (my $dir, $transformations_directory);
-my $num_files = grep { -f File::Spec->catfile($transformations_directory,$_)} readdir $dir;
+make_path($transformations_directory) unless -d $transformations_directory;
+opendir (my $dir, $transform_directory);
+my $num_files = grep { -f File::Spec->catfile($transform_directory,$_)} readdir $dir;
 my $count_files = 0;
 rewinddir $dir;
 
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $percent = ++$count_files / $num_files * 100;
-    my $full_file_name = File::Spec->catfile($transformations_directory, $file_name);
+    my $full_file_name = File::Spec->catfile($transform_directory, $file_name);
     say sprintf("Processing Transformation File %s: %.2f%% done", $full_file_name, $percent) if $verbose;
-    $xml = XML::XPath->new(
-        File::Spec->catfile($transformations_directory, $file_name)
-    );
-    process_transforms() 
+    $xml = XML::XPath->new($full_file_name);
+    process_transforms($transformations_directory, $xml, $full_file_name) 
 }
 
 # Main directory
@@ -2679,6 +2681,164 @@ EOT
 }
 
 sub process_transforms {
+    my ($dir, $xpath, $xml_file_name) = @_;
+
+    my $transform_nodes = findnodes($xpath, q(/supplementalData/transforms/transform));
+    foreach my $transform_node ($transform_nodes->get_nodelist) {
+        my $variant   = ucfirst lc $transform_node->getAttribute('variant') || 'Any';
+        my $source    = ucfirst lc $transform_node->getAttribute('source')  || 'Any';
+        my $target    = ucfirst lc $transform_node->getAttribute('target')  || 'Any';
+        my $direction = $transform_node->getAttribute('direction') || 'both';
+
+        my @directions = $direction eq 'both'
+            ? qw(forward backward)
+            : $direction;
+
+        foreach my $direction (@directions) {
+            if ($direction eq 'backward') {
+                ($source, $target) = ($target, $source);
+            }
+
+            my $package = "Local::CLDR::Transform::${variant}::${source}::$target";
+            my $dir_name = File::Spec->catdir($dir, $variant, $source);
+         
+	    make_path($dir_name) unless -d $dir_name;
+
+            open my $file, '>', File::Spec->catfile($dir_name, "$target.pm");
+            process_header($file, $package, $CLDR_VERSION, $xpath, $xml_file_name);
+            process_transform_data($file, $xpath, (
+                $direction eq 'forward'
+                ? "\x{2192}"
+                : "\x{2190}"
+            ) );
+
+            process_footer($file);
+            close $file;
+        }
+    }
+}
+
+sub process_transform_data {
+    my ($file, $xpath, $direction) = @_;
+
+    my $nodes = findnodes($xpath, q(/supplementalData/transforms/transform/*));     my @nodes = $nodes->get_nodelist;
+
+    my @transforms;
+    my %vars;
+    foreach my $node (@nodes) {
+        next if $node->getLocalName() eq 'comment';
+        my $rule = $node->getChildNode(1)->getValue;
+        my @terms = parse_line(qr/\s+/, 1, $rule);
+
+        # Check for conversion rules
+        if ($terms[0] =~ s/^:://) {
+            push @transforms, process_transform_conversion(\@terms, $direction);
+            next;
+        }
+
+        # Check for Variables
+        if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
+            $vars{$terms[0]} = process_transform_substitute_var(\%vars, $terms[2]);
+            next;
+        }
+
+        # check we are in the right direction
+        my $split = qr/\x{2194}|$direction/;
+        next unless any { /$split/ } @terms;
+        push @transforms, process_transform_rule($split, \@terms, \%vars);
+    }
+}
+
+sub process_transform_conversion {
+    my ($terms, $direction) = @_;
+
+    # If the :: marker was it's own term then $terms->[0] will
+    # Be the null string. Shift it off so we can test for the type
+    # Of conversion
+    shift @$terms unless length $terms->[0];
+
+    # Do forward rules first
+    if ($direction eq "\x{2192}") {
+        # Filter
+        my $filter = join '', @$terms;
+        if ($terms->[0] =~ /^\[/) {
+            $filter =~ s/^\[ # Start with a [
+                .*?          # Min number of characters
+                (?<!\\)      # Not preced by a single back slash
+                (?>\\\\)*    # After we eat an even number of 0 or more backslashes
+                \]           # Followed by the terminating ]
+                \K           # Keep all that and
+                .*$//x;      # Remove the rest
+
+            return process_transform_filter($filter)
+        }
+        # Transform Rules
+        my ($from, $to) = $filter =~ /^(?:(\w+)-)?(\w+)/;
+        foreach ($from, $to) {
+            $_ eq 'Any' unless defined $_;
+            s/^und/Any/;
+        }
+
+        return {
+            type => 'transform',
+            from => $from,
+            to   => $to,
+        }
+    }
+    else { # Reverse
+        # Filter
+        my $filter = join '', @$terms;
+        
+        # Look for a reverse filter
+        if ($terms->[0] =~ /^\(\s*\[/) {
+            $filter =~ s/^\(\s*\[ # Start with ( [
+                .*?               # Min number of characters
+                (?<!\\)           # Not preced by a single back slash
+                (?>\\\\)*         # After we eat an even number of 0 or more backslashes
+                \]\s*\)           # Followed by the terminating ] )
+                \K                # Keep all that and
+                .*$//x;           # Remove the rest
+
+            # Remove the brackets
+            $filter =~ s/^\(\s*(.*\S)\s*\)/$1/;
+            return process_transform_filter($filter)
+        }
+        # Transform Rules
+        my ($from, $to) = $filter =~ /^(?:\S+\s+)?\((?:(\w+)-)?(\w+)\)/;
+        foreach ($from, $to) {
+            $_ eq 'Any' unless length $_;
+            s/^und/Any/;
+        }
+
+        return {
+            type => 'transform',
+            from => $from,
+            to   => $to,
+        }
+    }
+}
+
+sub process_transform_filter {
+    my $filter = shift;
+    return {
+        type => 'filter',
+        match => unicode_to_perl($filter),
+    }
+}
+
+sub process_transform_substitute_var {
+    my ($vars, $string) = @_;
+
+    return $string =~ s/^(\$\p{XID_Start}\p{XID_Continue}*)/$vars->{$1}/gr;
+}
+
+sub process_transform_rule {
+    my ($direction, $terms, $vars) = @_;
+
+    my (@lhs, @rhs);
+    my $rhs = 0;
+    foreach my $term (@$terms) {
+    }
 }
 
 # vim:tabstop=4
