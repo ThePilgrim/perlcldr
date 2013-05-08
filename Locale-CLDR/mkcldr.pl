@@ -2743,10 +2743,61 @@ sub process_transform_data {
         }
 
         # check we are in the right direction
-        my $split = qr/\x{2194}|$direction/;
+        my $split = qr/^\x{2194}|$direction$/;
         next unless any { /$split/ } @terms;
-        push @transforms, process_transform_rule($split, \@terms, \%vars);
+        @terms = map { process_transform_substitute_var(\%vars, $_) } @terms;
+        if ($direction eq "\x{2192}") {
+            push @transforms, process_transform_rule_forward($split, \@terms, \%vars);
+        }
+        else {
+            push @transforms, process_transform_rule_backward($split, \@terms, \%vars);
+        }
     }
+    @transforms = reverse @transforms if $direction = "\x{2190}";
+
+    # Print out transforms
+    print $file <<EOT;
+has 'transforms' => {
+\tis => 'ro',
+\tisa => 'ArayRef[HashRef]',
+\tinit_arg => undef,
+\tdefault => sub { [
+EOT
+    if ($transforms->[0]{type} ne 'filter') {
+        unshift @$transforms, {
+            type => 'filter',
+            match => qr/\G./m,
+        }
+    }
+
+    foreach my $transform (@transforms) {
+        if ($transform->{type} eq 'filter') {
+            print $file "\t\tfilter => qr/$transform->{match}/,\n"
+        }
+        if ($tranform->{type} eq 'transform') {
+            print $file <<EOT;
+\t\ttransform => {
+\t\t\tfrom => $transform->{from},
+\t\t\tto => $transform->{to},
+\t\t},
+EOT
+        }
+        if ($transform->{type} eq 'conversion') {
+            print $file <<EOT;
+\t\tconversion => {
+\t\t\tbefore  => $transform->{before},
+\t\t\tafter   => $transform->{after},
+\t\t\treplace => $transform->{replace},
+\t\t\tresult  => $transform->{result},
+\t\t\trevisit => $transform->{revisit},    
+\t\t}
+EOT
+    }
+print $file <<EOT;
+\t] },
+};
+
+EOT
 }
 
 sub process_transform_conversion {
@@ -2775,7 +2826,7 @@ sub process_transform_conversion {
         # Transform Rules
         my ($from, $to) = $filter =~ /^(?:(\w+)-)?(\w+)/;
         foreach ($from, $to) {
-            $_ eq 'Any' unless defined $_;
+            $_ = 'Any' unless defined $_;
             s/^und/Any/;
         }
 
@@ -2806,7 +2857,7 @@ sub process_transform_conversion {
         # Transform Rules
         my ($from, $to) = $filter =~ /^(?:\S+\s+)?\((?:(\w+)-)?(\w+)\)/;
         foreach ($from, $to) {
-            $_ eq 'Any' unless length $_;
+            $_ = 'Any' unless length $_;
             s/^und/Any/;
         }
 
@@ -2820,9 +2871,11 @@ sub process_transform_conversion {
 
 sub process_transform_filter {
     my $filter = shift;
+    my $match = unicode_to_perl($filter);
+
     return {
         type => 'filter',
-        match => unicode_to_perl($filter),
+        match => qr/\G$match/im,
     }
 }
 
@@ -2832,13 +2885,122 @@ sub process_transform_substitute_var {
     return $string =~ s/^(\$\p{XID_Start}\p{XID_Continue}*)/$vars->{$1}/gr;
 }
 
-sub process_transform_rule {
+sub process_transform_rule_forward {
     my ($direction, $terms, $vars) = @_;
 
     my (@lhs, @rhs);
     my $rhs = 0;
     foreach my $term (@$terms) {
+        if ($term =~ /$direction/) {
+            $rhs = 1;
+            next;
+        }
+
+        last if $term =~ /^;/;
+        push ( @{$rhs ? \@rhs : \@lhs}, $term);
     }
+    my $before = 0;
+    my (@before, @replace, @after);
+
+    $before = 1 if any { '{' eq $_ } @lhs;
+    if ($before) {
+        while (my $term = shift @lhs) {
+            last if $term eq '{';
+            push @before, $term;
+        }
+    }
+    while (my $term = shift @lhs) {
+        last if $term eq '}';
+        next if ($term eq '|');
+        push @replace, $term;
+    }
+    @after = @lhs;
+
+    # Done lhs now do rhs
+    if (any { '{' eq $_ } @rhs) {
+        while (my $term = shift @rhs) {
+            last if $term eq '{';
+        }
+    }
+    my (@result, @revisit);
+    my $revisit = 0;
+    while (my $term = shift @rhs) {
+        last if $term eq '}';
+        if ($term eq '|') {
+            $revisit = 1;
+            next;
+        }
+
+        push(@{ $revisit ? \@revisit : \@result}, $term);
+    }
+
+    return {
+        type    => 'conversion',
+        before  => join(' ', @before),
+        after   => join(' ', @after),
+        replace => join(' ', @replace),
+        result  => join(' ', @result),
+        revisit => join(' ', @revisit),
+    };
+}
+
+sub process_transform_rule_backward {
+    my ($direction, $terms, $vars) = @_;
+
+    my (@lhs, @rhs);
+    my $rhs = 0;
+    foreach my $term (@$terms) {
+        if ($term =~ /$direction/) {
+            $rhs = 1;
+            next;
+        }
+
+        last if $term =~ /^;/;
+        push ( @{$rhs ? \@rhs : \@lhs}, $term);
+    }
+    my $before = 0;
+    my (@before, @replace, @after);
+
+    $before = 1 if any { '{' eq $_ } @rhs;
+    if ($before) {
+        while (my $term = shift @rhs) {
+            last if $term eq '{';
+            push @before, $term;
+        }
+    }
+    while (my $term = shift @rhs) {
+        last if $term eq '}';
+        next if ($term eq '|');
+        push @replace, $term;
+    }
+    @after = @rhs;
+
+    # Done lhs now do rhs
+    if (any { '{' eq $_ } @lhs) {
+        while (my $term = shift @lhs) {
+            last if $term eq '{';
+        }
+    }
+    my (@result, @revisit);
+    my $revisit = 0;
+    while (my $term = shift @lhs) {
+        last if $term eq '}';
+        if ($term eq '|') {
+            $revisit = 1;
+            next;
+        }
+
+        push(@{ $revisit ? \@revisit : \@result}, $term);
+    }
+
+    return {
+        type    => 'conversion',
+        before  => join(' ', @before),
+        after   => join(' ', @after),
+        replace => join(' ', @replace),
+        result  => join(' ', @result),
+        revisit => join(' ', @revisit),
+    };
 }
 
 # vim:tabstop=4
