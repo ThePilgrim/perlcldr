@@ -23,8 +23,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 our $VERSION = version->parse('0.1');
-my $CLDR_VERSION = version->parse('23.0');
-my $CLDR_PATH = 23;
+my $CLDR_VERSION = version->parse('23.1');
+my $CLDR_PATH = 23.1;
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -1313,6 +1313,7 @@ sub process_exemplar_characters {
     my %data;
     foreach my $node (@characters) {
         my $regex = $node->getChildNode(1)->getValue;
+		next if $regex =~ /^\[\s*\]/;
         my $type = $node->getAttribute('type');
         $type ||= 'main';
         if ($type eq 'index') {
@@ -1322,7 +1323,7 @@ sub process_exemplar_characters {
             $data{index} = "['$entries'],";
         }
         else {
-            $regex = unicode_to_perl($regex);
+		    $regex = unicode_to_perl($regex);
             $data{$type} = "qr{$regex},";
         }
     }
@@ -1459,13 +1460,13 @@ has 'units' => (
 \tdefault\t\t=> sub { {
 EOT
     foreach my $unit (@units) {
-        say $file "\t\t\t\t",$unit->{type}," => {";
+        say $file "\t\t\t\t'",$unit->{type},"' => {";
         foreach my $length (grep { $_ ne 'type' } keys %$unit) {
-            say $file "\t\t\t\t\t$length => {";
+            say $file "\t\t\t\t\t'$length' => {";
                 foreach my $count (keys %{$unit->{$length}}) {
-                    say $file "\t\t\t\t\t\t$count => ",
+                    say $file "\t\t\t\t\t\t'$count' => q(",
                         $unit->{$length}{$count},
-                        ",";
+                        "),";
                 }
             say $file "\t\t\t\t\t},";
         }
@@ -1492,8 +1493,8 @@ sub process_posix {
       ? ($no->get_nodelist)[0]->getValue()
       : '';
         
-    $yes .= 'yes:y' unless (grep /^y/i, split /:/, "$yes:$no");
-    $no  .= 'no:n'  unless (grep /^n/i, split /:/, "$yes:$no");
+    $yes .= ':yes:y' unless (grep /^y/i, split /:/, "$yes:$no");
+    $no  .= ':no:n'  unless (grep /^n/i, split /:/, "$yes:$no");
 
     s/:/|/g foreach ($yes, $no);
 
@@ -1507,7 +1508,7 @@ has 'yesstr' => (
 EOT
 
     print $file <<EOT if defined $no;
-has 'yesstr' => (
+has 'nostr' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'Str',
 \tinit_arg\t=> undef,
@@ -1752,7 +1753,7 @@ has 'day_period_data' => (
 \t\tfor (\$type) {
 EOT
         foreach my $ctype (keys  %{$calendars{day_period_data}}) {
-            say $file "\t\t\tif ($_ eq '$ctype') {";
+            say $file "\t\t\tif (\$_ eq '$ctype') {";
             foreach my $type (keys  %{$calendars{day_period_data}{$ctype}}) {
                 my %boundries = map {@$_} @{$calendars{day_period_data}{$ctype}{$type}};
                 if (exists $boundries{at}) {
@@ -2549,7 +2550,7 @@ EOT
                 |fallbackRegionFormat
             )$/x) {
                 my $value = $node->string_value;
-                say $file "\t\t$_ => q($value)";
+                say $file "\t\t$_ => q($value),";
                 last SWITCH;
             }
             if ($_ eq 'singleCountries') {
@@ -2557,7 +2558,7 @@ EOT
                 my @value = split / /, $value;
                 say $file "\t\tsingleCountries => [ ", 
                     join (', ',
-                    map {"'$_'"}
+                    map {"q($_)"}
                     @value),
                     ' ]';
                 last SWITCH;
@@ -2592,12 +2593,12 @@ EOT
         say $file "\t\t'$name' => {";
         foreach my $length (sort keys %{$zone{$name}}) {
             if ($length eq 'exemplarCity') {
-                say $file "\t\t\texemplarCity => q($zone{$name}{exemplarCity}),";
+                say $file "\t\t\texemplarCity => q#$zone{$name}{exemplarCity}#,";
                 next;
             }
             say $file "\t\t\t$length => {";
             foreach my $type (sort keys %{$zone{$name}{$length}}) {
-                say $file "\t\t\t\t'$type' => '$zone{$name}{$length}{$type}',";
+                say $file "\t\t\t\t'$type' => q($zone{$name}{$length}{$type}),";
             }
             say $file "\t\t\t},";
         }
@@ -2605,7 +2606,7 @@ EOT
     }
 
     say $file "\t } }";
-    say $file ")";
+    say $file ");";
 }
 
 sub process_footer {
@@ -2740,6 +2741,12 @@ sub process_transform_data {
 
         # Check for Variables
         if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
+		    $terms[2] =~ s/^(?:
+			        [^;]
+					| ;
+			        (?<!\\)   # Not preceded by a single back slash
+                    (?>\\\\)* # After we eat an even number of 0 or more backslashes
+                    )+\K//x;
             $vars{$terms[0]} = process_transform_substitute_var(\%vars, $terms[2]);
             next;
         }
@@ -2759,9 +2766,9 @@ sub process_transform_data {
 
     # Print out transforms
     print $file <<EOT;
-has 'transforms' => {
+has 'transforms' => (
 \tis => 'ro',
-\tisa => 'ArayRef[HashRef]',
+\tisa => 'ArrayRef[HashRef]',
 \tinit_arg => undef,
 \tdefault => sub { [
 EOT
@@ -2792,13 +2799,13 @@ EOT
 \t\t\treplace => q($transform->{replace}),
 \t\t\tresult  => q($transform->{result}),
 \t\t\trevisit => q($transform->{revisit}),    
-\t\t}
+\t\t},
 EOT
         }
     }
     print $file <<EOT;
 \t] },
-};
+);
 
 EOT
 }
@@ -2951,11 +2958,11 @@ sub process_transform_rule_forward {
 
     return {
         type    => 'conversion',
-        before  => unicode_to_perl join(' ', @before),
-        after   => unicode_to_perl join(' ', @after),
-        replace => unicode_to_perl join(' ', @replace),
-        result  => unicode_to_perl join(' ', @result),
-        revisit => unicode_to_perl join(' ', @revisit),
+        before  => unicode_to_perl( join(' ', @before) ),
+        after   => unicode_to_perl( join(' ', @after) ),
+        replace => unicode_to_perl( join(' ', @replace) ),
+        result  => unicode_to_perl( join(' ', @result) ),
+        revisit => unicode_to_perl( join(' ', @revisit) ),
     };
 }
 
@@ -3010,11 +3017,11 @@ sub process_transform_rule_backward {
 
     return {
         type    => 'conversion',
-        before  => unicode_to_perl join(' ', @before),
-        after   => unicode_to_perl join(' ', @after),
-        replace => unicode_to_perl join(' ', @replace),
-        result  => unicode_to_perl join(' ', @result),
-        revisit => unicode_to_perl join(' ', @revisit),
+        before  => unicode_to_perl( join(' ', @before) ),
+        after   => unicode_to_perl( join(' ', @after) ),
+        replace => unicode_to_perl( join(' ', @replace) ),
+        result  => unicode_to_perl( join(' ', @result) ),
+        revisit => unicode_to_perl( join(' ', @revisit) ),
     };
 }
 
