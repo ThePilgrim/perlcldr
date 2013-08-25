@@ -3109,6 +3109,8 @@ sub convert {
 		(?:           			# One of
 			[^\[\]]++			# Not an open or close set 
 			|					# Or
+			(?<=\\)[\[\]]       # An open or close set preceded by \
+			|                   # Or
 			(?:
 				\s*      		# Posible Whitespace
 				(?&posix)		# A posix class
