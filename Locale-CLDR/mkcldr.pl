@@ -2647,7 +2647,7 @@ EOT
             # Check for deleting variables
             my $value = $variable->getChildNode(1);
             if (defined $value) {
-                $value = "'" . $value->getValue . "'";
+                $value = "'" . unicode_to_perl($value->getValue) . "'";
             }
             else {
                 $value = 'undef()';
