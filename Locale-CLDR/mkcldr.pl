@@ -16,6 +16,7 @@ use DateTime;
 use XML::Parser;
 use Text::ParseWords;
 use List::MoreUtils qw( any );
+no warnings "experimental::regex_sets";
 
 our $verbose = 0;
 $verbose = 1 if grep /-v/, @ARGV;
@@ -190,8 +191,8 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $percent = ++$count_files / $num_files * 100;
     my $full_file_name = File::Spec->catfile($transform_directory, $file_name);
     say sprintf("Processing Transformation File %s: %.2f%% done", $full_file_name, $percent) if $verbose;
-    $xml = XML::XPath->new($full_file_name);
-    process_transforms($transformations_directory, $xml, $full_file_name) 
+	$xml = XML::XPath->new($full_file_name);
+    process_transforms($transformations_directory, $xml, $full_file_name);
 }
 
 # Main directory
@@ -1333,6 +1334,7 @@ has 'characters' => (
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub {
+\tno warnings 'experimental::regex_sets';
 \t\treturn {
 EOT
     foreach my $type (sort keys %data) {
@@ -2705,7 +2707,7 @@ sub process_transforms {
             my $package = "Local::CLDR::Transform::${variant}::${source}::$target";
             my $dir_name = File::Spec->catdir($dir, $variant, $source);
          
-        make_path($dir_name) unless -d $dir_name;
+            make_path($dir_name) unless -d $dir_name;
 
             open my $file, '>', File::Spec->catfile($dir_name, "$target.pm");
             process_header($file, $package, $CLDR_VERSION, $xpath, $xml_file_name);
@@ -2724,14 +2726,30 @@ sub process_transforms {
 sub process_transform_data {
     my ($file, $xpath, $direction) = @_;
 
-    my $nodes = findnodes($xpath, q(/supplementalData/transforms/transform/*));     my @nodes = $nodes->get_nodelist;
+    my $nodes = findnodes($xpath, q(/supplementalData/transforms/transform/*));
+	my @nodes = $nodes->get_nodelist;
 
     my @transforms;
     my %vars;
     foreach my $node (@nodes) {
         next if $node->getLocalName() eq 'comment';
         my $rule = $node->getChildNode(1)->getValue;
-        my @terms = parse_line(qr/\s+/, 1, $rule);
+		my @terms = grep { /\S/ } parse_line(qr/\s+|[{};\x{2190}\x{2192}\x{2194}=\[\]]/, 'delimiters', $rule);
+		
+		# Escape transformation meta characters inside a set
+		my $brackets = 0;
+		my $count = 0;
+		foreach my $term (@terms) {
+		    $count++;
+			$brackets++ if $term eq '[';
+			$brackets-- if $term eq ']';
+			if ($brackets && $term =~ /[{};]/) {
+			    $term = "\\$term";
+			}
+			last if $term eq ';';
+		}
+		@terms = @terms[ 0 .. $count - 2 ]; 
+		
 
         # Check for conversion rules
         if ($terms[0] =~ s/^:://) {
@@ -2740,14 +2758,12 @@ sub process_transform_data {
         }
 
         # Check for Variables
-        if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
-		    $terms[2] =~ s/^(?:
-			        [^;]
-					| ;
-			        (?<!\\)   # Not preceded by a single back slash
-                    (?>\\\\)* # After we eat an even number of 0 or more backslashes
-                    )+\K//x;
-            $vars{$terms[0]} = process_transform_substitute_var(\%vars, $terms[2]);
+		if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
+		    my $value = join (' ', @terms[2 .. @terms]);
+			$value =~ s/\[ /[/g;
+			$value =~ s/ \]/]/g;
+            $vars{$terms[0]} = process_transform_substitute_var(\%vars, $value);
+			$vars{$terms[0]} =~ s/^\s*(.*\S)\s*$/$1/;
             next;
         }
 
@@ -2756,10 +2772,10 @@ sub process_transform_data {
         next unless any { /$split/ } @terms;
         @terms = map { process_transform_substitute_var(\%vars, $_) } @terms;
         if ($direction eq "\x{2192}") {
-            push @transforms, process_transform_rule_forward($split, \@terms, \%vars);
+            push @transforms, process_transform_rule_forward($split, \@terms);
         }
         else {
-            push @transforms, process_transform_rule_backward($split, \@terms, \%vars);
+            push @transforms, process_transform_rule_backward($split, \@terms);
         }
     }
     @transforms = reverse @transforms if $direction eq "\x{2190}";
@@ -2771,6 +2787,7 @@ has 'transforms' => (
 \tisa => 'ArrayRef[HashRef]',
 \tinit_arg => undef,
 \tdefault => sub { [
+\t\tno warnings 'experimental::regex_sets';
 EOT
     if ($transforms[0]{type} ne 'filter') {
         unshift @transforms, {
@@ -2840,6 +2857,9 @@ sub process_transform_conversion {
         }
         # Transform Rules
         my ($from, $to) = $filter =~ /^(?:(\w+)-)?(\w+)/;
+		
+		return () unless defined( $from ) + defined( $to );
+		
         foreach ($from, $to) {
             $_ = 'Any' unless defined $_;
             s/^und/Any/;
@@ -2877,7 +2897,10 @@ sub process_transform_conversion {
             return process_transform_filter($filter)
         }
         # Transform Rules
-        my ($from, $to) = $filter =~ /^(?:\S+\s+)?\((?:(\w+)-)?(\w+)\)/;
+        my ($from, $to) = $filter =~ /^(?:\S+)?\((?:(\w+)-)?(\w+)\)/;
+		
+		return () unless defined( $from ) + defined( $to );
+		
         foreach ($from, $to) {
             $_ = 'Any' unless length $_;
             s/^und/Any/;
@@ -2904,11 +2927,11 @@ sub process_transform_filter {
 sub process_transform_substitute_var {
     my ($vars, $string) = @_;
 
-    return $string =~ s/^(\$\p{XID_Start}\p{XID_Continue}*)/$vars->{$1}/gr;
+    return $string =~ s/(\$\p{XID_Start}\p{XID_Continue}*)/$vars->{$1}/gr;
 }
 
 sub process_transform_rule_forward {
-    my ($direction, $terms, $vars) = @_;
+    my ($direction, $terms) = @_;
 
     my (@lhs, @rhs);
     my $rhs = 0;
@@ -2918,7 +2941,6 @@ sub process_transform_rule_forward {
             next;
         }
 
-        last if $term =~ /^;/;
         push ( @{$rhs ? \@rhs : \@lhs}, $term);
     }
     my $before = 0;
@@ -2956,18 +2978,24 @@ sub process_transform_rule_forward {
         push(@{ $revisit ? \@revisit : \@result}, $term);
     }
 
+	# Strip out quotes
+	foreach my $term (@before, @after, @replace, @result, @revisit) {
+		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\\Q$1\\E/g;
+		$term =~ s/(["'])(?1)/$1/g;
+	}
+	
     return {
         type    => 'conversion',
-        before  => unicode_to_perl( join(' ', @before) ),
-        after   => unicode_to_perl( join(' ', @after) ),
-        replace => unicode_to_perl( join(' ', @replace) ),
-        result  => unicode_to_perl( join(' ', @result) ),
-        revisit => unicode_to_perl( join(' ', @revisit) ),
+        before  => unicode_to_perl( join('', @before) ),
+        after   => unicode_to_perl( join('', @after) ),
+        replace => unicode_to_perl( join('', @replace) ),
+        result  => join('', @result),
+        revisit => join('', @revisit),
     };
 }
 
 sub process_transform_rule_backward {
-    my ($direction, $terms, $vars) = @_;
+    my ($direction, $terms) = @_;
 
     my (@lhs, @rhs);
     my $rhs = 0;
@@ -2977,7 +3005,6 @@ sub process_transform_rule_backward {
             next;
         }
 
-        last if $term =~ /^;/;
         push ( @{$rhs ? \@rhs : \@lhs}, $term);
     }
     my $before = 0;
@@ -3015,32 +3042,122 @@ sub process_transform_rule_backward {
         push(@{ $revisit ? \@revisit : \@result}, $term);
     }
 
+	# Strip out quotes and escapes
+	foreach my $term (@before, @after, @replace, @result, @revisit) {
+	    $term =~ s/(?:\\\\)*+\K\\([^\\])/\Q$1\E/g;
+		$term =~ s/\\\\/\\/g;
+		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\\Q$1\\E/g;
+		$term =~ s/(["'])(?1)/$1/g;
+	}
+	
     return {
         type    => 'conversion',
-        before  => unicode_to_perl( join(' ', @before) ),
-        after   => unicode_to_perl( join(' ', @after) ),
-        replace => unicode_to_perl( join(' ', @replace) ),
-        result  => unicode_to_perl( join(' ', @result) ),
-        revisit => unicode_to_perl( join(' ', @revisit) ),
+        before  => unicode_to_perl( join('', @before) ),
+        after   => unicode_to_perl( join('', @after) ),
+        replace => unicode_to_perl( join('', @replace) ),
+        result  => join('', @result),
+        revisit => join('', @revisit),
     };
 }
 
-# Sub to mangle unicode regex to Perl Regex
+# Sub to mangle Unicode regex to Perl Regex
 sub unicode_to_perl {
-    my $regex = shift;
+	my $regex = shift;
 
-    # Unicode character escape
-    $regex =~ s/
-        (?<!\\)
-        \\
-        (?>\\\\)*
-        u (\p{hexdigit}+)
-    /chr hex $1/gxe;
+	return '' unless length $regex;
+	$regex =~ s/
+		(?:\\\\)*+               	# Pairs of \
+		(?!\\)                   	# Not followed by \
+		\K                       	# But we don't want to keep that
+		(?<set>                     # Capture this
+			\[                      # Start a set
+				(?:
+					[^\[\]\\]+     	# One or more of not []\
+					|               # or
+					(?:
+						(?:\\\\)*+	# One or more pairs of \ witout back tracking
+						\\.         # Followed by an escaped character
+					)
+					|				# or
+					(?&set)			# An inner set
+				)++                 # Do the inside set stuff one or more times without backtracking
+			\]						# End the set
+		)
+	/ convert($1) /xeg;
+	no warnings "experimental::regex_sets";
+	return qr/$regex/;
+}
 
-    # Posix to Perl
-    $regex =~ s/\[: (.*?) :\]/\\p{$1}/gx;
-
-    return $regex;
+sub convert {
+	my $set = shift;
+	
+	# Some definitions
+	my $posix = qr/(?(DEFINE)
+		(?<posix> (?> \[: .+? :\] ) )
+		)/x;
+	
+	# Convert Unicode escapes \u1234 to characters
+	$set =~ s/\\u(\p{Ahex}+)/chr(hex($1))/egx;
+	
+	# Check to see if this is a normal character set
+	my $normal = 0;
+	
+	$normal = 1 if $set =~ /^
+		\s* 					# Possible whitespace
+		\[  					# Opening set
+		^?  					# Possible negation
+		(?:           			# One of
+			[^\[\]]++			# Not an open or close set 
+			|					# Or
+			(?:
+				\s*      		# Posible Whitespace
+				(?&posix)		# A posix class
+				(?!         	# Not followd by
+					\s*			# Possible whitespace
+					[&-]    	# A unicode regex op
+					\s*     	# Posible whitespace
+					\[      	# A set opener
+				)
+			)
+		)+
+		\] 						# Close the set
+		\s*						# Possible whitespace
+		$
+		$posix
+	/x;
+	
+	# Convert posix to perl
+	$set =~ s/\[:(.*?):\]/\\p{$1}/g;
+	
+	if ($normal) {
+		return "$set";
+	}
+	
+	# Fix up [abc[de]] to [[abc][de]]
+	$set =~ s/\[ ( (?>\^? \s*) [^\]]+? ) \s* \[/[[$1][/gx;
+	
+	# Fix up [[ab]cde] to [[ab][cde]]
+	$set =~ s/\[ \^?+ \s* \[ [^\]]+? \] \K \s* ( [^\[]+ ) \]/[$1]]/gx;
+	
+	# Unicode uses ^ to compliment the set where as Perl uses !
+	$set =~ s/\[ \^ \s*/[!/gx;
+	
+	# The above can leave us with empty sets. Strip them out
+	$set =~ s/\[\]//g;
+	
+	# Fixup inner sets with no operator
+	1 while $set =~ s/ \] \s* \[ /] + [/gx;
+	1 while $set =~ s/ \] \s * (\\p\{.*?\}) /] + $1/xg;
+	1 while $set =~ s/ \\p\{.*?\} \s* \K \[ / + [/xg;
+	1 while $set =~ s/ \\p\{.*?\} \s* \K (\\p\{.*?\}) / + $1/xg;
+	
+	# Unicode uses [] for grouping as well as starting an inner set
+	# Perl uses ( ) So fix that up now
+	
+	$set =~ s/. \K \[ (?> (!?) \s*) \[ /($1\[/gx;
+	$set =~ s/ \] \s* \] (.) /])$1/gx;
+	
+	return "(?$set)";
 }
 
 # vim:tabstop=4
