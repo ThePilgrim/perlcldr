@@ -1,7 +1,5 @@
-package Locale::CLDR v2.0.1;
-use v5.14;
-use encoding 'utf8';
-use feature 'unicode_strings';
+package Locale::CLDR v2.0.2;
+use v5.18;
 use open ':encoding(utf8)';
 
 use Moose;
@@ -21,7 +19,6 @@ Version 1.8.0 To match the CLDR Version
 =cut
 
 use List::Util qw(first);
-use Unicode::Set qw(unicode_to_perl);
 use Class::MOP;
 use DateTime::Locale;
 
@@ -1236,7 +1233,7 @@ sub _build_month_format_wide {
 	}
 
 	@bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, $month_alases{$default_calendar}) {
+	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
 			my $result = $months->{$calendar}{format}{wide}{nonleap};
@@ -1254,7 +1251,7 @@ sub _build_month_format_abbreviated {
 	my %month_aliases;
 	foreach my $aliases (@bundles) {
 		my $alias = $aliases->calendar_months_alias;
-		$month_aliases{$alias[0]} = $alias[1];
+		$month_aliases{$alias->[0]} = $alias->[1];
 	}
 
 	@bundles = $self->_find_bundle('calendar_months');
@@ -2004,6 +2001,24 @@ sub _build_prefers_24_hour_time {
 
 		return $days_2_number{$first_day};
 	}
+}
+
+# Sub to mangle unicode regex to Perl Regex
+sub unicode_to_perl {
+    my $regex = shift;
+
+    # Unicode character escape
+    $regex =~ s/
+        (?<!\\)
+        \\
+        (?>\\\\)*
+        u (\p{hexdigit}+)
+    /chr hex $1/gxe;
+
+    # Posix to Perl
+    $regex =~ s/\[: (.*?) :\]/\\p{$1}/gx;
+
+    return $regex;
 }
 
 =head1 AUTHOR
