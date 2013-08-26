@@ -138,7 +138,7 @@ process_valid_variant_aliases($file,$xml);
 process_footer($file, 1);
 close $file;
 
-# File for era boundries
+# File for era boundaries
 $xml = XML::XPath->new(
     File::Spec->catfile($base_directory,
         'supplemental',
@@ -298,7 +298,7 @@ sub output_file_name {
     return map {ucfirst lc} @nodes;
 }
 
-# Fill in any missing script or territory with the psudo class Any
+# Fill in any missing script or territory with the pseudo class Any
 sub process_class_any {
     my ($lib_path, @path_parts) = @_;
     
