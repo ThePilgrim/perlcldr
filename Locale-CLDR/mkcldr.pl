@@ -853,7 +853,7 @@ sub process_alias {
         my $new_path=$node->getAttribute('path');
         my $parent = $node->getParentNode;
         
-        # Check if we have allready replaced this node.
+        # Check if we have already replaced this node.
         # It wont have a parent if we have
         next unless $parent;
 
@@ -2132,7 +2132,7 @@ sub process_days {
     return \%days, \%aliases;
 }
 
-#/ldml/dates/calendars/calendar/quaters/
+#/ldml/dates/calendars/calendar/quarters/
 sub process_quarters {
     my ($xpath, $type) = @_;
 
@@ -3060,7 +3060,7 @@ sub process_transform_rule_backward {
     };
 }
 
-# Sub to mangle Unicode regex to Perl Regex
+# Sub to mangle Unicode regex to Perl regex
 sub unicode_to_perl {
 	my $regex = shift;
 
