@@ -264,7 +264,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 	process_measurement_system_data($file, $xml);
     process_units($file, $xml);
     process_posix($file, $xml);
-	process_list_patterns($self, $xml);
+	process_list_patterns($file, $xml);
     process_calendars($file, $xml, $current_locale);
     process_time_zone_names($file, $xml);
     process_footer($file);
