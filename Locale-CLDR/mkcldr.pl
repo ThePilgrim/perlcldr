@@ -261,6 +261,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_ellipsis($file, $xml);
     process_more_information($file, $xml);
     process_delimiters($file, $xml);
+	process_measurement_system_data($file, $xml);
     process_units($file, $xml);
     process_posix($file, $xml);
     process_calendars($file, $xml, $current_locale);
@@ -1433,12 +1434,50 @@ EOT
     }
 }
 
+sub process_measurement_system_data {
+	my ($file, $xpath) = @_;
+	
+	say 'Processing Measurement System Data' if $verbose;
+	my $measurementData = findnodes($xpath, '/ldml/measurementData');
+	return unless $measurementData->size;
+	
+	my @measurementSystem;
+	my @paperSize;
+	
+	foreach my $measurement ($measurementData->get_nodelist) {
+		my $what = $measurement->getLocalName;
+		my $type = $measurement->getAttribute('type');
+		my $territories = $measurement->getAttribute('territories');
+		
+		push @{$what eq 'measurementSystem' ? \@measurementSystem : \@paperSize },
+			[$type, $territories ];
+	}
+	
+	print $file <<EOT;
+has 'measurementSystem' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+
+	foreach my $measurement ( @measurementSystem ) {
+		say $file "\t\t\t\t$measurement->[0] =>\t [ qw( $measurement->[1] ) ],";
+	}
+	
+	print $file <<EOT;
+\t\t\t} },
+);
+EOT
+
+}
+
 sub process_units {
     my ($file, $xpath) = @_;
 
     say 'Processing Units' if $verbose;
     my $units = findnodes($xpath, '/ldml/units/*');
-    next unless $units->size;
+    return unless $units->size;
 
     my @units;
     foreach my $unit ($units->get_nodelist) {
