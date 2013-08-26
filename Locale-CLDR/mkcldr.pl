@@ -264,6 +264,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 	process_measurement_system_data($file, $xml);
     process_units($file, $xml);
     process_posix($file, $xml);
+	process_list_patterns($self, $xml);
     process_calendars($file, $xml, $current_locale);
     process_time_zone_names($file, $xml);
     process_footer($file);
@@ -1556,6 +1557,46 @@ has 'nostr' => (
 \tdefault\t\t=> '(?i:$no)'
 );
 EOT
+}
+
+# List patterns
+#/ldml/listPatterns/
+sub process_list_patterns {
+	my ($file, $xpath) = @_;
+	
+	say "Processing List Patterns" if $verbose;
+	
+	my $patterns = findnodes($xpath, '/ldml/listPatterns/listPattern/listPatternPart');
+	
+	return unless $patterns->size;
+	
+	my %patterns;
+	foreach my $pattern ($patterns->get_nodelist) {
+		my $type = $pattern->getAttribute('type');
+		my $text = ($pattern->get_nodelist)[0]->get_value;
+		$patterns{$type} = $text;
+	}
+	
+	print $file <<EOT;
+has 'listPatterns' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+	my %sort_lookup = (start => 0, middle => 1, end => 2);
+	foreach my $type ( sort { 
+		(($a + 0) <=> ($b + 0)) 
+		|| ( $sort_lookup{$a} <=> $sort_lookup{$b}) 
+	} keys %patterns ) {
+		say $file "\t\t\t\t$type => q($patterns{$type}),"
+	}
+	
+	print $file <<EOT;
+\t\t} }
+);
+EOT
+
 }
 
 # Dates
