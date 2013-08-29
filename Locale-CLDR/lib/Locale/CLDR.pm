@@ -5,6 +5,7 @@ use open ':encoding(utf8)';
 use Moose;
 use MooseX::ClassAttribute;
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData';
+use Class::Load;
 
 use namespace::autoclean;
 
@@ -111,12 +112,11 @@ sub _build_module {
 		unless $path[-1] eq 'Root';
 
 	# Now we go through the path loading each module
-	# And calling new on it. With each module we call
-	# fallback to expand the module with it's fallbacks
+	# And calling new on it. 
 	my $module;
 	foreach my $module_name (@path) {
 		$module_name = "Locale::CLDR::$module_name";
-		eval { Class::MOP::load_class($module_name); };
+		eval { Class::Load::load_class($module_name); };
 		next if $@;
 		$module = $module_name->new;
 		last;
@@ -126,7 +126,7 @@ sub _build_module {
 	# none of the language specific data is in the root. So we
 	# fall back to the en module
 	if (! $module || ref $module eq 'Locale::CLDR::Root') {
-		Class::MOP::load_class('Locale::CLDR::En');
+		Class::Load::load_class('Locale::CLDR::En');
 		$module = Locale::CLDR::En->new
 	}
 
@@ -338,15 +338,16 @@ sub _build_break_rules {
 		$rules{$rule_number} =~ s{ ( \$ \p{ID_START} \p{ID_CONTINUE}* ) }{$vars->{$1}}msxeg;
 		my ($first, $opp, $second) = split /(×|÷)/, $rules{$rule_number};
 
-		foreach my $opperand ($first, $second) {
-			if ($opperand =~ m{ \S }msx) {
-				$opperand = unicode_to_perl($opperand);
+		foreach my $operand ($first, $second) {
+			if ($operand =~ m{ \S }msx) {
+				$operand = unicode_to_perl($operand);
 			}
 			else {
-				$opperand = '.';
+				$operand = '.';
 			}
 		}
-
+		
+		no warnings 'deprecated';
 		push @rules, [qr{$first}msx, qr{$second}msx, ($opp eq '×' ? 1 : 0)];
 	}
 
@@ -540,7 +541,7 @@ sub _build_language {
 sub _build_native_language {
 	my $self = shift;
 
-	return $self->language_name();
+	return $self->language_name() // '';
 }
 
 sub _build_script {
@@ -590,6 +591,7 @@ sub _find_bundle {
 	}
 
 	foreach my $module ($self->module->meta->linearized_isa) {
+		last if $module eq 'Moose::Object';
 		if ($module->meta->has_method($method_name)) {
 			push @{$self->method_cache->{$id}{$method_name}}, $module->new;
 		}
@@ -906,7 +908,7 @@ sub code_pattern {
 	return '' unless $type =~ m{ \A (?: language | script | territory ) \z }xms;
 
 	my $method = $type . '_name';
-	my $substute = $locale->$method;
+	my $substute = $self->$method($locale);
 
 	my @bundles = $self->_find_bundle('display_name_code_patterns');
 	foreach my $bundle (@bundles) {
@@ -1015,7 +1017,7 @@ sub _split {
 	my @split = (scalar @$rules) x (length($string) - 1);
 
 	pos($string)=0;
-	# The Unicode Consortium has deprecated LB=Surigate but the CLDR still
+	# The Unicode Consortium has deprecated LB=Surrogate but the CLDR still
 	# uses it, at last in this version.
 	no warnings 'deprecated';
 	while (length($string) -1 != pos $string) {
@@ -1029,7 +1031,6 @@ sub _split {
 				$rule_number++;
 				next;
 			}
-
 			my $location = pos($string) + length($+{first}) -1;
 			$split[$location] = $rule_number if $rule_number < $split[$location];
 		}
@@ -1051,7 +1052,7 @@ sub _split {
 	return @split;
 }
 
-# Corectly case elements in string
+# Correctly case elements in string
 sub in_text {
 	my ($self, $type, $string) = @_;
 
@@ -2004,22 +2005,107 @@ sub _build_prefers_24_hour_time {
 	}
 }
 
-# Sub to mangle unicode regex to Perl Regex
+# Sub to mangle Unicode regex to Perl regex
 sub unicode_to_perl {
-    my $regex = shift;
+	my $regex = shift;
 
-    # Unicode character escape
-    $regex =~ s/
-        (?<!\\)
-        \\
-        (?>\\\\)*
-        u (\p{hexdigit}+)
-    /chr hex $1/gxe;
+	return '' unless length $regex;
+	$regex =~ s/
+		(?:\\\\)*+               	# Pairs of \
+		(?!\\)                   	# Not followed by \
+		\K                       	# But we don't want to keep that
+		(?<set>                     # Capture this
+			\[                      # Start a set
+				(?:
+					[^\[\]\\]+     	# One or more of not []\
+					|               # or
+					(?:
+						(?:\\\\)*+	# One or more pairs of \ witout back tracking
+						\\.         # Followed by an escaped character
+					)
+					|				# or
+					(?&set)			# An inner set
+				)++                 # Do the inside set stuff one or more times without backtracking
+			\]						# End the set
+		)
+	/ convert($1) /xeg;
+	no warnings "experimental::regex_sets";
+	no warnings "deprecated"; # Because CLDR uses surrogates
+	return qr/$regex/x;
+}
 
-    # Posix to Perl
-    $regex =~ s/\[: (.*?) :\]/\\p{$1}/gx;
-
-    return $regex;
+sub convert {
+	my $set = shift;
+	
+	# Some definitions
+	my $posix = qr/(?(DEFINE)
+		(?<posix> (?> \[: .+? :\] ) )
+		)/x;
+	
+	# Convert Unicode escapes \u1234 to characters
+	$set =~ s/\\u(\p{Ahex}+)/chr(hex($1))/egx;
+	
+	# Check to see if this is a normal character set
+	my $normal = 0;
+	
+	$normal = 1 if $set =~ /^
+		\s* 					# Possible whitespace
+		\[  					# Opening set
+		^?  					# Possible negation
+		(?:           			# One of
+			[^\[\]]++			# Not an open or close set 
+			|					# Or
+			(?<=\\)[\[\]]       # An open or close set preceded by \
+			|                   # Or
+			(?:
+				\s*      		# Posible Whitespace
+				(?&posix)		# A posix class
+				(?!         	# Not followd by
+					\s*			# Possible whitespace
+					[&-]    	# A unicode regex op
+					\s*     	# Posible whitespace
+					\[      	# A set opener
+				)
+			)
+		)+
+		\] 						# Close the set
+		\s*						# Possible whitespace
+		$
+		$posix
+	/x;
+	
+	# Convert posix to perl
+	$set =~ s/\[:(.*?):\]/\\p{$1}/g;
+	
+	if ($normal) {
+		return "$set";
+	}
+	
+	# Fix up [abc[de]] to [[abc][de]]
+	$set =~ s/\[ ( (?>\^? \s*) [^\]]+? ) \s* \[/[[$1][/gx;
+	
+	# Fix up [[ab]cde] to [[ab][cde]]
+	$set =~ s/\[ \^?+ \s* \[ [^\]]+? \] \K \s* ( [^\[]+ ) \]/[$1]]/gx;
+	
+	# Unicode uses ^ to compliment the set where as Perl uses !
+	$set =~ s/\[ \^ \s*/[!/gx;
+	
+	# The above can leave us with empty sets. Strip them out
+	$set =~ s/\[\]//g;
+	
+	# Fixup inner sets with no operator
+	1 while $set =~ s/ \] \s* \[ /] + [/gx;
+	1 while $set =~ s/ \] \s * (\\p\{.*?\}) /] + $1/xg;
+	1 while $set =~ s/ \\p\{.*?\} \s* \K \[ / + [/xg;
+	1 while $set =~ s/ \\p\{.*?\} \s* \K (\\p\{.*?\}) / + $1/xg;
+	
+	# Unicode uses [] for grouping as well as starting an inner set
+	# Perl uses ( ) So fix that up now
+	
+	$set =~ s/. \K \[ (?> (!?) \s*) \[ /($1\[/gx;
+	$set =~ s/ \] \s* \] (.) /])$1/gx;
+	
+	return "(?$set)";
 }
 
 =head1 AUTHOR

@@ -265,6 +265,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_units($file, $xml);
     process_posix($file, $xml);
 	process_list_patterns($file, $xml);
+	process_context_transforms($file, $xml);
     process_calendars($file, $xml, $current_locale);
     process_time_zone_names($file, $xml);
     process_footer($file);
@@ -350,7 +351,7 @@ sub process_header {
 
     $xml_generated=~s/^\$Date: (.*) \$$/$1/;
 
-    my $header = <<EOT;
+	my $header = <<EOT;
 package $class;
 # This file auto generated from $xml_name
 #\ton $now GMT
@@ -363,6 +364,12 @@ use Moose$isRole;
 
 EOT
     print $file $header;
+	if (!$isRole && $class =~ /^Locale::CLDR::...?(?:::|$)/) {
+		my ($parent) = $class =~ /^(.+)::/;
+		$parent = 'Locale::CLDR::Root' if $parent eq 'Locale::CLDR';
+		
+		say $file "extends('$parent');" unless $isRole;
+	}
 }
 
 sub process_valid_languages {
@@ -1573,7 +1580,7 @@ sub process_list_patterns {
 	my %patterns;
 	foreach my $pattern ($patterns->get_nodelist) {
 		my $type = $pattern->getAttribute('type');
-		my $text = ($pattern->get_nodelist)[0]->get_value;
+		my $text = $pattern->getChildNode(1)->getValue;
 		$patterns{$type} = $text;
 	}
 	
@@ -1597,6 +1604,12 @@ EOT
 );
 EOT
 
+}
+
+#/ldml/contextTransforms
+sub process_context_transforms {
+	my ($file, $xpath) = @_;
+	
 }
 
 # Dates
@@ -1717,7 +1730,7 @@ has 'calendar_months_alias' => (
 \tdefault\t\t=> sub { {
 EOT
         foreach my $from (sort keys %{$calendars{months_aliases}}) {
-            say $file "\t\t\tq($from) => q($calendars{months_aliases}{$from})";
+            say $file "\t\t\tq($from) => q($calendars{months_aliases}{$from}),";
         }
         print $file <<EOT;
 \t} },
@@ -2727,7 +2740,7 @@ EOT
             # Check for deleting variables
             my $value = $variable->getChildNode(1);
             if (defined $value) {
-                $value = "'" . unicode_to_perl($value->getValue) . "'";
+                $value = "'" . $value->getValue . "'";
             }
             else {
                 $value = 'undef()';
