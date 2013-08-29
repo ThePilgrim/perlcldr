@@ -3,7 +3,6 @@ use strict;
 use warnings;
 use utf8;
 
-
 use Test::More tests => 97;
 use Test::Exception;
 
@@ -60,8 +59,8 @@ is ($locale->territory_name('wibble'), 'Unknown Region', 'Invalid Territory name
 is ($locale->variant_name('AREVMDA'), 'Western Armenian', 'Variant name');
 throws_ok { $locale->variant_name('WIBBLE') } qr{ \A Invalid \s variant }xms, 'Invalid Variant name';
 is ($locale->language_name('i-klingon'), 'Klingon', 'Language alias');
-is ($locale->territory_name('BQ'), 'Bonaire, Saint Eustatius, and Saba', 'Territory alias');
-is ($locale->territory_name('830'), 'Channel Islands', 'Territory alias');
+is ($locale->territory_name('BQ'), 'Caribbean Netherlands', 'Territory alias');
+is ($locale->territory_name('830'), 'Unknown Region', 'Territory alias');
 is ($locale->variant_name('BOKMAL'), '', 'Variant alias');
 is ($locale->key_name('ca'), 'Calendar', 'Key name');
 is ($locale->type_name('calendar', 'gregorian'), 'Gregorian Calendar', 'Type name');
@@ -72,9 +71,9 @@ is ($locale->measurement_system_name('metric'), 'Metric', 'Measurement system Me
 
 # Code patterns
 my $test = Locale::CLDR->new('az_latn_az');
-is ($locale->code_pattern('language', $test), 'Language: azərbaycanca', 'Code pattern Language');
-is ($locale->code_pattern('script', $test), 'Script: latın', 'Code pattern script');
-is ($locale->code_pattern('territory', $test), 'Region: Azərbaycan', 'Code pattern territory');
+is ($locale->code_pattern('language', $test), 'Language: Azerbaijani', 'Code pattern Language');
+is ($locale->code_pattern('script', $test), 'Script: Latin', 'Code pattern script');
+is ($locale->code_pattern('territory', $test), 'Region: Azerbaijan', 'Code pattern territory');
 
 # Orientation
 is ($locale->text_orientation('lines'), 'top-to-bottom', 'Line orientation');
@@ -160,8 +159,6 @@ foreach my $type (
 }
 
 #exemplar characters
-SKIP: {
-skip 'Exampler characters use lots of unicode properties, causing segfaults',9;
 ok($locale->is_exemplar_character("A"), 'Is Exemplar Character');
 ok(!$locale->is_exemplar_character('@'), 'Is not Exemplar Character');
 ok($locale->is_exemplar_character('auxiliary', "ê"), 'Is Auxiliary Exemplar Character');
@@ -171,7 +168,7 @@ ok(!$locale->is_exemplar_character('punctuation', '@'), 'Is not Punctiation Exem
 ok($locale->is_exemplar_character('currencySymbol', "A"), 'Is Currency Exemplar Character');
 ok(!$locale->is_exemplar_character('currencySymbol', '@'), 'Is not Currency Exemplar Character');
 is("@{$locale->index_characters()}", 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z', 'Index Characters');
-}
+
 # Ellipsis
 is ($locale->truncated_beginning('abc'), '… abc','Truncated beginning');
 is ($locale->truncated_between('abc','def'), 'abc… def','Truncated between');
