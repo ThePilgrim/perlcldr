@@ -1,9 +1,11 @@
 #!/usr/bin/perl
+use v5.18;
 use strict;
 use warnings;
 use utf8;
+use feature 'unicode_strings';
 
-use Test::More tests => 97;
+use Test::More tests => 61;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -89,12 +91,13 @@ is_deeply(\@grapheme_clusters, [
 ], 'Split grapheme clusters');
 my @words = $locale->split_words($text);
 is_deeply(\@words, [
-	'adf543', '.', ',', ' ', 'Tiếng', ' ', 'Viết', "\n", "\r", '45dfr.A', ' ', 'new',
-	' ', 'sentence'
+	'adf543', '.', ', ', 'Tiếng ', 'Viết', "\n", "\r", '45dfr.', 'A ', 'new ',
+	'sentence'
 ], 'Split words');
 my @sentences = $locale->split_sentences($text);
 is_deeply(\@sentences, [
-	"adf543., Tiếng Viết\n",
+	"adf543., Tiếng Viết",
+	"\n",
 	"\r",
 	"45dfr.",
 	"A new sentence",
@@ -110,89 +113,41 @@ is_deeply(\@lines, [
 	"sentence",
 ], 'Split lines');
 
-# In list
-is ($locale->in_list('case These words'), 'case These words', 'In list Casing');
-$locale = Locale::CLDR->new('Ca');
-is ($locale->in_list('case These words'), 'Case These words', 'In list Casing for Ca locale');
-
-# In Text
-$locale = Locale::CLDR->new('en');
-foreach my $type (
-	[ currency => 'case These words' ],
-	[ dayWidth => 'case These words' ],
-	[ fields => 'case These words' ],
-	[ keys => 'case These words' ],
-	[ languages => 'case These words' ],
-	[ long => 'case These words' ],
-	[ measurementSystemNames => 'case These words' ],
-	[ monthWidth => 'case These words' ],
-	[ quaterWidth => 'case These words' ],
-	[ scripts => 'case These words' ],
-	[ territories => 'case These words' ],
-	[ types => 'case These words' ],
-	[ variants => 'case These words' ],
-	){
-	is( $locale->in_text($type->[0],'case These words'), $type->[1], 
-		"In text casing for " . $type->[0]
-	);
-}
-
-$locale = Locale::CLDR->new('ca');
-foreach my $type (
-	[ currency => 'case these words' ],
-	[ dayWidth => 'case These words' ],
-	[ fields => 'case these words' ],
-	[ keys => 'case these words' ],
-	[ languages => 'case these words' ],
-	[ long => 'case these words' ],
-	[ measurementSystemNames => 'case these words' ],
-	[ monthWidth => 'case These words' ],
-	[ quaterWidth => 'case These words' ],
-	[ scripts => 'case these words' ],
-	[ territories => 'case These words' ],
-	[ types => 'case these words' ],
-	[ variants => 'case These words' ],
-	){
-	is( $locale->in_text($type->[0],'case These words'), $type->[1], 
-		"In text casing for " . $type->[0] . ' Locale ca'
-	);
-}
-
 #exemplar characters
 ok($locale->is_exemplar_character("A"), 'Is Exemplar Character');
 ok(!$locale->is_exemplar_character('@'), 'Is not Exemplar Character');
-ok($locale->is_exemplar_character('auxiliary', "ê"), 'Is Auxiliary Exemplar Character');
+ok($locale->is_exemplar_character('auxiliary', "\N{U+00EA}"), 'Is Auxiliary Exemplar Character');
 ok(!$locale->is_exemplar_character('auxiliary','@'), 'Is not Auxiliary Exemplar Character');
 ok($locale->is_exemplar_character('punctuation', "!"), 'Is Punctiation Exemplar Character');
-ok(!$locale->is_exemplar_character('punctuation', '@'), 'Is not Punctiation Exemplar Character');
-ok($locale->is_exemplar_character('currencySymbol', "A"), 'Is Currency Exemplar Character');
-ok(!$locale->is_exemplar_character('currencySymbol', '@'), 'Is not Currency Exemplar Character');
+ok(!$locale->is_exemplar_character('punctuation', 'a'), 'Is not Punctiation Exemplar Character');
 is("@{$locale->index_characters()}", 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z', 'Index Characters');
 
 # Ellipsis
-is ($locale->truncated_beginning('abc'), '… abc','Truncated beginning');
-is ($locale->truncated_between('abc','def'), 'abc… def','Truncated between');
+is ($locale->truncated_beginning('abc'), '…abc','Truncated beginning');
+is ($locale->truncated_between('abc','def'), 'abc…def','Truncated between');
 is ($locale->truncated_end('abc'), 'abc…','Truncated end');
 
-is($locale->more_information(), '[...]','More Information');
+is($locale->more_information(), '?','More Information');
 
 # Delimiters
 $locale = Locale::CLDR->new('en_GB');
 my $quoted = $locale->quote('abc');
-is($quoted, '‘abc’', 'Quote en_GB');
+is($quoted, '“abc”', 'Quote en_GB');
 $quoted = $locale->quote("z $quoted z");
-is($quoted, '‘z “abc” z’', 'Quote en_GB');
+is($quoted, '“z ‘abc’ z”', 'Quote en_GB');
 $quoted = $locale->quote("dd 'z $quoted z dd");
-is($quoted, '‘dd \'z “z ‘abc’ z” z dd’', 'Quote en_GB');
+is($quoted, '“dd \'z ‘z “abc” z’ z dd”', 'Quote en_GB');
 
 $locale = Locale::CLDR->new('fr');
 $quoted = $locale->quote('abc');
 is($quoted, '«abc»', 'Quote fr');
 $quoted = $locale->quote("z $quoted z");
-is($quoted, "«z \x{201C}abc\x{201D} z»", 'Quote fr');
+is($quoted, "«z «abc» z»", 'Quote fr');
 $quoted = $locale->quote("dd 'z $quoted z dd");
-is($quoted, "«dd \'z \x{201C}z «abc» z\x{201D} z dd»", 'Quote fr');
+is($quoted, "«dd \'z «z «abc» z» z dd»", 'Quote fr');
 
+#Measurement System
+__END__
 # Calendars
 $locale = Locale::CLDR->new('en_GB');
 my $months = $locale->month_format_wide();

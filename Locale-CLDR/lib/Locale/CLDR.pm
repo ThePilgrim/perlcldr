@@ -1,10 +1,10 @@
 package Locale::CLDR v2.0.2;
 use v5.18;
 use open ':encoding(utf8)';
-
+use utf8;
 use Moose;
 use MooseX::ClassAttribute;
-with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData';
+with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 'Locale::CLDR::MeasurementSystem';
 use Class::Load;
 
 use namespace::autoclean;
@@ -395,7 +395,7 @@ sub BUILDARGS {
 			: @_
 	}
 
-	# Split up the extentions
+	# Split up the extensions
 	if ( defined $args{extentions} && ! ref $args{extentions} ) {
 		$args{extentions} = {
 			map {lc}
@@ -936,20 +936,6 @@ sub text_orientation {
 	return;
 }
 
-# Correctly case $list_entry
-sub in_list {
-	my ($self, $list_entry) = @_; 
-
-	my @bundles = $self->_find_bundle('in_list');
-	foreach my $bundle (@bundles) {
-		my $casing = $bundle->in_list;
-		next unless defined $casing;
-		return $self->_set_casing($casing, $list_entry);
-	}
-
-	return $list_entry;
-}
-
 sub _set_casing {
 	my ($self, $casing, $string) = @_;
 
@@ -979,7 +965,7 @@ sub split_grapheme_clusters {
 	my ($self, $string) = @_;
 
 	my $rules = $self->break_grapheme_cluster;
-	my @clusters = $self->_split($rules, $string);
+	my @clusters = $self->_split($rules, $string, 1);
 
 	return @clusters;
 }
@@ -1012,7 +998,7 @@ sub split_lines {
 }
 
 sub _split {
-	my ($self, $rules, $string) = @_;
+	my ($self, $rules, $string, $grapheme_split) = @_;
 
 	my @split = (scalar @$rules) x (length($string) - 1);
 
@@ -1032,11 +1018,19 @@ sub _split {
 				next;
 			}
 			my $location = pos($string) + length($+{first}) -1;
-			$split[$location] = $rule_number if $rule_number < $split[$location];
+			$split[$location] = $rule_number;
+			
+			# If the left hand side was part of a grapheme cluster 
+			# we have to jump past the entire cluster
+			my $length = length $+{first};
+			my ($gc) = $string =~ /\G(\X)/;
+			$length = (! $grapheme_split && length($gc)) > $length ? length($gc) : $length;
+			pos($string)+= $length;
+			last;
 		}
-		pos($string)++;
 	}
 
+	push @$rules,[undef,undef,1];
 	@split = map {$rules->[$_][2] ? 1 : 0} @split;
 	my $count = 0;
 	my @sections = ('.');
@@ -1052,20 +1046,6 @@ sub _split {
 	return @split;
 }
 
-# Correctly case elements in string
-sub in_text {
-	my ($self, $type, $string) = @_;
-
-	my @bundles = $self->_find_bundle('in_text');
-	foreach my $bundle (@bundles) {
-		my $casing = $bundle->in_text->{$type};
-		next unless defined $casing;
-		return $self->_set_casing($casing, $string);
-	}
-
-	return $string;
-}
-
 #Exemplar characters
 sub is_exemplar_character {
 	my ($self, @parameters) = @_;
@@ -1075,7 +1055,7 @@ sub is_exemplar_character {
 	foreach my $bundle (@bundles) {
 		my $characters = $bundle->characters->{$parameters[0]};
 		next unless defined $characters;
-		return 1 if lc($parameters[1])=~$characters;
+		return 1 if fc($parameters[1])=~$characters;
 	}
 
 	return;

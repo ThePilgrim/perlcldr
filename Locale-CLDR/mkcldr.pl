@@ -180,6 +180,15 @@ process_week_data($file, $xml);
 process_footer($file, 1);
 close $file;
 
+# Measurement System Data
+open $file, '>', File::Spec->catfile($lib_directory, 'MeasurementSystem.pm');
+
+# Note: The order of these calls is important
+process_header($file, 'Locale::CLDR::MeasurementSystem', $CLDR_VERSION, $xml, $file_name, 1);
+process_measurement_system_data($file, $xml);
+process_footer($file, 1);
+close $file;
+
 # Transformations
 make_path($transformations_directory) unless -d $transformations_directory;
 opendir (my $dir, $transform_directory);
@@ -261,8 +270,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_ellipsis($file, $xml);
     process_more_information($file, $xml);
     process_delimiters($file, $xml);
-	process_measurement_system_data($file, $xml);
-    process_units($file, $xml);
+	process_units($file, $xml);
     process_posix($file, $xml);
 	process_list_patterns($file, $xml);
 	process_context_transforms($file, $xml);
@@ -359,6 +367,7 @@ package $class;
 
 use v5.18;
 use mro 'c3';
+use utf8;
 
 use Moose$isRole;
 
@@ -1446,7 +1455,7 @@ sub process_measurement_system_data {
 	my ($file, $xpath) = @_;
 	
 	say 'Processing Measurement System Data' if $verbose;
-	my $measurementData = findnodes($xpath, '/ldml/measurementData');
+	my $measurementData = findnodes($xpath, '/supplementalData/measurementData/*');
 	return unless $measurementData->size;
 	
 	my @measurementSystem;
@@ -1462,7 +1471,7 @@ sub process_measurement_system_data {
 	}
 	
 	print $file <<EOT;
-has 'measurementSystem' => (
+has 'measurement_system' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
@@ -1476,8 +1485,26 @@ EOT
 	print $file <<EOT;
 \t\t\t} },
 );
+
+EOT
+	
+	print $file <<EOT;
+has 'paper_size' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
 EOT
 
+	foreach my $paper_size ( @paperSize) {
+		say $file "\t\t\t\t$paper_size->[0] =>\t [ qw( $paper_size->[1] ) ],";
+	}
+	
+	print $file <<EOT;
+\t\t\t} },
+);
+
+EOT
 }
 
 sub process_units {
