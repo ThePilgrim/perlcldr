@@ -1479,7 +1479,9 @@ has 'measurement_system' => (
 EOT
 
 	foreach my $measurement ( @measurementSystem ) {
-		say $file "\t\t\t\t$measurement->[0] =>\t [ qw( $measurement->[1] ) ],";
+		foreach my $territory (split /\s+/, $measurement->[1]) {
+			say $file "\t\t\t\t'$territory'\t=> '$measurement->[0]',";
+		}
 	}
 	
 	print $file <<EOT;
@@ -1497,7 +1499,9 @@ has 'paper_size' => (
 EOT
 
 	foreach my $paper_size ( @paperSize) {
-		say $file "\t\t\t\t$paper_size->[0] =>\t [ qw( $paper_size->[1] ) ],";
+		foreach my $territory (split /\s+/, $paper_size->[1]) {
+			say $file "\t\t\t\t'$territory'\t=> '$paper_size->[0]',";
+		}
 	}
 	
 	print $file <<EOT;

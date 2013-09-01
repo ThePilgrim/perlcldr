@@ -5,7 +5,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 61;
+use Test::More tests => 65;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -147,6 +147,13 @@ $quoted = $locale->quote("dd 'z $quoted z dd");
 is($quoted, "«dd \'z «z «abc» z» z dd»", 'Quote fr');
 
 #Measurement System
+$locale = Locale::CLDR->new('en_GB');
+is($locale->measurement, 'metric', 'GB uses metric measurement');
+is($locale->paper, 'A4', 'GB uses A4 paper');
+$locale = Locale::CLDR->new('en_US');
+is($locale->measurement, 'US', 'US uses US measurement');
+is($locale->paper, 'US-Letter', 'US uses US-Letter paper');
+
 __END__
 # Calendars
 $locale = Locale::CLDR->new('en_GB');

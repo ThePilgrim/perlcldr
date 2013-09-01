@@ -603,7 +603,7 @@ sub _find_bundle {
 		: $self->method_cache->{$id}{$method_name}[0];
 }
 
-# Method to return the given local name in the current locals format
+# Method to return the given locale name in the current locales format
 sub locale_name {
 	my ($self, $name) = @_;
 	$name //= $self;
@@ -942,7 +942,7 @@ sub _set_casing {
 	my @words = $self->split_words($string);
 
 	if ($casing eq 'titlecase-firstword') {
-		# Check to see wether $words[0] is whitspace or not
+		# Check to see whether $words[0] is white space or not
 		my $firstword_location = 0;
  		if ($words[0] =~ m{ \A \s }msx) {
 			$firstword_location = 1;
@@ -1146,7 +1146,7 @@ sub quote {
 		last;
 	}
 
-	# Check to see if we need to sitch quotes
+	# Check to see if we need to switch quotes
 	foreach (qw( start end alternate_start alternate_end)) {
 		$quote{$_} //= '';
 	}
@@ -1164,6 +1164,25 @@ sub quote {
 	}
 
 	return "$quote{start}$text$quote{end}";
+}
+
+# Measurement data
+sub measurement {
+	my $self = shift;
+	
+	my $measurement_data = $self->measurement_system;
+	my $territory = $self->territory_id // '001';
+	
+	return $measurement_data->{$territory} // $measurement_data->{'001'};
+}
+
+sub paper {
+	my $self = shift;
+	
+	my $paper_size = $self->paper_size;
+	my $territory = $self->territory_id // '001';
+	
+	return $paper_size->{$territory} // $paper_size->{'001'};
 }
 
 sub _build_default_calendar {
