@@ -1,11 +1,12 @@
 #!/usr/bin/perl
+# Do not normalise this test file. It has deliberately unnormalised characters in it.
 use v5.18;
 use strict;
 use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 65;
+use Test::More tests => 137;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -146,7 +147,7 @@ is($quoted, "«z «abc» z»", 'Quote fr');
 $quoted = $locale->quote("dd 'z $quoted z dd");
 is($quoted, "«dd \'z «z «abc» z» z dd»", 'Quote fr');
 
-#Measurement System
+# Measurement System
 $locale = Locale::CLDR->new('en_GB');
 is($locale->measurement, 'metric', 'GB uses metric measurement');
 is($locale->paper, 'A4', 'GB uses A4 paper');
@@ -154,6 +155,82 @@ $locale = Locale::CLDR->new('en_US');
 is($locale->measurement, 'US', 'US uses US measurement');
 is($locale->paper, 'US-Letter', 'US uses US-Letter paper');
 
+# Units
+$locale = Locale::CLDR->new('en_GB');
+is($locale->unit(1, 'day', 'short'), '1 day', 'English 1 day short form');
+is($locale->unit(2, 'day', 'short'), '2 days', 'English 2 days short form');
+is($locale->unit(1, 'day'), '1 day', 'English 1 day');
+is($locale->unit(2, 'day'), '2 days', 'English 2 days');
+is($locale->unit(1, 'day-future', 'short'), 'In 1 day', 'English 1 day future short form');
+is($locale->unit(2, 'day-future', 'short'), 'In 2 days', 'English 2 days future short form');
+is($locale->unit(1, 'day-future'), 'In 1 day', 'English 1 day future');
+is($locale->unit(2, 'day-future'), 'In 2 days', 'English 2 days future');
+is($locale->unit(1, 'day-past', 'short'), '1 day ago', 'English 1 day past short form');
+is($locale->unit(2, 'day-past', 'short'), '2 days ago', 'English 2 days past short form');
+is($locale->unit(1, 'day-past'), '1 day ago', 'English 1 day past');
+is($locale->unit(2, 'day-past'), '2 days ago', 'English 2 days past');
+is($locale->unit(1, 'hour', 'short'), '1 hr', 'English 1 hour short form');
+is($locale->unit(2, 'hour', 'short'), '2 hrs', 'English 2 hours short form');
+is($locale->unit(1, 'hour'), '1 hour', 'English 1 hour');
+is($locale->unit(2, 'hour'), '2 hours', 'English 2 hours');
+is($locale->unit(1, 'hour-future', 'short'), 'In 1 hour', 'English 1 hour future short form');
+is($locale->unit(2, 'hour-future', 'short'), 'In 2 hours', 'English 2 hours future short form');
+is($locale->unit(1, 'hour-future'), 'In 1 hour', 'English 1 hour future');
+is($locale->unit(2, 'hour-future'), 'In 2 hours', 'English 2 hours future');
+is($locale->unit(1, 'hour-past', 'short'), '1 hour ago', 'English 1 hour past short form');
+is($locale->unit(2, 'hour-past', 'short'), '2 hours ago', 'English 2 hours past short form');
+is($locale->unit(1, 'hour-past'), '1 hour ago', 'English 1 hour past');
+is($locale->unit(2, 'hour-past'), '2 hours ago', 'English 2 hours past');
+is($locale->unit(1, 'minute', 'short'), '1 min', 'English 1 hour short form');
+is($locale->unit(2, 'minute', 'short'), '2 mins', 'English 2 hours short form');
+is($locale->unit(1, 'minute'), '1 minute', 'English 1 minute');
+is($locale->unit(2, 'minute'), '2 minutes', 'English 2 minutes');
+is($locale->unit(1, 'minute-future', 'short'), 'In 1 minute', 'English 1 minute future short form');
+is($locale->unit(2, 'minute-future', 'short'), 'In 2 minutes', 'English 2 minutes future short form');
+is($locale->unit(1, 'minute-future'), 'In 1 minute', 'English 1 minute future');
+is($locale->unit(2, 'minute-future'), 'In 2 minutes', 'English 2 minutes future');
+is($locale->unit(1, 'minute-past', 'short'), '1 minute ago', 'English 1 minute past short form');
+is($locale->unit(2, 'minute-past', 'short'), '2 minutes ago', 'English 2 minutes past short form');
+is($locale->unit(1, 'minute-past'), '1 minute ago', 'English 1 minute past');
+is($locale->unit(2, 'minute-past'), '2 minutes ago', 'English 2 minutes past');
+
+$locale = Locale::CLDR->new('bg_BG');
+is($locale->unit(1, 'day', 'short'), '1 дн.', 'Bulgarian 1 day short form');
+is($locale->unit(2, 'day', 'short'), '2 дн.', 'Bulgarian 2 days short form');
+is($locale->unit(1, 'day'), '1 ден', 'Bulgarian 1 day');
+is($locale->unit(2, 'day'), '2 дена', 'Bulgarian 2 days');
+is($locale->unit(1, 'day-future', 'short'), 'След 1 дни', 'Bulgarian 1 day future short form');
+is($locale->unit(2, 'day-future', 'short'), 'След 2 дни', 'Bulgarian 2 days future short form');
+is($locale->unit(1, 'day-future'), 'След 1 дни', 'Bulgarian 1 day future');
+is($locale->unit(2, 'day-future'), 'След 2 дни', 'Bulgarian 2 days future');
+is($locale->unit(1, 'day-past', 'short'), 'Преди 1 ден', 'Bulgarian 1 day past short form');
+is($locale->unit(2, 'day-past', 'short'), 'Преди 2 дни', 'Bulgarian 2 days past short form');
+is($locale->unit(1, 'day-past'), 'Преди 1 ден', 'Bulgarian 1 day past');
+is($locale->unit(2, 'day-past'), 'Преди 2 дни', 'Bulgarian 2 days past');
+is($locale->unit(1, 'hour', 'short'), '1 ч', 'Bulgarian 1 hour short form');
+is($locale->unit(2, 'hour', 'short'), '2 ч', 'Bulgarian 2 hours short form');
+is($locale->unit(1, 'hour'), '1 час', 'Bulgarian 1 hour');
+is($locale->unit(2, 'hour'), '2 часа', 'Bulgarian 2 hours');
+is($locale->unit(1, 'hour-future', 'short'), 'След 1 час', 'Bulgarian 1 hour future short form');
+is($locale->unit(2, 'hour-future', 'short'), 'След 2 часа', 'Bulgarian 2 hours future short form');
+is($locale->unit(1, 'hour-future'), 'След 1 час', 'Bulgarian 1 hour future');
+is($locale->unit(2, 'hour-future'), 'След 2 часа', 'Bulgarian 2 hours future');
+is($locale->unit(1, 'hour-past', 'short'), 'Преди 1 час', 'Bulgarian 1 hour past short form');
+is($locale->unit(2, 'hour-past', 'short'), 'Преди 2 часа', 'Bulgarian 2 hours past short form');
+is($locale->unit(1, 'hour-past'), 'Преди 1 час', 'Bulgarian 1 hour past');
+is($locale->unit(2, 'hour-past'), 'Преди 2 часа', 'Bulgarian 2 hours past');
+is($locale->unit(1, 'minute', 'short'), '1 мин', 'Bulgarian 1 minute short form');
+is($locale->unit(2, 'minute', 'short'), '2 мин', 'Bulgarian 2 minutes short form');
+is($locale->unit(1, 'minute'), '1 минута', 'Bulgarian 1 minute');
+is($locale->unit(2, 'minute'), '2 минути', 'Bulgarian 2 minutes');
+is($locale->unit(1, 'minute-future', 'short'), 'След 1 минута', 'Bulgarian 1 minute future short form');
+is($locale->unit(2, 'minute-future', 'short'), 'След 2 минути', 'Bulgarian 2 minutes future short form');
+is($locale->unit(1, 'minute-future'), 'След 1 минута', 'Bulgarian 1 minute future');
+is($locale->unit(2, 'minute-future'), 'След 2 минути', 'Bulgarian 2 minutes future');
+is($locale->unit(1, 'minute-past', 'short'), 'Преди 1 минута', 'Bulgarian 1 minute past short form');
+is($locale->unit(2, 'minute-past', 'short'), 'Преди 2 минути', 'Bulgarian 2 minutes past short form');
+is($locale->unit(1, 'minute-past'), 'Преди 1 минута', 'Bulgarian 1 minute past');
+is($locale->unit(2, 'minute-past'), 'Преди 2 минути', 'Bulgarian 2 minutes past');
 __END__
 # Calendars
 $locale = Locale::CLDR->new('en_GB');

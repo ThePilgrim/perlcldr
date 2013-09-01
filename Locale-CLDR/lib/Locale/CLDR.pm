@@ -181,6 +181,16 @@ foreach my $property (qw( name language script territory variant)) {
 		builder => "_build_$property",
 	);
 
+	no strict 'refs';
+	*{"native_$property"} = sub {
+		my ($self, $for) = @_;
+		
+		$for //= $self;
+		my $build = "_build_native_$property";
+		return $self->$build($for);
+	};
+		
+=pod
 	has "native_$property" => (
 		is => 'ro',
 		isa => 'Str',
@@ -188,6 +198,7 @@ foreach my $property (qw( name language script territory variant)) {
 		lazy => 1,
 		builder => "_build_native_$property",
 	);
+=cut
 }
 
 #DateTime::Local
@@ -527,21 +538,21 @@ sub _build_name {
 }
 
 sub _build_native_name {
-	my $self = shift;
+	my ($self, $for) = @_;
 
-	return $self->local_name();
+	return $self->locale_name($for);
 }
 
 sub _build_language {
 	my $self = shift;
 
-	return $self->_get_english->native_language();
+	return $self->_get_english->native_language($self);
 }
 
 sub _build_native_language {
-	my $self = shift;
+	my ($self, $for) = @_;
 
-	return $self->language_name() // '';
+	return $self->language_name($for) // '';
 }
 
 sub _build_script {
@@ -551,9 +562,9 @@ sub _build_script {
 }
 
 sub _build_native_script {
-	my $self = shift;
+	my ($self, $for) = @_;
 
-	return $self->script_name();
+	return $self->script_name($for);
 }
 
 sub _build_territory {
@@ -563,9 +574,9 @@ sub _build_territory {
 }
 
 sub _build_native_territory {
-	my $self = shift;
+	my ($self, $for) = @_;
 
-	return $self->territory_name();
+	return $self->territory_name($for);
 }
 
 sub _build_variant {
@@ -575,9 +586,9 @@ sub _build_variant {
 }
 
 sub _build_native_variant {
-	my $self = shift;
+	my ($self, $for) = @_;
 
-	return $self->variant_name();
+	return $self->variant_name($for);
 }
 
 # Method to locate the resource bundle with the required data
@@ -1183,6 +1194,77 @@ sub paper {
 	my $territory = $self->territory_id // '001';
 	
 	return $paper_size->{$territory} // $paper_size->{'001'};
+}
+
+# Units
+sub all_units {
+	my $self = shift;
+	my @bundles = $self->_find_bundle('units');
+	
+	my %units;
+	foreach my $bundle (reverse @bundles) {
+		%units = %units, $bundle->units;
+	}
+	
+	return keys %units;
+}
+
+sub unit {
+	my ($self, $number, $what, $type) = @_;
+	$type //= 'default';
+	
+	my $plural = $self->plural($number);
+	
+	my @bundles = $self->_find_bundle('units');
+	my $format;
+	foreach my $bundle (@bundles) {
+		if (exists $bundle->units()->{$what}{$type}{$plural}) {
+			$format = $bundle->units()->{$what}{$type}{$plural};
+			last;
+		}
+	}
+	
+	unless (defined $format) {
+		foreach my $bundle (@bundles) {
+			if (exists $bundle->units()->{$what}{default}{$plural}) {
+				$format = $bundle->units()->{$what}{default}{$plural};
+				last;
+			}
+		}
+	}
+	
+	unless (defined $format) {
+		foreach my $bundle (@bundles) {
+			if (exists $bundle->units()->{$what}{$type}{other}) {
+				$format = $bundle->units()->{$what}{$type}{other};
+				last;
+			}
+		}
+	}
+	
+	unless (defined $format) {
+		foreach my $bundle (@bundles) {
+			if (exists $bundle->units()->{$what}{default}{other}) {
+				$format = $bundle->units()->{$what}{default}{other};
+				last;
+			}
+		}
+	}
+	
+	$number = $self->number($number);
+	return $number unless $format;
+	
+	return $format =~ s/\{0\}/$number/gr;
+}
+
+# Stubs until I get onto numbers
+sub plural {
+	return 'one' if $_[1] =~ /1$/;
+	return 'other';
+}
+
+sub number {
+	return $_[1];
 }
 
 sub _build_default_calendar {
