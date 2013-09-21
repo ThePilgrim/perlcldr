@@ -1109,6 +1109,19 @@ sub truncated_end {
 	shift->_truncated(final => @_);
 }
 
+sub truncated_word_beginning {
+	shift->_truncated('word-initial' => @_);
+}
+
+sub truncated_word_between {
+	shift->_truncated('word-medial' => @_);
+}
+
+sub truncated_word_end {
+	shift->_truncated('word-final' => @_);
+}
+
+
 sub more_information {
 	my $self = shift;
 
@@ -1218,36 +1231,14 @@ sub unit {
 	my @bundles = $self->_find_bundle('units');
 	my $format;
 	foreach my $bundle (@bundles) {
-		if (exists $bundle->units()->{$what}{$type}{$plural}) {
-			$format = $bundle->units()->{$what}{$type}{$plural};
+		if (exists $bundle->units()->{$type}{$what}{$plural}) {
+			$format = $bundle->units()->{$type}{$what}{$plural};
 			last;
 		}
-	}
-	
-	unless (defined $format) {
-		foreach my $bundle (@bundles) {
-			if (exists $bundle->units()->{$what}{default}{$plural}) {
-				$format = $bundle->units()->{$what}{default}{$plural};
-				last;
-			}
-		}
-	}
-	
-	unless (defined $format) {
-		foreach my $bundle (@bundles) {
-			if (exists $bundle->units()->{$what}{$type}{other}) {
-				$format = $bundle->units()->{$what}{$type}{other};
-				last;
-			}
-		}
-	}
-	
-	unless (defined $format) {
-		foreach my $bundle (@bundles) {
-			if (exists $bundle->units()->{$what}{default}{other}) {
-				$format = $bundle->units()->{$what}{default}{other};
-				last;
-			}
+			
+		if (exists $bundle->units()->{$type}{$what}{other}) {
+			$format = $bundle->units()->{$type}{$what}{other};
+			last;
 		}
 	}
 	

@@ -24,8 +24,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 our $VERSION = version->parse('0.1');
-my $CLDR_VERSION = version->parse('23.1');
-my $CLDR_PATH = 23.1;
+my $CLDR_VERSION = version->parse('24');
+my $CLDR_PATH = 24;
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -199,7 +199,7 @@ rewinddir $dir;
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $percent = ++$count_files / $num_files * 100;
     my $full_file_name = File::Spec->catfile($transform_directory, $file_name);
-    say sprintf("Processing Transformation File %s: %.2f%% done", $full_file_name, $percent) if $verbose;
+    say sprintf("Processing Transformation File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent) if $verbose;
 	$xml = XML::XPath->new($full_file_name);
     process_transforms($transformations_directory, $xml, $full_file_name);
 }
@@ -247,7 +247,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 
     my $full_file_name = File::Spec->catfile($base_directory, 'main', $file_name);
     my $percent = ++$count_files / $num_files * 100;
-    say sprintf("Processing File %s: %.2f%% done", $full_file_name, $percent) if $verbose;
+    say sprintf("Processing File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent) if $verbose;
 
     # Note: The order of these calls is important
     process_class_any($lib_directory, @output_file_parts[0 .. $#output_file_parts -1]);
@@ -1388,7 +1388,7 @@ has 'ellipsis' => (
 \t\treturn {
 EOT
     foreach my $type (sort keys %data) {
-        say $file "\t\t\t$type => '$data{$type}',";
+        say $file "\t\t\t'$type' => '$data{$type}',";
     }
     print $file <<EOT;
 \t\t};
@@ -1518,18 +1518,19 @@ sub process_units {
     my $units = findnodes($xpath, '/ldml/units/*');
     return unless $units->size;
 
-    my @units;
-    foreach my $unit ($units->get_nodelist) {
-        my $type = $unit->getAttribute('type');
-        push @units, {type => $type};
-        foreach my $unit_pattern ($unit->getChildNodes) {
-            next if $unit_pattern->isTextNode;
-
-            my $count = $unit_pattern->getAttribute('count');
-            my $alt = $unit_pattern->getAttribute('alt') || 'default';
-            my $pattern = $unit_pattern->getChildNode(1)->getValue;
-        $units[-1]{$alt}{$count} = $pattern;
-        }
+    my %units;
+    foreach my $length_node ($units->get_nodelist) {
+		my $length = $length_node->getAttribute('type');
+		my $units = findnodes($xpath, qq(/ldml/units/unitLength[\@type="$length"]/*));
+		foreach my $unit_type ($units->get_nodelist) {
+			my $unit_type_name = $unit_type->getAttribute('type');
+			foreach my $unit_pattern ($unit_type->getChildNodes) {
+				next if $unit_pattern->isTextNode;
+				my $count = $unit_pattern->getAttribute('count') // 'other';
+				my $pattern = $unit_pattern->getChildNode(1)->getValue;
+				$units{$length}{$unit_type_name}{$count} = $pattern;
+			}
+		}
     }
         
     print $file <<EOT;
@@ -1539,13 +1540,13 @@ has 'units' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-    foreach my $unit (@units) {
-        say $file "\t\t\t\t'",$unit->{type},"' => {";
-        foreach my $length (grep { $_ ne 'type' } keys %$unit) {
-            say $file "\t\t\t\t\t'$length' => {";
-                foreach my $count (keys %{$unit->{$length}}) {
+    foreach my $length (sort keys %units) {
+        say $file "\t\t\t\t'",$length,"' => {";
+        foreach my $type (sort keys %{$units{$length}}) {
+            say $file "\t\t\t\t\t'$type' => {";
+                foreach my $count (sort keys %{$units{$length}{$type}}) {
                     say $file "\t\t\t\t\t\t'$count' => q(",
-                        $unit->{$length}{$count},
+                        $units{$length}{$type}{$count},
                         "),";
                 }
             say $file "\t\t\t\t\t},";

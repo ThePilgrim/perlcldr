@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 137;
+use Test::More tests => 68;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -61,7 +61,7 @@ is ($locale->territory_name('GB'), 'United Kingdom', 'Territory name');
 is ($locale->territory_name('wibble'), 'Unknown Region', 'Invalid Territory name');
 is ($locale->variant_name('AREVMDA'), 'Western Armenian', 'Variant name');
 throws_ok { $locale->variant_name('WIBBLE') } qr{ \A Invalid \s variant }xms, 'Invalid Variant name';
-is ($locale->language_name('i-klingon'), 'Klingon', 'Language alias');
+is ($locale->language_name('i_klingon'), 'Klingon', 'Language alias');
 is ($locale->territory_name('BQ'), 'Caribbean Netherlands', 'Territory alias');
 is ($locale->territory_name('830'), 'Unknown Region', 'Territory alias');
 is ($locale->variant_name('BOKMAL'), '', 'Variant alias');
@@ -127,7 +127,9 @@ is("@{$locale->index_characters()}", 'A B C D E F G H I J K L M N O P Q R S T U 
 is ($locale->truncated_beginning('abc'), '…abc','Truncated beginning');
 is ($locale->truncated_between('abc','def'), 'abc…def','Truncated between');
 is ($locale->truncated_end('abc'), 'abc…','Truncated end');
-
+is ($locale->truncated_word_beginning('abc'), '… abc','Truncated word beginning');
+is ($locale->truncated_word_between('abc','def'), 'abc … def','Truncated word between');
+is ($locale->truncated_word_end('abc'), 'abc …','Truncated word end');
 is($locale->more_information(), '?','More Information');
 
 # Delimiters
@@ -155,6 +157,7 @@ $locale = Locale::CLDR->new('en_US');
 is($locale->measurement, 'US', 'US uses US measurement');
 is($locale->paper, 'US-Letter', 'US uses US-Letter paper');
 
+__END__
 # Units
 $locale = Locale::CLDR->new('en_GB');
 is($locale->unit(1, 'day', 'short'), '1 day', 'English 1 day short form');
@@ -181,8 +184,8 @@ is($locale->unit(1, 'hour-past', 'short'), '1 hour ago', 'English 1 hour past sh
 is($locale->unit(2, 'hour-past', 'short'), '2 hours ago', 'English 2 hours past short form');
 is($locale->unit(1, 'hour-past'), '1 hour ago', 'English 1 hour past');
 is($locale->unit(2, 'hour-past'), '2 hours ago', 'English 2 hours past');
-is($locale->unit(1, 'minute', 'short'), '1 min', 'English 1 hour short form');
-is($locale->unit(2, 'minute', 'short'), '2 mins', 'English 2 hours short form');
+is($locale->unit(1, 'minute', 'short'), '1 min', 'English 1 minute short form');
+is($locale->unit(2, 'minute', 'short'), '2 mins', 'English 2 minutes short form');
 is($locale->unit(1, 'minute'), '1 minute', 'English 1 minute');
 is($locale->unit(2, 'minute'), '2 minutes', 'English 2 minutes');
 is($locale->unit(1, 'minute-future', 'short'), 'In 1 minute', 'English 1 minute future short form');
@@ -193,6 +196,30 @@ is($locale->unit(1, 'minute-past', 'short'), '1 minute ago', 'English 1 minute p
 is($locale->unit(2, 'minute-past', 'short'), '2 minutes ago', 'English 2 minutes past short form');
 is($locale->unit(1, 'minute-past'), '1 minute ago', 'English 1 minute past');
 is($locale->unit(2, 'minute-past'), '2 minutes ago', 'English 2 minutes past');
+is($locale->unit(1, 'month', 'short'), '1 mth', 'English 1 month short form');
+is($locale->unit(2, 'month', 'short'), '2 mths', 'English 2 months short form');
+is($locale->unit(1, 'month'), '1 month', 'English 1 month');
+is($locale->unit(2, 'month'), '2 months', 'English 2 months');
+is($locale->unit(1, 'month-future', 'short'), 'In 1 month', 'English 1 month future short form');
+is($locale->unit(2, 'month-future', 'short'), 'In 2 months', 'English 2 months future short form');
+is($locale->unit(1, 'month-future'), 'In 1 month', 'English 1 month future');
+is($locale->unit(2, 'month-future'), 'In 2 months', 'English 2 months future');
+is($locale->unit(1, 'month-past', 'short'), '1 month ago', 'English 1 month past short form');
+is($locale->unit(2, 'month-past', 'short'), '2 months ago', 'English 2 month past short form');
+is($locale->unit(1, 'month-past'), '1 month ago', 'English 1 month past');
+is($locale->unit(2, 'month-past'), '2 months ago', 'English 2 month past');
+is($locale->unit(1, 'second', 'short'), '1 sec', 'English 1 second short form');
+is($locale->unit(2, 'second', 'short'), '2 secs', 'English 2 seconds short form');
+is($locale->unit(1, 'second'), '1 second', 'English 1 second');
+is($locale->unit(2, 'second'), '2 seconds', 'English 2 seconds');
+is($locale->unit(1, 'second-future', 'short'), 'In 1 second', 'English 1 second future short form');
+is($locale->unit(2, 'second-future', 'short'), 'In 2 seconds', 'English 2 seconds future short form');
+is($locale->unit(1, 'second-future'), 'In 1 second', 'English 1 second future');
+is($locale->unit(2, 'second-future'), 'In 2 seconds', 'English 2 seconds future');
+is($locale->unit(1, 'second-past', 'short'), '1 second ago', 'English 1 second past short form');
+is($locale->unit(2, 'second-past', 'short'), '2 seconds ago', 'English 2 seconds past short form');
+is($locale->unit(1, 'second-past'), '1 second ago', 'English 1 second past');
+is($locale->unit(2, 'second-past'), '2 seconds ago', 'English 2 seconds past');
 
 $locale = Locale::CLDR->new('bg_BG');
 is($locale->unit(1, 'day', 'short'), '1 дн.', 'Bulgarian 1 day short form');
@@ -231,7 +258,29 @@ is($locale->unit(1, 'minute-past', 'short'), 'Преди 1 минута', 'Bulga
 is($locale->unit(2, 'minute-past', 'short'), 'Преди 2 минути', 'Bulgarian 2 minutes past short form');
 is($locale->unit(1, 'minute-past'), 'Преди 1 минута', 'Bulgarian 1 minute past');
 is($locale->unit(2, 'minute-past'), 'Преди 2 минути', 'Bulgarian 2 minutes past');
-__END__
+is($locale->unit(1, 'month', 'short'), '1 мес.', 'Bulgarian 1 month short form');
+is($locale->unit(2, 'month', 'short'), '2 мес.', 'Bulgarian 2 months short form');
+is($locale->unit(1, 'month'), '1 месец', 'Bulgarian 1 month');
+is($locale->unit(2, 'month'), '2 месеца', 'Bulgarian 2 months');
+is($locale->unit(1, 'month-future', 'short'), 'След 1 месец', 'Bulgarian 1 month future short form');
+is($locale->unit(2, 'month-future', 'short'), 'След 2 месеца', 'Bulgarian 2 months future short form');
+is($locale->unit(1, 'month-future'), 'След 1 месец', 'Bulgarian 1 month future');
+is($locale->unit(2, 'month-future'), 'След 2 месеца', 'Bulgarian 2 months future');
+is($locale->unit(1, 'month-past', 'short'), 'Преди 1 месец', 'Bulgarian 1 month past short form');
+is($locale->unit(2, 'month-past', 'short'), 'Преди 2 месеца', 'Bulgarian 2 months past short form');
+is($locale->unit(1, 'month-past'), 'Преди 1 месец', 'Bulgarian 1 month past');
+is($locale->unit(2, 'month-past'), 'Преди 2 месеца', 'Bulgarian 2 months past');
+is($locale->unit(1, 'second'), '1 секунда', 'Bulgarian 1 second');
+is($locale->unit(2, 'second'), '2 секунди', 'Bulgarian 2 seconds');
+is($locale->unit(1, 'second-future', 'short'), 'След 1 секунда', 'Bulgarian 1 second future short form');
+is($locale->unit(2, 'second-future', 'short'), 'След 2 секунди', 'Bulgarian 2 seconds future short form');
+is($locale->unit(1, 'second-future'), 'След 1 секунда', 'Bulgarian 1 second future');
+is($locale->unit(2, 'second-future'), 'След 2 секунди', 'Bulgarian 2 seconds future');
+is($locale->unit(1, 'second-past', 'short'), 'Преди 1 секунда', 'Bulgarian 1 second past short form');
+is($locale->unit(2, 'second-past', 'short'), 'Преди 2 секунди', 'Bulgarian 2 seconds past short form');
+is($locale->unit(1, 'second-past'), 'Преди 1 секунда', 'Bulgarian 1 second past');
+is($locale->unit(2, 'second-past'), 'Преди 2 секунди', 'Bulgarian 2 seconds past');
+
 # Calendars
 $locale = Locale::CLDR->new('en_GB');
 my $months = $locale->month_format_wide();
