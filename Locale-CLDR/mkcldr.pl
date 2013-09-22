@@ -1515,13 +1515,22 @@ sub process_units {
     my ($file, $xpath) = @_;
 
     say 'Processing Units' if $verbose;
-    my $units = findnodes($xpath, '/ldml/units/*');
+	my $units = findnodes($xpath, '/ldml/units/*');
     return unless $units->size;
-
-    my %units;
+	
+    my (%units, %aliases);
     foreach my $length_node ($units->get_nodelist) {
 		my $length = $length_node->getAttribute('type');
 		my $units = findnodes($xpath, qq(/ldml/units/unitLength[\@type="$length"]/*));
+		
+		my $unit_alias = findnodes($xpath, qq(/ldml/units/unitLength[\@type="$length"]/alias));
+		if ($unit_alias->size) {
+			my ($node) = $unit_alias->get_nodelist;
+			my $path = $node->getAttribute('path');
+			my ($type) = $path =~ /\[\@type=['"](.*)['"]\]/;
+			$aliases{$length} = $type;
+		}
+		
 		foreach my $unit_type ($units->get_nodelist) {
 			my $unit_type_name = $unit_type->getAttribute('type');
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
@@ -1533,8 +1542,26 @@ sub process_units {
 		}
     }
         
+	if (keys %aliases) {
+		print $file <<EOT;
+has unit_alias => {
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+		foreach my $from (sort keys %aliases) {
+			say $file "\t\t\t\t$from => $aliases{$from},";
+		}
+	
+		print $file <<EOT;
+\t\t\t} }
+}
+EOT
+	}
+	
     print $file <<EOT;
-has 'units' => (
+has units => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef[HashRef[HashRef[Str]]]',
 \tinit_arg\t=> undef,

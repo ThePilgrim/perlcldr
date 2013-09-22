@@ -1242,6 +1242,26 @@ sub unit {
 		}
 	}
 	
+	# Check for aliases
+	unless ($format) {
+		my $original_type = $type;
+		my @aliases = $self->_find_bundle('unit_alias');
+		foreach my $alias (@aliases) {
+			$type = $alias->unit_alias()->{$original_type};
+			foreach my $bundle (@bundles) {
+				if (exists $bundle->units()->{$type}{$what}{$plural}) {
+					$format = $bundle->units()->{$type}{$what}{$plural};
+					last;
+				}
+			
+				if (exists $bundle->units()->{$type}{$what}{other}) {
+					$format = $bundle->units()->{$type}{$what}{other};
+					last;
+				}
+			}
+		}
+	}
+	
 	$number = $self->number($number);
 	return $number unless $format;
 	
