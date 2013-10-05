@@ -1224,7 +1224,7 @@ sub all_units {
 
 sub unit {
 	my ($self, $number, $what, $type) = @_;
-	$type //= 'default';
+	$type //= 'long';
 	
 	my $plural = $self->plural($number);
 	
@@ -1248,6 +1248,7 @@ sub unit {
 		my @aliases = $self->_find_bundle('unit_alias');
 		foreach my $alias (@aliases) {
 			$type = $alias->unit_alias()->{$original_type};
+			next unless $type;
 			foreach my $bundle (@bundles) {
 				if (exists $bundle->units()->{$type}{$what}{$plural}) {
 					$format = $bundle->units()->{$type}{$what}{$plural};
@@ -1260,12 +1261,57 @@ sub unit {
 				}
 			}
 		}
+		$type = $original_type;
+	}
+	
+	# Check for a compound unit that we don't specifically have
+	if (! $format && (my ($dividend, $divisor) = $what =~ /^(.+)-per-(.+)$/)) {
+		return $self->unit_compound($number, $dividend, $divisor, $type);
 	}
 	
 	$number = $self->number($number);
 	return $number unless $format;
 	
 	return $format =~ s/\{0\}/$number/gr;
+}
+
+sub unit_compound {
+	my ($self, $number, $dividend_what, $divisor_what, $type) = @_;
+	
+	$type //= 'long';
+	
+	my $dividend = $self->unit($number, $dividend_what, $type);
+	my $divisor = $self->unit(1, $divisor_what, $type);
+	
+	my $one = $self->number(1);
+	$divisor =~ s/\s*$one\s*//;
+
+	my @bundles = $self->_find_bundle('units');
+	my $format;
+	foreach my $bundle (@bundles) {
+		if (exists $bundle->units()->{$type}{per}{other}) {
+			$format = $bundle->units()->{$type}{per}{other};
+			last;
+		}
+	}
+
+	# Check for aliases
+	unless ($format) {
+		my $original_type = $type;
+		my @aliases = $self->_find_bundle('unit_alias');
+		foreach my $alias (@aliases) {
+			$type = $alias->unit_alias()->{$original_type};
+			foreach my $bundle (@bundles) {
+				if (exists $bundle->units()->{$type}{per}{other}) {
+					$format = $bundle->units()->{$type}{per}{other};
+					last;
+				}
+			}
+		}
+	}
+	
+	$format =~ s/\{0\}/$dividend/g;
+	return $format =~ s/\{1\}/$divisor/gr;
 }
 
 # Stubs until I get onto numbers

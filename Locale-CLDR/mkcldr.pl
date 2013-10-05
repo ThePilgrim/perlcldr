@@ -1533,6 +1533,7 @@ sub process_units {
 		
 		foreach my $unit_type ($units->get_nodelist) {
 			my $unit_type_name = $unit_type->getAttribute('type');
+			$unit_type_name =~ s/^[^\-]+-//;
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
 				my $count = $unit_pattern->getAttribute('count') // 'other';
@@ -1542,26 +1543,29 @@ sub process_units {
 		}
     }
         
+	# Need to add something about duration units
+		
 	if (keys %aliases) {
 		print $file <<EOT;
-has unit_alias => {
+has 'unit_alias' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef[Str]',
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
 		foreach my $from (sort keys %aliases) {
-			say $file "\t\t\t\t$from => $aliases{$from},";
+			say $file "\t\t\t\t$from => '$aliases{$from}',";
 		}
 	
 		print $file <<EOT;
 \t\t\t} }
-}
+);
+
 EOT
 	}
 	
     print $file <<EOT;
-has units => (
+has 'units' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef[HashRef[HashRef[Str]]]',
 \tinit_arg\t=> undef,
