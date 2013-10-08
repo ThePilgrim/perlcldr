@@ -18,6 +18,8 @@ use Text::ParseWords;
 use List::MoreUtils qw( any );
 no warnings "experimental::regex_sets";
 
+my $start_time = time();
+
 our $verbose = 0;
 $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
@@ -280,6 +282,8 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 
     close $file;
 }
+
+say "Duration: ", time() -$start_time;
 
 # This sub looks for nodes along an xpath.
 sub findnodes {
@@ -1518,11 +1522,17 @@ sub process_units {
 	my $units = findnodes($xpath, '/ldml/units/*');
     return unless $units->size;
 	
-    my (%units, %aliases);
+    my (%units, %aliases, %duration_units);
     foreach my $length_node ($units->get_nodelist) {
 		my $length = $length_node->getAttribute('type');
 		my $units = findnodes($xpath, qq(/ldml/units/unitLength[\@type="$length"]/*));
+		my $duration_units = findnodes($xpath, qq(/ldml/units/durationUnit[\@type="$length"]/durationUnitPattern));
 		
+		foreach my $duration_unit ($duration_units->get_nodelist) {
+			my $patten = $duration_unit->getChildNode(1)->getValue;
+			$duration_units{$length} = $patten;
+		}
+			
 		my $unit_alias = findnodes($xpath, qq(/ldml/units/unitLength[\@type="$length"]/alias));
 		if ($unit_alias->size) {
 			my ($node) = $unit_alias->get_nodelist;
@@ -1542,9 +1552,26 @@ sub process_units {
 			}
 		}
     }
-        
-	# Need to add something about duration units
-		
+    
+	if (keys %duration_units) {
+		print $file <<EOT;
+has 'duration_units' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef[Str]',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+		foreach my $type (sort keys %duration_units) {
+			say $file "\t\t\t\t$type => '$duration_units{$type}',";
+		}
+	
+		print $file <<EOT;
+\t\t\t} }
+);
+
+EOT
+	}
+	
 	if (keys %aliases) {
 		print $file <<EOT;
 has 'unit_alias' => (
@@ -1615,18 +1642,18 @@ sub process_posix {
     print $file <<EOT if defined $yes;
 has 'yesstr' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
+\tisa\t\t\t=> 'RegexpRef',
 \tinit_arg\t=> undef,
-\tdefault\t\t=> '(?i:$yes)'
+\tdefault\t\t=> sub { qr'^(?i:$yes)\$' }
 );
 EOT
 
     print $file <<EOT if defined $no;
 has 'nostr' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
+\tisa\t\t\t=> 'RegexpRef',
 \tinit_arg\t=> undef,
-\tdefault\t\t=> '(?i:$no)'
+\tdefault\t\t=> sub { qr'^(?i:$no)\$' }
 );
 EOT
 }
@@ -2683,7 +2710,7 @@ sub process_time_zone_names {
     my ($file, $xpath) = @_;
 
     say "Processing Time Zone Names"
-    if $verbose;
+		if $verbose;
 
     my $time_zone_names = findnodes($xpath,
         q(/ldml/dates/timeZoneNames/*));
@@ -2736,8 +2763,11 @@ EOT
                     }
 
                     $zone{$name}{$length} //= {};
-                    my $tz_type_nodes = findnodes($xpath,
-                        qq(/ldml/dates/timeZoneNames/$_) . qq([\@type="$name"]/$length/*));
+                    my $tz_type_nodes = findnodes(
+						$xpath,
+                        qq(/ldml/dates/timeZoneNames/$_) . qq([\@type="$name"]/$length/*)
+					);
+					
                     foreach my $tz_type_node ($tz_type_nodes->get_nodelist) {
                         my $type = $tz_type_node->getLocalName;
                         my $value = $tz_type_node->string_value;

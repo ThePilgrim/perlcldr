@@ -1314,6 +1314,34 @@ sub unit_compound {
 	return $format =~ s/\{1\}/$divisor/gr;
 }
 
+sub durtation_unit {
+	# data in hh,mm; hh,mm,ss or mm,ss 
+	my ($self, $format, @data) = @_;
+	
+	my $bundle = $self->_find_bundle('duration_units');
+	my $parsed = $bundle->duration_units()->{$format};
+	
+	foreach my $entry (qr/(hh?)/, qr/(mm?)/, qr/(ss?)/) {
+		$parsed =~ s/$entry/$self->number(shift(@data), length $1)/e;
+	}
+	
+	return $parsed;
+}
+
+sub is_yes {
+	my ($self, $test_str) = @_;
+	
+	my $bundle = $self->_find_bundle('yesstr');
+	return $test_str =~ $bundle->yesstr ? 1 : 0;
+}
+
+sub is_no {
+	my ($self, $test_str) = @_;
+	
+	my $bundle = $self->_find_bundle('nostr');
+	return $test_str =~ $bundle->nostr ? 1 : 0;
+}
+
 # Stubs until I get onto numbers
 sub plural {
 	return 'one' if $_[1] =~ /1$/;
@@ -1321,7 +1349,14 @@ sub plural {
 }
 
 sub number {
-	return $_[1];
+	my ($self, $number, $length) = @_;
+	
+	if (defined $length && length($number) < $length) {
+		my $zeros = $self->number(0) x ($length - length($number));
+		$number = "$zeros$number";
+	}
+	
+	return $number;
 }
 
 sub _build_default_calendar {

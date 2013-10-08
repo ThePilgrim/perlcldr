@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 68;
+use Test::More tests => 357;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -441,8 +441,14 @@ is($locale->unit(1, 'year', 'short'), '1 yr', 'English short 1 year');
 is($locale->unit(2, 'year', 'short'), '2 yrs', 'English short 2 years');
 is($locale->unit(1, 'year'), '1 year', 'English long 1 year');
 is($locale->unit(2, 'year'), '2 years', 'English long 2 years');
+is($locale->durtation_unit('hm', 1, 2), '1:02', 'English duration hour, minuit');
+is($locale->durtation_unit('hms', 1, 2, 3 ), '1:02:03', 'English duration hour, minuit, second');
+is($locale->durtation_unit('ms', 1, 2 ), '1:02', 'English duration minuit, second');
+is($locale->is_yes('Yes'), 1, 'English is yes');
+is($locale->is_yes('es'), 0, 'English is not yes');
+is($locale->is_no('nO'), 1, 'English is no');
+is($locale->is_no('N&'), 0, 'English is not no');
 __END__
-
 
 # Calendars
 $locale = Locale::CLDR->new('en_GB');
