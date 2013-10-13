@@ -448,6 +448,9 @@ is($locale->is_yes('Yes'), 1, 'English is yes');
 is($locale->is_yes('es'), 0, 'English is not yes');
 is($locale->is_no('nO'), 1, 'English is no');
 is($locale->is_no('N&'), 0, 'English is not no');
+
+# Transforms
+is($locale->transform(text => 'Let\'s try this one', from => 'latin', to => 'hebrew'), 'לֶט\'ס טרי טהִס ֳןֶ', 'Transliteration from Latin to Hebrew');
 __END__
 
 # Calendars

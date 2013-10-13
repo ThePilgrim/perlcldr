@@ -861,34 +861,6 @@ EOT
 
 }
 
-# Sub to look for alias entries along the given path if we find any
-# we replace the alias node with the nodes it points to
-sub process_alias {
-    my ($xpath, $recursed) = @_;
-    say "Processing Aliases" if $verbose and not $recursed;
-
-    my $alias_nodes = ($recursed ? $recursed : $xpath)->findnodes('.//alias');
-    return unless $alias_nodes->size;
-
-    # now replace the node
-    foreach my $node ($alias_nodes->get_nodelist) {
-        my $new_path=$node->getAttribute('path');
-        my $parent = $node->getParentNode;
-        
-        # Check if we have already replaced this node.
-        # It wont have a parent if we have
-        next unless $parent;
-
-        my @replacements = $parent->findnodes($new_path)->get_nodelist;
-
-        foreach my $replacement (@replacements) {
-            process_alias($xpath,$replacement);
-            $parent->insertBefore($replacement,$node);
-        }
-        $parent->removeChild($node);
-    }
-}
-
 # CP elements are used to encode characters outside the character range 
 # allowable in XML
 sub process_cp {
@@ -2892,7 +2864,7 @@ sub process_transforms {
                 ($source, $target) = ($target, $source);
             }
 
-            my $package = "Local::CLDR::Transform::${variant}::${source}::$target";
+            my $package = "Locale::CLDR::Transformations::${variant}::${source}::$target";
             my $dir_name = File::Spec->catdir($dir, $variant, $source);
          
             make_path($dir_name) unless -d $dir_name;
@@ -2970,12 +2942,12 @@ sub process_transform_data {
 
     # Print out transforms
     print $file <<EOT;
+no warnings 'experimental::regex_sets';
 has 'transforms' => (
 \tis => 'ro',
-\tisa => 'ArrayRef[HashRef]',
+\tisa => 'ArrayRef',
 \tinit_arg => undef,
 \tdefault => sub { [
-\t\tno warnings 'experimental::regex_sets';
 EOT
     if ($transforms[0]{type} ne 'filter') {
         unshift @transforms, {
@@ -2984,31 +2956,50 @@ EOT
         }
     }
 
-    foreach my $transform (@transforms) {
-        if ($transform->{type} eq 'filter') {
-            say $file "\t\tfilter => qr/$transform->{match}/,"
-        }
-        if ($transform->{type} eq 'transform') {
-            print $file <<EOT;
-\t\ttransform => {
-\t\t\tfrom => q($transform->{from}),
-\t\t\tto => q($transform->{to}),
+	say $file "\t\tqr/$transforms[0]->{match}/,";
+	shift @transforms;
+	
+	my $previous = 'transform';
+	print $file <<EOT;
+\t\t{
+\t\t\ttype => 'transform',
+\t\t\tdata => [
+EOT
+	foreach my $transform (@transforms) {
+        if ($transform->{type} ne $previous) {
+			$previous = $transform->{type};
+			print $file <<EOT;
+\t\t\t],
 \t\t},
+\t\t{
+\t\t\ttype => '$previous',
+\t\t\tdata => [
+EOT
+		}
+		
+        if ($previous eq 'transform') {
+            print $file <<EOT;
+\t\t\t\t{
+\t\t\t\t\tfrom => q($transform->{from}),
+\t\t\t\t\tto => q($transform->{to}),
+\t\t\t\t},
 EOT
         }
-        if ($transform->{type} eq 'conversion') {
+        if ($previous eq 'conversion') {
             print $file <<EOT;
-\t\tconversion => {
-\t\t\tbefore  => q($transform->{before}),
-\t\t\tafter   => q($transform->{after}),
-\t\t\treplace => q($transform->{replace}),
-\t\t\tresult  => q($transform->{result}),
-\t\t\trevisit => q($transform->{revisit}),    
-\t\t},
+\t\t\t\t{
+\t\t\t\t\tbefore  => q($transform->{before}),
+\t\t\t\t\tafter   => q($transform->{after}),
+\t\t\t\t\treplace => q($transform->{replace}),
+\t\t\t\t\tresult  => q($transform->{result}),
+\t\t\t\t\trevisit => @{[length($transform->{revisit})]},
+\t\t\t\t},
 EOT
         }
     }
     print $file <<EOT;
+\t\t\t]
+\t\t},
 \t] },
 );
 

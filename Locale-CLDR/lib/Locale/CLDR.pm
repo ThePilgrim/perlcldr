@@ -22,6 +22,7 @@ Version 1.8.0 To match the CLDR Version
 use List::Util qw(first);
 use Class::MOP;
 use DateTime::Locale;
+use Unicode::Normalize();
 
 =head1 SYNOPSIS
 
@@ -1340,6 +1341,136 @@ sub is_no {
 	
 	my $bundle = $self->_find_bundle('nostr');
 	return $test_str =~ $bundle->nostr ? 1 : 0;
+}
+
+# Transformations 
+sub transform {
+	my ($self, %params) = @_;
+	
+	my $from 	= $params{from} // $self;
+	my $to 		= $params{to}; 
+	my $variant	= $params{variant} // 'Any';
+	my $text	= $params{text} // '';
+	
+	($from, $to) = map {ref $_ ? $_->script() : $_} ($from, $to);
+	$_ = ucfirst(lc $_) foreach ($from, $to, $variant);
+	
+	my $package = __PACKAGE__ . "::Transformations::${variant}::${from}::${to}";
+	eval { Class::Load::load_class($package); };
+	warn $@ if $@;
+	return $text if $@; # Can't load transform module so return original text
+	use feature 'state';
+	state $transforms;
+	$transforms->{$variant}{$from}{$to} //= $package->new();
+	my $rules = $transforms->{$variant}{$from}{$to}->transforms();
+	
+	# First get the filter rule
+	my $filter = shift @$rules;
+		
+	# Break up the input on the filter
+	my @text;
+	pos($text) = 0;
+	while (pos($text) < length($text)) {
+		my $characters = '';
+		while (my ($char) = $text =~ /($filter)/) {
+			$characters .= $char;
+			pos($text) = pos($text) + length $char;
+		}
+		push @text, $characters;
+		last unless pos($text) < length $text;
+		
+		$characters = '';
+		while ($text !~ /$filter/) {
+			my ($char) = $text =~ /\G(\X)/;
+			$characters .= $char;
+			pos($text) = pos($text) + length $char;
+		}
+		push @text, $characters;
+	}
+	
+	my $to_transform = 1;
+	
+	foreach my $characters (@text) {
+		if ($to_transform) {
+			foreach my $rule (@$rules) {
+				if ($rule->{type} eq 'transform') {
+					$characters = $self->_transformation_transform($characters, $rule->{data}, $variant);
+				}
+				else {
+					$characters = $self->_transform_convert($characters, $rule->{data});
+				}
+			}
+		}
+		$to_transform = ! $to_transform;
+	}
+	
+	return join '', @text;
+}
+
+sub _transformation_transform {
+	my ($self, $text, $rules, $variant) = @_;
+	
+	use feature 'switch';
+	no warnings 'experimental';
+	
+	foreach my $rule (@$rules) {
+		given (lc $rule->{to}) {
+			when ('nfc') {
+				$text = Unicode::Normalize::NFC($text);
+			}
+			when ('nfd') {
+				$text = Unicode::Normalize::NFD($text);
+			}
+			when ('nfkd') {
+				$text = Unicode::Normalize::NFKD($text);
+			}
+			when ('nfkc') {
+				$text = Unicode::Normalize::NFKC($text);
+			}
+			when ('lower') {
+				$text = lc($text);
+			}
+			when ('upper') {
+				$text = uc($text);
+			}
+			when ('title') {
+				$text =~ s/(\X)/\u$1/g;
+			}
+			when ('null') {
+			}
+			when ('remove') {
+				$text = '';
+			}
+			default {
+				$text = $self->transform($text, $variant, $rule->{from}, $rule->to);
+			}
+		}
+	}
+	return $text;
+}		
+
+sub _transform_convert {
+	my ($self, $text, $rules) = @_;
+	
+	pos($text) = 0; # Make sure we start scanning at the beginning of the text
+		
+	CHARACTER: while (pos($text) < length($text)) {
+		foreach my $rule (@$rules) {
+			next if length $rule->{before} && $text !~ /$rule->{before}\G/;
+			my $regex = $rule->{replace};
+			$regex .= '(' . $rule->{after} . ')' if length $rule->{after};
+			my $result = 'q(' . $rule->{result} . ')';
+			$result .= '. $1' if length $rule->{after};
+			if ($text =~ s/\G$regex/eval $result/e) {
+				pos($text) += length($rule->{result}) - $rule->{revisit};
+				next CHARACTER;
+			}
+		}
+		
+		pos($text)++;
+	}
+	
+	return $text;
 }
 
 # Stubs until I get onto numbers
