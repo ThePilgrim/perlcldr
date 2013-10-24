@@ -107,18 +107,41 @@ die "Incorrect CLDR Version found $cldrVersion. It should be $CLDR_VERSION"
 say "Processing files"
     if $verbose;
 
+# Likely sub-tags
+my $xml = XML::XPath->new(
+    File::Spec->catfile($base_directory,
+        'supplemental',
+        'likelySubtags.xml',
+    )
+);
+
+open my $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
+
+my $file_name = File::Spec->catfile($base_directory,
+    'supplemental',
+    'likelySubtags.xml'
+);
+
+say "Processing file $file_name" if $verbose;
+
+# Note: The order of these calls is important
+process_header($file, 'Locale::CLDR::LikelySubtags', $CLDR_VERSION, $xml, $file_name, 1);
+process_likely_subtags($file, $xml);
+process_footer($file, 1);
+close $file;
+
 # The supplemental/supplementalMetaData.xml file contains a list of all valid
 # locale codes
-my $xml = XML::XPath->new(
+$xml = XML::XPath->new(
     File::Spec->catfile($base_directory,
         'supplemental',
         'supplementalMetadata.xml',
     )
 );
 
-open my $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
+open $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
 
-my $file_name = File::Spec->catfile($base_directory,
+$file_name = File::Spec->catfile($base_directory,
     'supplemental',
     'supplementalMetadata.xml'
 );
@@ -643,6 +666,34 @@ has 'variant_aliases' => (
 \t\tsaaho\t\t=> { language\t=> 'ssy' },
 \t}},
 );
+EOT
+}
+
+sub process_likely_subtags {
+	my ($file, $xpath) = @_;
+	
+	my $subtags = findnodes($xpath,
+        q(/supplementalData/likelySubtags/likelySubtag));
+		
+	print $file <<EOT;
+has 'likely_subtags' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { return {
+EOT
+
+foreach my $subtag ($subtags->get_nodelist) {
+	my $from = $subtag->getAttribute('from');
+	my $to = $subtag->getAttribute('to');
+	
+	print $file "\t\t'$from'\t=> '$to',\n";
+}
+
+print $file <<EOT;
+\t}},
+);
+
 EOT
 }
 
@@ -1618,6 +1669,7 @@ has 'yesstr' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { qr'^(?i:$yes)\$' }
 );
+
 EOT
 
     print $file <<EOT if defined $no;
@@ -1627,6 +1679,7 @@ has 'nostr' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { qr'^(?i:$no)\$' }
 );
+
 EOT
 }
 
@@ -1655,7 +1708,7 @@ has 'listPatterns' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-	my %sort_lookup = (start => 0, middle => 1, end => 2);
+	my %sort_lookup = (start => 0, middle => 1, end => 2, 2 => 3, 3 => 4);
 	foreach my $type ( sort { 
 		(($a + 0) <=> ($b + 0)) 
 		|| ( $sort_lookup{$a} <=> $sort_lookup{$b}) 
@@ -1666,6 +1719,7 @@ EOT
 	print $file <<EOT;
 \t\t} }
 );
+
 EOT
 
 }

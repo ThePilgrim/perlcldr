@@ -11,7 +11,10 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new(language_id => 'en');
+my $locale = Locale::CLDR->new();
+is($locale->id, 'und', 'Empty Locale');
+
+$locale = Locale::CLDR->new(language_id => 'en');
 is($locale->id, 'en', 'Set Language explicitly');
 
 $locale = Locale::CLDR->new('en');
@@ -451,6 +454,7 @@ is($locale->is_no('N&'), 0, 'English is not no');
 
 # Transforms
 is($locale->transform(text => 'Let\'s try this one', from => 'latin', to => 'hebrew'), 'לֶט\'ס טרי טהִס ֳןֶ', 'Transliteration from Latin to Hebrew');
+is($locale->transform(text => 'Let\'s try this one', to => 'hebrew'), 'לֶט\'ס טרי טהִס ֳןֶ', 'Transliteration from Latin to Hebrew with locale with no script');
 __END__
 
 # Calendars

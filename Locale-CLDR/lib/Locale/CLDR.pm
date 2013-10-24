@@ -4,7 +4,7 @@ use open ':encoding(utf8)';
 use utf8;
 use Moose;
 use MooseX::ClassAttribute;
-with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 'Locale::CLDR::MeasurementSystem';
+with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags';
 use Class::Load;
 
 use namespace::autoclean;
@@ -82,6 +82,60 @@ has 'extentions' => (
 	writer		=> '_set_extentions',
 );
 
+has 'likely_language' => (
+	is			=> 'ro',
+	isa			=> 'Str',
+	init_arg	=> undef,
+	lazy		=> 1,
+	builder		=> '_build_likely_language',
+);
+
+sub _build_likely_language {
+	my $self = shift;
+	
+	my $language = $self->language();
+	
+	return $language unless $language eq 'und';
+	
+	return $self->likely_subtag->language;
+}
+
+has 'likely_script' => (
+	is			=> 'ro',
+	isa			=> 'Str',
+	init_arg	=> undef,
+	lazy		=> 1,
+	builder		=> '_build_likely_script',
+);
+
+sub _build_likely_script {
+	my $self = shift;
+	
+	my $script = $self->script();
+	
+	return $script if $script;
+	
+	return $self->likely_subtag->script || '';
+}
+
+has 'likely_territory' => (
+	is			=> 'ro',
+	isa			=> 'Str',
+	init_arg	=> undef,
+	lazy		=> 1,
+	builder		=> '_build_likely_territory',
+);
+
+sub _build_likely_territory {
+	my $self = shift;
+	
+	my $territory = $self->territory();
+	
+	return $territory if $territory;
+	
+	return $self->likely_subtag->territory || '';
+}
+
 has 'module' => (
 	is			=> 'ro',
 	isa			=> 'Object',
@@ -93,25 +147,31 @@ has 'module' => (
 sub _build_module {
 	# Create the new path
 	my $self = shift;
-	my @path;
-	my $path = join '::',
-		map { ucfirst lc }
+	
+	my @path = map { ucfirst lc }
 		map { $_ ? $_ : 'Any' } (
 			$self->language_id,
 			$self->script_id,
 			$self->territory_id,
-			$self->variant_id
 		);
 
-	while ($path) {
-		# Strip out paths ending in Any
-		push @path, $path unless $path =~ m{ ::Any \z }msx;
-		$path=~s/(?:::)?[^:]+$//;
+	my @likely_path = 
+		map { ucfirst lc } (
+			$self->has_likely_subtag ? $self->likely_subtag->language_id : 'Any',
+			$self->has_likely_subtag ? $self->likely_subtag->script_id : 'Any',
+			$self->has_likely_subtag ? $self->likely_subtag->territory_id : 'Any',
+		);
+	
+	for (my $i = 0; $i < @path; $i++) {
+		$likely_path[$i] = $path[$i] unless $path[$i] eq 'und' or $path[$i] eq 'Any';
 	}
-
-	push @path, 'Root' 
-		unless $path[-1] eq 'Root';
-
+	
+	# Note the order we push these onto the stack is important
+	@path = join '::', @likely_path;
+	push @path, join '::', $likely_path[0], 'Any', $likely_path[2];
+	push @path, join '::', @likely_path[0 .. 1], 'Any';
+	push @path, join '::', $likely_path[0], 'Any', 'Any';
+	
 	# Now we go through the path loading each module
 	# And calling new on it. 
 	my $module;
@@ -298,6 +358,14 @@ has 'first_day_of_week' => (
 	builder => "_build_first_day_of_week",
 );
 
+has 'likely_subtag' => (
+	is => 'ro',
+	isa => __PACKAGE__,
+	init_arg => undef,
+	writer => '_set_likely_subtag',
+	predicate => 'has_likely_subtag',
+);
+
 sub _build_break {
 	my ($self, $what) = @_;
 
@@ -401,7 +469,7 @@ sub BUILDARGS {
 		);
 	}
 
-	if (! %args ) {
+	if (! keys %args ) {
 		%args = ref $_[0]
 			? %{$_[0]}
 			: @_
@@ -420,6 +488,9 @@ sub BUILDARGS {
 	$args{script_id}		= ucfirst lc $args{script_id}	if defined $args{script_id};
 	$args{territory_id}	= uc $args{territory_id}		if defined $args{territory_id};
 	$args{variant_id}	= uc $args{variant_id}		if defined $args{variant_id};
+	
+	# Set up undefined language
+	$args{language_id} //= 'und';
 
 	$self->SUPER::BUILDARGS(%args, %internal_args);
 }
@@ -431,7 +502,9 @@ sub BUILD {
 	# also check for aliases
 	$args->{language_id} = $self->language_aliases->{$args->{language_id}}
 		// $args->{language_id};
-	die "Invalid language" unless first { $args->{language_id} eq $_ } $self->valid_languages;
+		
+	die "Invalid language" if $args->{language_id}
+		&& ! first { $args->{language_id} eq $_ } $self->valid_languages;
 
 	die "Invalid script" if $args->{script_id} 
 		&& ! first { ucfirst lc $args->{script_id} eq $_ } $self->valid_scripts;
@@ -445,7 +518,7 @@ sub BUILD {
 		&&  ( !  ( first { uc $args->{variant_id} eq $_ } $self->valid_variants )
 			&& ( ! $self->variant_aliases->{lc $self->{variant_id}} )
 	);
-
+	
 	if ($args->{extentions}) {
 		my %valid_keys = $self->valid_keys;
 		my %key_aliases = $self->key_aliases;
@@ -477,8 +550,40 @@ sub BUILD {
 }
 
 after 'BUILD' => sub {
-	# Register with DateTime::Locale
+
 	my $self = shift;
+	
+	# Fix up likely sub tags
+	
+	my $likely_subtags = $self->likely_subtags;
+	my $likely_subtag;
+	my ($language_id, $script_id, $territory_id) = ($self->language_id, $self->script_id, $self->territory_id);
+	
+	unless ($language_id ne 'und' && $script_id && $territory_id ) {
+		$likely_subtag = $likely_subtags->{join '_', $language_id, $script_id, $territory_id};
+		
+		if (! $likely_subtag ) {
+			$likely_subtag = $likely_subtags->{join '_', $language_id, $territory_id};
+		}
+	
+		if (! $likely_subtag ) {
+			$likely_subtag = $likely_subtags->{join '_', $language_id, $script_id};
+		}
+	
+		if (! $likely_subtag ) { 
+			$likely_subtag = $likely_subtags->{$language_id};
+		}
+	
+		if (! $likely_subtag ) {
+			$likely_subtag = $likely_subtags->{join '_', 'und', $script_id};
+		}
+	}
+		
+	if ($likely_subtag) {
+		$self->_set_likely_subtag(__PACKAGE__->new($likely_subtag));
+	}
+	
+	# Register with DateTime::Locale
 	DateTime::Locale->register(
 		id 	    => $self->id,
 		en_language => $self->language,
@@ -526,7 +631,7 @@ sub _get_english {
 		$english = $self;
 	}
 	else {
-		$english = Locale::CLDR->new('en');
+		$english = Locale::CLDR->new('en_Latn_US');
 	}
 
 	return $english;
@@ -595,7 +700,9 @@ sub _build_native_variant {
 # Method to locate the resource bundle with the required data
 sub _find_bundle {
 	my ($self, $method_name) = @_;
-	my $id = $self->id(); 
+	my $id = $self->has_likely_subtag()
+		? $self->likely_subtag()->id()
+		: $self->id(); 
 	if ($self->method_cache->{$id}{$method_name}) {
 		return wantarray
 			? @{$self->method_cache->{$id}{$method_name}}
@@ -653,9 +760,7 @@ sub language_name {
 
 	$name //= $self;
 
-	my $code = ref $name
-		? $name->language_id
-		: eval { Locale::CLDR->new(language_id => $name)->language_id };
+	my $code = ref $name ? $name->language_id : eval { Locale::CLDR->new(language_id => $name)->language_id };
 
 	my $language = undef;
 	my @bundles = $self->_find_bundle('display_name_language');
@@ -706,7 +811,8 @@ sub script_name {
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = eval {__PACKAGE__->new(language_id => 'und', script_id => $name)};
+#		$name = eval {__PACKAGE__->new(language_id => 'und', script_id => $name)};
+		$name = eval {__PACKAGE__->new(script_id => $name)};
 	}
 
 	if ( ref $name && ! $name->script_id ) {
@@ -1352,7 +1458,7 @@ sub transform {
 	my $variant	= $params{variant} // 'Any';
 	my $text	= $params{text} // '';
 	
-	($from, $to) = map {ref $_ ? $_->script() : $_} ($from, $to);
+	($from, $to) = map {ref $_ ? $_->likely_script() : $_} ($from, $to);
 	$_ = ucfirst(lc $_) foreach ($from, $to, $variant);
 	
 	my $package = __PACKAGE__ . "::Transformations::${variant}::${from}::${to}";
@@ -1365,7 +1471,7 @@ sub transform {
 	my $rules = $transforms->{$variant}{$from}{$to}->transforms();
 	
 	# First get the filter rule
-	my $filter = shift @$rules;
+	my $filter = $rules->[0];
 		
 	# Break up the input on the filter
 	my @text;
@@ -1392,7 +1498,7 @@ sub transform {
 	
 	foreach my $characters (@text) {
 		if ($to_transform) {
-			foreach my $rule (@$rules) {
+			foreach my $rule (@$rules[1 .. @$rules -1 ]) {
 				if ($rule->{type} eq 'transform') {
 					$characters = $self->_transformation_transform($characters, $rule->{data}, $variant);
 				}
@@ -1473,6 +1579,17 @@ sub _transform_convert {
 	return $text;
 }
 
+sub list {
+	my ($self, @data) = @_;
+	
+	my @bundles = $self->_find_bundle('listPatterns');
+	
+	my %list_data;
+	foreach my $bundle (reverse @bundles) {
+		%list_data = %{$bundle->listPatterns};
+	}
+}
+	
 # Stubs until I get onto numbers
 sub plural {
 	return 'one' if $_[1] =~ /1$/;
