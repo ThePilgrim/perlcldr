@@ -4,7 +4,8 @@ use open ':encoding(utf8)';
 use utf8;
 use Moose;
 use MooseX::ClassAttribute;
-with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags';
+with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
+	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems';
 use Class::Load;
 
 use namespace::autoclean;
@@ -1376,7 +1377,7 @@ sub unit {
 		return $self->unit_compound($number, $dividend, $divisor, $type);
 	}
 	
-	$number = $self->number($number);
+	$number = $self->format_number($number);
 	return $number unless $format;
 	
 	return $format =~ s/\{0\}/$number/gr;
@@ -1390,7 +1391,7 @@ sub unit_compound {
 	my $dividend = $self->unit($number, $dividend_what, $type);
 	my $divisor = $self->unit(1, $divisor_what, $type);
 	
-	my $one = $self->number(1);
+	my $one = $self->format_number(1);
 	$divisor =~ s/\s*$one\s*//;
 
 	my @bundles = $self->_find_bundle('units');
@@ -1421,15 +1422,16 @@ sub unit_compound {
 	return $format =~ s/\{1\}/$divisor/gr;
 }
 
-sub durtation_unit {
+sub duration_unit {
 	# data in hh,mm; hh,mm,ss or mm,ss 
 	my ($self, $format, @data) = @_;
 	
 	my $bundle = $self->_find_bundle('duration_units');
 	my $parsed = $bundle->duration_units()->{$format};
 	
-	foreach my $entry (qr/(hh?)/, qr/(mm?)/, qr/(ss?)/) {
-		$parsed =~ s/$entry/$self->number(shift(@data), length $1)/e;
+	my $num_format = ['','##',''];
+	foreach my $entry ( qr/(hh?)/, qr/(mm?)/, qr/(ss?)/) {
+		$num_format = ['','0#',''] if $parsed =~ s/$entry/$self->format_number(shift(@data), $num_format)/e;
 	}
 	
 	return $parsed;
@@ -1582,12 +1584,43 @@ sub _transform_convert {
 sub list {
 	my ($self, @data) = @_;
 	
+	# Short circuit on 0 or 1 entries
+	return '' unless @data;
+	return $data[0] if 1 == @data;
+	
 	my @bundles = $self->_find_bundle('listPatterns');
 	
 	my %list_data;
 	foreach my $bundle (reverse @bundles) {
 		%list_data = %{$bundle->listPatterns};
 	}
+	
+	if (my $pattern = $list_data{scalar @data}) {
+		return $pattern=~s/\{([0-9]+)\}/$data[$1]/egr;
+	}
+	
+	my ($start, $middle, $end) = @list_data{qw( start middle end )};
+	
+	# First do the end
+	my $pattern = $end;
+	$pattern=~s/\{1\}/pop @data/e;
+	$pattern=~s/\{0\}/pop @data/e;
+	
+	# If there is any data left do the middle
+	while (@data > 1) {
+		my $current = $pattern;
+		$pattern = $middle;
+		$pattern=~s/\{1\}/$current/;
+		$pattern=~s/\{0\}/pop @data/e;
+	}
+	
+	# Now do the start
+	my $current = $pattern;
+	$pattern = $start;
+	$pattern=~s/\{1\}/$current/;
+	$pattern=~s/\{0\}/pop @data/e;
+	
+	return $pattern;
 }
 	
 # Stubs until I get onto numbers
@@ -1596,15 +1629,39 @@ sub plural {
 	return 'other';
 }
 
-sub number {
-	my ($self, $number, $length) = @_;
+# This method assumes a numeric numbering system. It will have to be re written to handle algorithmic systems later 
+sub format_number {
+	my ($self, $number, $format, $currency) = @_;
 	
-	if (defined $length && length($number) < $length) {
-		my $zeros = $self->number(0) x ($length - length($number));
-		$number = "$zeros$number";
-	}
+	$format //= ['','#','','','#',''];
+	
+	my ($p_prefix, $p_number, $p_postfix, $n_prefix, $n_number, $n_postfix) = @$format;
+	
+	# If we only pass in a positive format generate the negative from it
+	($n_prefix, $n_number, $n_postfix) = ($p_prefix, $p_number, $p_postfix) if @$format == 3;
+	
+	my $pad_length = length $n_number;
+	
+	$number = sprintf "%0${pad_length}s", $number if $format->[1] =~ /0/;
+	
+	# Substitute the digits with the locales digits
+	my @digits = $self->get_digits;
+	$number =~ s/([0-9])/$digits[$1]/eg;
 	
 	return $number;
+}
+
+# Get the digits for the locale. Assumes a numeric numbering system
+sub get_digits {
+	my $self = shift;
+	
+	#my $bundle = $self->_find_bundle('default_numbering_system');
+	
+	my $numbering_system = 'latn'; #$bundle->default_numbering_system();
+	
+	my $digits = $self->numbering_system->{$numbering_system}{data};
+	
+	return @$digits;
 }
 
 sub _build_default_calendar {

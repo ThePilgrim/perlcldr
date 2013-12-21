@@ -108,25 +108,41 @@ say "Processing files"
     if $verbose;
 
 # Likely sub-tags
-my $xml = XML::XPath->new(
-    File::Spec->catfile($base_directory,
-        'supplemental',
-        'likelySubtags.xml',
-    )
-);
-
-open my $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
-
 my $file_name = File::Spec->catfile($base_directory,
     'supplemental',
     'likelySubtags.xml'
 );
+
+my $xml = XML::XPath->new(
+    File::Spec->catfile($file_name)
+);
+
+open my $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
 
 say "Processing file $file_name" if $verbose;
 
 # Note: The order of these calls is important
 process_header($file, 'Locale::CLDR::LikelySubtags', $CLDR_VERSION, $xml, $file_name, 1);
 process_likely_subtags($file, $xml);
+process_footer($file, 1);
+close $file;
+
+# Numbering Systems
+$file_name = File::Spec->catfile($base_directory,
+    'supplemental',
+    'numberingSystems.xml'
+);
+
+my $xml = XML::XPath->new(
+    File::Spec->catfile($file_name));
+
+open my $file, '>', File::Spec->catfile($lib_directory, 'NumberingSystems.pm');
+
+say "Processing file $file_name" if $verbose;
+
+# Note: The order of these calls is important
+process_header($file, 'Locale::CLDR::NumberingSystems', $CLDR_VERSION, $xml, $file_name, 1);
+process_numbering_systems($file, $xml);
 process_footer($file, 1);
 close $file;
 
@@ -299,6 +315,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_posix($file, $xml);
 	process_list_patterns($file, $xml);
 	process_context_transforms($file, $xml);
+	process_numbers($file, $xml);
     process_calendars($file, $xml, $current_locale);
     process_time_zone_names($file, $xml);
     process_footer($file);
@@ -688,6 +705,46 @@ foreach my $subtag ($subtags->get_nodelist) {
 	my $to = $subtag->getAttribute('to');
 	
 	print $file "\t\t'$from'\t=> '$to',\n";
+}
+
+print $file <<EOT;
+\t}},
+);
+
+EOT
+}
+
+sub process_numbering_systems {
+	my ($file, $xpath) = @_;
+	
+	my $systems = findnodes($xpath,
+        q(/supplementalData/numberingSystems/numberingSystem));
+		
+	print $file <<EOT;
+has 'numbering_system' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { return {
+EOT
+
+foreach my $system ($systems->get_nodelist) {
+	my $id = $system->getAttribute('id');
+	my $type = $system->getAttribute('type');
+	my $data;
+	if ($type eq 'numeric') {
+		$data = '[qw(' . join(' ', split //, $system->getAttribute('digits')) . ')]';
+	}
+	else {
+		$data = "'" . $system->getAttribute('rules') . "'";
+	}
+	
+	print $file <<EOT;
+\t\t'$id'\t=> {
+\t\t\ttype\t=> '$type',
+\t\t\tdata\t=> $data,
+\t\t},
+EOT
 }
 
 print $file <<EOT;
@@ -1727,6 +1784,71 @@ EOT
 #/ldml/contextTransforms
 sub process_context_transforms {
 	my ($file, $xpath) = @_;
+	# TODO fix this up
+}
+
+#/ldml/numbers
+sub process_numbers {
+	my ($file, $xpath) = @_;
+	
+	say "Processing Numbers" if $verbose;
+	
+	my $default_numbering_system = findnodes($xpath, '/ldml/numbers/defaultNumberingSystem/text()');
+	
+	# Other Numbering systems
+	my %other_numbering_systems;
+	$other_numbering_systems{native} =  findnodes($xpath, '/ldml/numbers/otherNumberingSystems/native/text()');
+	$other_numbering_systems{traditional} =  findnodes($xpath, '/ldml/numbers/otherNumberingSystems/traditional/text()');
+	$other_numbering_systems{finance} =  findnodes($xpath, '/ldml/numbers/otherNumberingSystems/finance/text()');
+	
+	# Symbols
+	my %symbols;
+	my $symbols_nodes = findnodes($xpath, '/ldml/numbers/symbols');
+	foreach my $symbols ($symbols_nodes->get_nodelist) {
+		my $type = $symbols->getAttribute('numberSystem');
+		foreach my $symbol ( qw( alias decimal group list percentSign minusSign plusSign exponential superscriptingExponent perMille infinity nan ) ) {
+			if ($symbol eq 'alias') {
+				my $alias = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/\@path\text()) // '';
+				($alias) = $alias =~ /\[\@numberSystem='(.*?)'\]/;
+				$symbols{$type}{alias} = $alias if $alias;
+			}
+			else {
+				$symbols{$type}{$symbol} = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/text()));
+			}
+		}
+	}
+	
+	# Formats
+	my %formats;
+	foreach my $format_type ( qw( decimalFormat percentFormat scientificFormat ) ) {
+		my $number_system = findnodes($xpath, "/ldml/numbers/${format_type}s/\@numberSystem/text()")
+		my $default_type = findnodes($xpath, "/ldml/numbers/${format_type}s/default/\@type/text()");
+		if (my $alias = findnodes($xpath, "/ldml/numbers/${format_type}s/alias/\@path/text()") ) {
+			($alias) = $alias =~ /\[\@numberSystem='(.*?)'\]/;
+			$formats{$format_type}{alias} = $alias if $alias;
+			next;
+		}
+		
+		my $format_nodes_length = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length");
+		foreach my $format_node ( $format_nodes_length->get_nodelist ) { 
+			my $length_type = $format_node->getAttribute('type');
+			my $attribute = $length_type ? qq([\@type="$type"]) | '';
+			if (my $alias = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/alias/\@path/text()")) {
+				($alias) = $alias =~ /${format_type}Length\[\@type='(.*?)'\]/;
+				$formats{$format_type}{$length_type || 'default'}{alias} = $alias if $alias;
+				next;
+			}
+			my $pattern_nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/pattern");
+			foreach my $pattern ($pattern_nodes->get_nodelist) {
+				my $pattern_type = $pattern->getAttribute('type') || 0;
+				my $pattern_count = $pattern->getAttribute('count') || 'other';
+				my $pattern_text = $pattern->getChildNode(1)->getValue();
+				$formats{$format_type}{$length_type || 'default'}{$pattern_type}{$count_type} = $pattern_text;
+			}
+		}
+	}
+	
+	# Currency Formats
 	
 }
 

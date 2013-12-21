@@ -444,9 +444,9 @@ is($locale->unit(1, 'year', 'short'), '1 yr', 'English short 1 year');
 is($locale->unit(2, 'year', 'short'), '2 yrs', 'English short 2 years');
 is($locale->unit(1, 'year'), '1 year', 'English long 1 year');
 is($locale->unit(2, 'year'), '2 years', 'English long 2 years');
-is($locale->durtation_unit('hm', 1, 2), '1:02', 'English duration hour, minuit');
-is($locale->durtation_unit('hms', 1, 2, 3 ), '1:02:03', 'English duration hour, minuit, second');
-is($locale->durtation_unit('ms', 1, 2 ), '1:02', 'English duration minuit, second');
+is($locale->duration_unit('hm', 1, 2), '1:02', 'English duration hour, minuit');
+is($locale->duration_unit('hms', 1, 2, 3 ), '1:02:03', 'English duration hour, minuit, second');
+is($locale->duration_unit('ms', 1, 2 ), '1:02', 'English duration minuit, second');
 is($locale->is_yes('Yes'), 1, 'English is yes');
 is($locale->is_yes('es'), 0, 'English is not yes');
 is($locale->is_no('nO'), 1, 'English is no');
@@ -455,6 +455,14 @@ is($locale->is_no('N&'), 0, 'English is not no');
 # Transforms
 is($locale->transform(text => 'Let\'s try this one', from => 'latin', to => 'hebrew'), 'לֶט\'ס טרי טהִס ֳןֶ', 'Transliteration from Latin to Hebrew');
 is($locale->transform(text => 'Let\'s try this one', to => 'hebrew'), 'לֶט\'ס טרי טהִס ֳןֶ', 'Transliteration from Latin to Hebrew with locale with no script');
+
+# List data
+$locale = Locale::CLDR->new('fr');
+is($locale->list(), '', 'Empty list');
+is($locale->list(1), '1', 'One element list');
+is($locale->list(qw(1 2)), '1 et 2', 'Two element list');
+is($locale->list(qw(1 2 3)), '1, 2 et 3', 'Three element list');
+is($locale->list(qw(1 2 3 4)), '1, 2, 3 et 4', 'Four element list');
 __END__
 
 # Calendars
