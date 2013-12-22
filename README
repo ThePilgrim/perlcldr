@@ -16,6 +16,9 @@ To install this module, run the following commands:
 	./Build test
 	./Build install
 
+The installation should run the mkcldr.pl script which will download the
+latest CLDR data file and process the data.
+
 SUPPORT AND DOCUMENTATION
 
 After installing, you can find documentation for this module with the
