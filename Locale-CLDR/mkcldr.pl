@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+﻿#!/usr/bin/perl
 
 use v5.18;
 use strict;
@@ -1792,14 +1792,32 @@ sub process_numbers {
 	my ($file, $xpath) = @_;
 	
 	say "Processing Numbers" if $verbose;
-	
-	my $default_numbering_system = findnodes($xpath, '/ldml/numbers/defaultNumberingSystem/text()');
+
+	my $default_numbering_system = 'latn';
+	my $nodes = findnodes($xpath, '/ldml/numbers/defaultNumberingSystem/text()');
+	if ($nodes->size) {
+		$default_numbering_system = ($nodes->get_nodelist)[0]->getValue;
+	}
 	
 	# Other Numbering systems
 	my %other_numbering_systems;
-	$other_numbering_systems{native} =  findnodes($xpath, '/ldml/numbers/otherNumberingSystems/native/text()');
-	$other_numbering_systems{traditional} =  findnodes($xpath, '/ldml/numbers/otherNumberingSystems/traditional/text()');
-	$other_numbering_systems{finance} =  findnodes($xpath, '/ldml/numbers/otherNumberingSystems/finance/text()');
+	$other_numbering_systems{native} = '';
+	$nodes = findnodes($xpath, '/ldml/numbers/otherNumberingSystems/native/text()');
+	if ($nodes->size) {
+		$other_numbering_systems{native} = ($nodes->get_nodelist)[0]->getValue;
+	}
+	
+	$other_numbering_systems{traditional} =  '';
+	$nodes = findnodes($xpath, '/ldml/numbers/otherNumberingSystems/traditional/text()');
+	if ($nodes->size) {
+		$other_numbering_systems{traditional} =  ($nodes->get_nodelist)[0]->getValue;
+	}
+	
+	$other_numbering_systems{finance} =  '';
+	$nodes = findnodes($xpath, '/ldml/numbers/otherNumberingSystems/finance/text()');
+	if ($nodes->size) {
+		$other_numbering_systems{finance} = ($nodes->get_nodelist)[0]->getValue;
+	}
 	
 	# Symbols
 	my %symbols;
@@ -1808,48 +1826,249 @@ sub process_numbers {
 		my $type = $symbols->getAttribute('numberSystem');
 		foreach my $symbol ( qw( alias decimal group list percentSign minusSign plusSign exponential superscriptingExponent perMille infinity nan ) ) {
 			if ($symbol eq 'alias') {
-				my $alias = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/\@path\text()) // '';
-				($alias) = $alias =~ /\[\@numberSystem='(.*?)'\]/;
-				$symbols{$type}{alias} = $alias if $alias;
+				my $nodes = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/\@path));
+				next unless $nodes->size;
+				my $alias = ($nodes->get_nodelist)[0]->getValue =~ /\[\@numberSystem='(.*?)'\]/;
+				$symbols{$type}{alias} = $alias;
 			}
 			else {
-				$symbols{$type}{$symbol} = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/text()));
+				$symbols{$type}{$symbol} = '';
+				my $nodes = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/text()));
+				next unless $nodes->size;
+				$symbols{$type}{$symbol} = ($nodes->get_nodelist)[0]->getValue;
 			}
 		}
 	}
 	
 	# Formats
 	my %formats;
+	my $default_format_type = '';
 	foreach my $format_type ( qw( decimalFormat percentFormat scientificFormat ) ) {
-		my $number_system = findnodes($xpath, "/ldml/numbers/${format_type}s/\@numberSystem/text()")
-		my $default_type = findnodes($xpath, "/ldml/numbers/${format_type}s/default/\@type/text()");
-		if (my $alias = findnodes($xpath, "/ldml/numbers/${format_type}s/alias/\@path/text()") ) {
-			($alias) = $alias =~ /\[\@numberSystem='(.*?)'\]/;
-			$formats{$format_type}{alias} = $alias if $alias;
+		my $number_system = 'latn';
+		my $nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/\@numberSystem/text()");
+		if ($nodes->size) {
+			$number_system = ($nodes->get_nodelist)[0]->getValue;
+		}
+		
+		$nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/default/\@type/text()");
+		if ($nodes->size) {
+			$default_format_type = ($nodes->get_nodelist)[0]->getValue;
+		}
+		
+		$nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/alias/\@path");
+		if ( $nodes->size) {
+			my $alias = ($nodes->get_nodelist)[0]->getValue =~ /\[\@numberSystem='(.*?)'\]/;
+			$formats{$format_type}{alias} = $alias;
 			next;
 		}
 		
 		my $format_nodes_length = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length");
 		foreach my $format_node ( $format_nodes_length->get_nodelist ) { 
 			my $length_type = $format_node->getAttribute('type');
-			my $attribute = $length_type ? qq([\@type="$type"]) | '';
-			if (my $alias = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/alias/\@path/text()")) {
-				($alias) = $alias =~ /${format_type}Length\[\@type='(.*?)'\]/;
-				$formats{$format_type}{$length_type || 'default'}{alias} = $alias if $alias;
+			my $attribute = $length_type ? qq([\@type="$length_type"]) : '';
+			my $nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/alias/\@path");
+			if ($nodes->size) {
+				my $alias = ($nodes->get_nodelist)[0]->getValue =~ /${format_type}Length\[\@type='(.*?)'\]/;
+				$formats{$format_type}{$length_type || 'default'}{alias} = $alias;
 				next;
 			}
+			
 			my $pattern_nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/pattern");
 			foreach my $pattern ($pattern_nodes->get_nodelist) {
 				my $pattern_type = $pattern->getAttribute('type') || 0;
 				my $pattern_count = $pattern->getAttribute('count') || 'other';
 				my $pattern_text = $pattern->getChildNode(1)->getValue();
-				$formats{$format_type}{$length_type || 'default'}{$pattern_type}{$count_type} = $pattern_text;
+				$formats{$format_type}{$length_type || 'default'}{$pattern_type}{$pattern_count} = $pattern_text;
 			}
 		}
 	}
 	
 	# Currency Formats
+	my %currency_formats;
+	my $currency_format_nodes = findnodes($xpath, "/ldml/numbers/currencyFormats");
+	foreach my $currency_format_node ($currency_format_nodes->get_nodelist) {
+		my $number_system = $currency_format_node->getAttribute('numberSystem') // 'latn';
+		
+		# Check for alias
+		my $alias_nodes = findnodes($xpath, qq(/ldml/numbers/currencyFormats[\@numberSystem="$number_system"]/alias));
+		if ($alias_nodes->size) {
+			my $alias_node = ($alias_nodes->get_nodelist)[0];
+			my ($alias) = $alias_node->getAttribute('path') =~ /currencyFormats\[\@numberSystem='(.*?)'\]/;
+			$currency_formats{$number_system}{alias} = $alias;
+		}
+		else {
+			foreach my $location (qw( beforeCurrency afterCurrency )) {
+				foreach my $data (qw( currencyMatch surroundingMatch insertBetween ) ) {
+					my $nodes = findnodes($xpath, qq(/ldml/numbers/currencyFormats[\@numberSystem="$number_system"]/currencySpacing/$location/$data/text()));
+					next unless $nodes->size;
+					my $text = ($nodes->get_nodelist)[0]->getValue;
+					$currency_formats{$number_system}{position}{$location}{$data} = $text;
+				}
+			}
+			
+			foreach my $currency_format_type (qw( standard accounting )) {
+				my $length_nodes = findnodes($xpath, qq(/ldml/numbers/currencyFormats[\@numberSystem="$number_system"]/currencyFormatLength));
+				foreach my $length_node ($length_nodes->get_nodelist) {
+					my $length_node_type = $length_node->getAttribute('type') // '';
+					my $length_node_type_text = qq([type="$length_node_type"]) if $length_node_type;
+
+					foreach my $currency_type (qw( standard accounting )) {
+						# Check for aliases
+						my $alias_nodes = findnodes($xpath, qq(/ldml/numbers/currencyFormats[\@numberSystem="$number_system"]/currencyFormatLength$length_node_type_text/currencyFormat[\@type="$currency_type"]/alias));
+						if ($alias_nodes->size) {
+							my ($alias) = ($alias_nodes->get_nodelist)[0]->getAttribute('path') =~ /currencyFormat\[\@type='(.*?)'\]/;
+							$currency_formats{$number_system}{pattern}{$length_node_type || 'default'}{$currency_type}{alias} = $alias;
+						}
+						else {
+							my $pattern_nodes = findnodes($xpath, qq(/ldml/numbers/currencyFormats[\@numberSystem="$number_system"]/currencyFormatLength$length_node_type_text/currencyFormat[\@type="$currency_type"]/pattern/text()));
+							next unless $pattern_nodes->size;
+							my $pattern = ($pattern_nodes->get_nodelist)[0]->getValue;
+							my ($positive, $negative) = split /;/, $pattern;
+							$negative //= $positive;
+							$currency_formats{$number_system}{pattern}{$length_node_type || 'default'}{$currency_type}{positive} = $positive;
+							$currency_formats{$number_system}{pattern}{$length_node_type || 'default'}{$currency_type}{negative} = $negative;
+						}
+					}
+				}
+			}
+		}
+	}
 	
+	# Write out data
+	print $file <<EOT;
+has 'default_numbering_system' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> '$default_numbering_system',
+);
+
+EOT
+
+	foreach my $numbering_system (qw( native traditional finance )) {
+		if ($other_numbering_systems{$numbering_system}) {
+			print $file <<EOT;
+has ${numbering_system}_numbering_system => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> '$other_numbering_systems{$numbering_system}',
+);
+
+EOT
+		}
+	}
+
+	if (keys %symbols) {
+		print $file <<EOT;
+has 'number_symbols' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+		foreach my $number_system (sort keys %symbols) {
+			if (exists $symbols{$number_system}{alias}) {
+				say $file "\t\t'$number_system' => { 'alias' => '$symbols{$number_system}{alias}' },"
+			}
+			else {
+				say $file "\t\t'$number_system' => {";
+				foreach my $symbol (sort keys %{$symbols{$number_system}}) {
+					say $file "\t\t\t'$symbol' => q($symbols{$number_system}{$symbol}),";
+				}
+				say $file "\t\t},";
+			}
+		}
+	}
+	print $file <<EOT;
+\t} }
+);
+
+EOT
+
+	if ($default_format_type) {
+		print $file <<EOT;
+has 'default_numbering_format_type' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> '$default_format_type',
+);
+
+EOT
+	}
+	
+	if (keys %formats) {
+		print $file <<EOT;
+has 'number_formats' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+		foreach my $number_system (sort keys %formats) {
+			say $file "\t\t$number_system => {";
+			foreach my $length ( sort keys %{$formats{$number_system}} ) {
+				if ($length eq 'alias') {
+					say "\t\t\t'alias' => '$formats{$number_system}{alias}',";
+				}
+				else {
+					say $file "\t\t\t'$length' => {";
+					foreach my $pattern_type (sort keys %{$formats{$number_system}{$length}}) {
+						if ($pattern_type eq 'alias') {
+							say "\t\t\t\t'alias' => '$formats{$number_system}{$length}{alias}',";
+						}
+						else {
+							say $file "\t\t\t\t'$pattern_type' => {";
+							foreach my $count (sort keys %{$formats{$number_system}{$length}{$pattern_type}}) {
+								say $file "\t\t\t\t\t'$count' => '$formats{$number_system}{$length}{$pattern_type}{$count}',";
+							}
+							say $file "\t\t\t\t},";
+						}
+					}
+					say $file "\t\t\t},";
+				}
+			}
+			say $file "\t\t},";
+		}
+		print  $file <<EOT;
+} },
+)
+
+EOT
+	}
+	
+	if (keys %currency_formats) {
+		print $file <<EOT;
+has 'number_currency_formats' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+		foreach my $number_system (sort keys %currency_formats ) {
+			say $file "\t\t'$number_system' => {";
+			foreach my $type (sort keys %{$currency_formats{$number_system}}) {
+				if ($type eq 'alias') {
+					say $file "\t\t\t'alias' => '$currency_formats{$number_system}{alias}',";
+				}
+				elsif ($type eq 'position') {
+					say $file "\t\t\t'possion' => {";
+					foreach my $location (sort keys %{$currency_formats{$number_systems}{position}}) {
+						say $file "\t\t\t\t'$location' => {";
+						foreach my $data (sort keys %{$currency_formats{$number_systems}{position}{$location}}) {
+							say $file "\t\t\t\t\t'$data' => '$currency_formats{$number_systems}{position}{$location}{$data}',";
+						}
+						say $file "\t\t\t\t}";
+					}
+					say $file "\t\t\t}";
+				}
+				else {
+				}
+			}
+			say $file "\t\t}";
+		}
+	}
 }
 
 # Dates
