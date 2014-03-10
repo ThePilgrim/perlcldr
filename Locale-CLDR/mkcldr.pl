@@ -203,6 +203,21 @@ process_era_boundries($file, $xml);
 process_footer($file, 1);
 close $file;
 
+# Currency defaults
+open $file, '>', File::Spec->catfile($lib_directory, 'Currencies.pm');
+process_header($file, 'Locale::CLDR::Currencies', $CLDR_VERSION, $xml, $file_name, 1);
+process_currency_data($file, $xml);
+process_footer($file, 1);
+close $file;
+
+# Territory Containment
+open $file, '>', File::Spec->catfile($lib_directory, 'TerritoryContainment.pm');
+process_header($file, 'Locale::CLDR::TerritoryContainment', $CLDR_VERSION, $xml, $file_name, 1);
+process_territory_containment_data($file, $xml);
+process_footer($file, 1);
+close $file;
+
+
 # Calendar Preferences
 open $file, '>', File::Spec->catfile($lib_directory, 'CalendarPreferences.pm');
 
@@ -1436,7 +1451,7 @@ has 'characters' => (
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub {
-\tno warnings 'experimental::regex_sets';
+\t\tno warnings 'experimental::regex_sets';
 \t\treturn {
 EOT
     foreach my $type (sort keys %data) {
@@ -1828,7 +1843,7 @@ sub process_numbers {
 			if ($symbol eq 'alias') {
 				my $nodes = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/\@path));
 				next unless $nodes->size;
-				my $alias = ($nodes->get_nodelist)[0]->getValue =~ /\[\@numberSystem='(.*?)'\]/;
+				my ($alias) = ($nodes->get_nodelist)[0]->getValue =~ /\[\@numberSystem='(.*?)'\]/;
 				$symbols{$type}{alias} = $alias;
 			}
 			else {
@@ -1934,6 +1949,23 @@ sub process_numbers {
 		}
 	}
 	
+	# Currencies
+	my %currencies;
+	my $currency_nodes = findnodes($xpath, "/ldml/numbers/currencies");
+	foreach my $currency_node ($currency_nodes->get_nodelist) {
+		my $currency_code = $currency_node->getAttribute('type');
+		my $currency_symbol_nodes = findnodes($xpath, "/ldml/numbers/currencies/currency[\@type='$currency_code']/symbol/text()");
+		if ($currency_symbol_nodes->size) {
+			$currencies{$currency_code}{currency_symbol} = ($currency_symbol_nodes->get_nodelist)[0]->getValue;
+		}
+		my $display_name_nodes = findnodes($xpath, "/ldml/numbers/currencies/currency[\@type='$currency_code']/displayName");
+		foreach my $display_name_node ($display_name_nodes->get_nodelist) {
+			my $count = $display_name_node->getAttribute('count') // '';
+			my $name = $display_name_node->getChildNode(1)->getValue();
+			$currencies{$currency_code}{display_name}{$count} = $name;
+		}
+	}
+	
 	# Write out data
 	print $file <<EOT;
 has 'default_numbering_system' => (
@@ -2033,7 +2065,7 @@ EOT
 		}
 		print  $file <<EOT;
 } },
-)
+);
 
 EOT
 	}
@@ -2054,21 +2086,184 @@ EOT
 				}
 				elsif ($type eq 'position') {
 					say $file "\t\t\t'possion' => {";
-					foreach my $location (sort keys %{$currency_formats{$number_systems}{position}}) {
+					foreach my $location (sort keys %{$currency_formats{$number_system}{position}}) {
 						say $file "\t\t\t\t'$location' => {";
-						foreach my $data (sort keys %{$currency_formats{$number_systems}{position}{$location}}) {
-							say $file "\t\t\t\t\t'$data' => '$currency_formats{$number_systems}{position}{$location}{$data}',";
+						foreach my $data (sort keys %{$currency_formats{$number_system}{position}{$location}}) {
+							say $file "\t\t\t\t\t'$data' => '$currency_formats{$number_system}{position}{$location}{$data}',";
 						}
-						say $file "\t\t\t\t}";
+						say $file "\t\t\t\t},";
 					}
-					say $file "\t\t\t}";
+					say $file "\t\t\t},";
 				}
 				else {
+					say $file "\t\t\t'pattern' => {";
+					foreach my $length (sort keys %{$currency_formats{$number_system}{pattern}}) {
+						say $file "\t\t\t\t'$length' => {";
+						foreach my $currency_type (sort keys %{$currency_formats{$number_system}{pattern}{$length}} ) {
+							say $file "\t\t\t\t\t'$currency_type' => {";
+							foreach my $p_n_a (sort keys %{$currency_formats{$number_system}{pattern}{$length}{$currency_type}}) {
+								say $file "\t\t\t\t\t\t'$p_n_a' => '$currency_formats{$number_system}{pattern}{$length}{$currency_type}{$p_n_a}',";
+							}
+							say $file "\t\t\t\t\t},";
+						}
+						say $file "\t\t\t\t},";
+					}
+					say $file "\t\t\t},";
 				}
 			}
-			say $file "\t\t}";
+			say $file "\t\t},";
 		}
+		print  $file <<EOT;
+} },
+);
+
+EOT
 	}
+	
+	if (keys %currencies) {
+		print $file <<EOT;
+has 'curriencies' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+		foreach my $currency (sort keys %currencies) {
+			say $file <<EOT;
+\t\t'$currency' => {
+\t\t\tsymbol => '$currencies{currency_symbol}',
+\t\t\tdisplay_name => q($currencies{display_name}),
+\t\t},
+EOT
+		}
+		say $file <<EOT;
+\t} },
+);
+
+EOT
+	}
+}
+
+# Default currency data
+sub process_currency_data {
+	my ($file, $xml) = @_;
+	
+	say "Processing currency data" if $verbose;
+	
+	# Do fraction data
+	my $fractions = findnodes($xml, '/supplementalData/currencyData/fractions/info');
+	my %fractions;
+	foreach my $node ($fractions->get_nodelist) {
+		$fractions{$node->getAttribute('iso4217')} = {
+			digits			=> $node->getAttribute('digits'),
+			rounding		=> $node->getAttribute('rounding'),
+			cashrounding	=> $node->getAttribute('cashRounding') 	|| $node->getAttribute('rounding'),
+			cashdigits		=> $node->getAttribute('cashDigits') 	|| $node->getAttribute('digits'),
+		};
+	}
+	
+	# Do default Currency data
+	# The data set provides historical data which I'm ignoring for now
+	my %default_currency;
+	my $default_currencies = findnodes($xml, '/supplementalData/currencyData/region');
+	foreach my $node ( $default_currencies->get_nodelist ) {
+		my $region = $node->getAttribute('iso3166');
+		
+		my $currencies = findnodes($xml, qq(/supplementalData/currencyData/region[\@iso3166="$region"]/currency[not(\@to)]));
+		
+		next unless $currencies->size;
+		
+		my ($currency) = $currencies->get_nodelist;
+		$currency = $currency->getAttribute('iso4217');
+		$default_currency{$region} = $currency;
+	}
+	
+	say $file <<EOT;
+has 'currency_fractions' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+
+	foreach my $fraction (sort keys %fractions) {
+		say $file "\t\t$fraction => {";
+		foreach my $type ( qw(digits rounding cashdigits cashrounding ) ) {
+			say $file "\t\t\t'$type' => '$fractions{$fraction}{$type}',";
+		}
+		say $file "\t\t},";
+	}
+	
+	say $file <<EOT;
+\t} },
+);
+
+has 'default_currency' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+	
+	foreach my $territory (sort keys %default_currency) {
+		say $file "\t\t\t\t'$territory' => '$default_currency{$territory}',";
+	}
+	
+	say $file <<EOT;
+\t } },
+);
+
+EOT
+}
+
+
+# Territory Containment data
+sub process_territory_containment_data {
+	my ($file, $xpath) = @_;
+	
+	my $data = findnodes($xpath, '/supplementalData/territoryContainment/group');
+	
+	my %contains;
+	my %contained_by;
+	foreach my $node ($data->get_nodelist) {
+		my $base = $node->getAttribute('type');
+		my @contains = split /\s+/, $node->getAttribute('contains');
+		push @{$contains{$base}}, @contains;
+		@contained_by{@contains} = ($base) x @contains;
+	}
+	
+	say $file <<EOT;
+has 'territory_contains' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+
+	foreach my $territory ( sort { $a <=> $b || $a cmp $b } keys %contains ) {
+		say $file "\t\t'$territory' => [ qw( @{$contains{$territory}} ) ], ";
+	}
+	
+	say $file <<EOT;
+\t} }
+);
+
+has 'territory_contained_by' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+
+	foreach my $territory ( sort { $a <=> $b || $a cmp $b } keys %contained_by ) {
+		say $file "\t\t'$territory' => '$contained_by{$territory}', ";
+	}
+	
+	say $file <<EOT;
+\t} }
+);
+
+EOT
 }
 
 # Dates

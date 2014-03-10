@@ -5,7 +5,9 @@ use utf8;
 use Moose;
 use MooseX::ClassAttribute;
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
-	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems';
+	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
+	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::TerritoryContainment';
+	
 use Class::Load;
 
 use namespace::autoclean;
@@ -251,16 +253,6 @@ foreach my $property (qw( name language script territory variant)) {
 		my $build = "_build_native_$property";
 		return $self->$build($for);
 	};
-		
-=pod
-	has "native_$property" => (
-		is => 'ro',
-		isa => 'Str',
-		init_arg => undef,
-		lazy => 1,
-		builder => "_build_native_$property",
-	);
-=cut
 }
 
 #DateTime::Local
@@ -1429,9 +1421,9 @@ sub duration_unit {
 	my $bundle = $self->_find_bundle('duration_units');
 	my $parsed = $bundle->duration_units()->{$format};
 	
-	my $num_format = ['','##',''];
+	my $num_format = '#';
 	foreach my $entry ( qr/(hh?)/, qr/(mm?)/, qr/(ss?)/) {
-		$num_format = ['','0#',''] if $parsed =~ s/$entry/$self->format_number(shift(@data), $num_format)/e;
+		$num_format = '0#' if $parsed =~ s/$entry/$self->format_number(shift(@data), $num_format)/e;
 	}
 	
 	return $parsed;
@@ -1627,41 +1619,6 @@ sub list {
 sub plural {
 	return 'one' if $_[1] =~ /1$/;
 	return 'other';
-}
-
-# This method assumes a numeric numbering system. It will have to be re written to handle algorithmic systems later 
-sub format_number {
-	my ($self, $number, $format, $currency) = @_;
-	
-	$format //= ['','#','','','#',''];
-	
-	my ($p_prefix, $p_number, $p_postfix, $n_prefix, $n_number, $n_postfix) = @$format;
-	
-	# If we only pass in a positive format generate the negative from it
-	($n_prefix, $n_number, $n_postfix) = ($p_prefix, $p_number, $p_postfix) if @$format == 3;
-	
-	my $pad_length = length $n_number;
-	
-	$number = sprintf "%0${pad_length}s", $number if $format->[1] =~ /0/;
-	
-	# Substitute the digits with the locales digits
-	my @digits = $self->get_digits;
-	$number =~ s/([0-9])/$digits[$1]/eg;
-	
-	return $number;
-}
-
-# Get the digits for the locale. Assumes a numeric numbering system
-sub get_digits {
-	my $self = shift;
-	
-	#my $bundle = $self->_find_bundle('default_numbering_system');
-	
-	my $numbering_system = 'latn'; #$bundle->default_numbering_system();
-	
-	my $digits = $self->numbering_system->{$numbering_system}{data};
-	
-	return @$digits;
 }
 
 sub _build_default_calendar {
