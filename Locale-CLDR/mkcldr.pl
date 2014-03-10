@@ -1808,7 +1808,7 @@ sub process_numbers {
 	
 	say "Processing Numbers" if $verbose;
 
-	my $default_numbering_system = 'latn';
+	my $default_numbering_system = '';
 	my $nodes = findnodes($xpath, '/ldml/numbers/defaultNumberingSystem/text()');
 	if ($nodes->size) {
 		$default_numbering_system = ($nodes->get_nodelist)[0]->getValue;
@@ -1967,7 +1967,7 @@ sub process_numbers {
 	}
 	
 	# Write out data
-	print $file <<EOT;
+	print $file <<EOT if $default_numbering_system;
 has 'default_numbering_system' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'Str',
