@@ -1423,7 +1423,7 @@ sub duration_unit {
 	
 	my $num_format = '#';
 	foreach my $entry ( qr/(hh?)/, qr/(mm?)/, qr/(ss?)/) {
-		$num_format = '0#' if $parsed =~ s/$entry/$self->format_number(shift(@data), $num_format)/e;
+		$num_format = '00' if $parsed =~ s/$entry/$self->format_number(shift(@data), $num_format)/e;
 	}
 	
 	return $parsed;
