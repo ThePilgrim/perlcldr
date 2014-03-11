@@ -953,13 +953,24 @@ EOT
         my @territories = split / /,$node->getAttribute('territories');
         my @ordering = split / /, $node->getAttribute('ordering');
         foreach my $territory (@territories) {
-            say $file "\t\t$territory => '", join("','", @ordering), "',";
+            say $file "\t\t$territory => ['", join("','", @ordering), "'],";
         }
     }
     print $file <<EOT;
 \t}},
 );
 
+sub default_calendar {
+\tmy (\$self, \$territory) = \@_;
+
+\t\$territory //= \$self->territory_id();
+
+\tmy \$preferences = \$self->calendar_preferences();
+
+\tmy \$default = \$preferences->{\$territory}[0] // 'gregorian';
+
+\treturn \$default;
+}
 EOT
 }
 
@@ -2047,13 +2058,13 @@ EOT
 			say $file "\t\t$number_system => {";
 			foreach my $length ( sort keys %{$formats{$number_system}} ) {
 				if ($length eq 'alias') {
-					say "\t\t\t'alias' => '$formats{$number_system}{alias}',";
+					say $file "\t\t\t'alias' => '$formats{$number_system}{alias}',";
 				}
 				else {
 					say $file "\t\t\t'$length' => {";
 					foreach my $pattern_type (sort keys %{$formats{$number_system}{$length}}) {
 						if ($pattern_type eq 'alias') {
-							say "\t\t\t\t'alias' => '$formats{$number_system}{$length}{alias}',";
+							say $file "\t\t\t\t'alias' => '$formats{$number_system}{$length}{alias}',";
 						}
 						else {
 							say $file "\t\t\t\t'$pattern_type' => {";
@@ -2283,17 +2294,10 @@ sub process_calendars {
     return unless $calendars->size;
 
     my %calendars;
-    my $default_nodes = findnodes($xpath,'/ldml/dates/calendars/default');
-    if ($default_nodes->size) {
-        my $default = ($default_nodes->get_nodelist)[0]->getAttribute('choice');
-        $calendars{default} = $default;
-    }
-
     foreach my $calendar ($calendars->get_nodelist) {
         my $type = $calendar->getAttribute('type');
-        my ($months, $months_aliases) = process_months($xpath, $type);
+        my ($months) = process_months($xpath, $type);
         $calendars{months}{$type} = $months if $months;
-        $calendars{months_aliases}{$type} = $months_aliases if $months_aliases;
         my ($days, $days_alias) = process_days($xpath, $type);
         $calendars{days}{$type} = $days if $days;
         my $quarters = process_quarters($xpath, $type);
@@ -2315,18 +2319,6 @@ sub process_calendars {
     }
 
     # Got all the data now write it out to the file;
-    if ($calendars{default}) {
-        print $file <<EOT;
-has 'calendar_default' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
-\tinit_arg\t=> undef,
-\tdefault\t\t=> q{$calendars{default}},
-);
-
-EOT
-
-    }
     if (keys %{$calendars{months}}) {
         print $file <<EOT;
 has 'calendar_months' => (
@@ -2336,17 +2328,23 @@ has 'calendar_months' => (
 \tdefault\t\t=> sub { {
 EOT
         foreach my $type (sort keys %{$calendars{months}}) {
+			
             say $file "\t\t\t'$type' => {";
             foreach my $context ( sort keys %{$calendars{months}{$type}} ) {
-                if ($context eq 'default') {
-                    say $file "\t\t\t\t'default' => q{$calendars{months}{$type}{default}},";
-                    next;
-                }
-
+                if ($context eq 'alias') {
+					say $file "\t\t\t\t'alias' => '$calendars{months}{$type}{alias}',";
+					next;
+				}
+				
                 say $file "\t\t\t\t'$context' => {";
                 foreach my $width (sort keys %{$calendars{months}{$type}{$context}}) {
-                    if ($width eq 'default') {
-                        say $file "\t\t\t\t\t'default' => q{$calendars{months}{$type}{$context}{default}},";
+                    if (exists $calendars{months}{$type}{$context}{$width}{alias}) {
+						say $file "\t\t\t\t\t'$width' => {";
+                        say $file "\t\t\t\t\t\t'alias' => {";
+						say $file "\t\t\t\t\t\t\tcontext\t=> q{$calendars{months}{$type}{$context}{$width}{alias}{context}},";
+						say $file "\t\t\t\t\t\t\ttype\t=> q{$calendars{months}{$type}{$context}{$width}{alias}{type}},";
+						say $file "\t\t\t\t\t\t},";
+						say $file "\t\t\t\t\t},";
                         next;
                     }
 
@@ -2380,25 +2378,7 @@ EOT
 EOT
     }
 
-    if (keys %{$calendars{months_aliases}}) {
-        print $file <<EOT;
-has 'calendar_months_alias' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
-\tinit_arg\t=> undef,
-\tdefault\t\t=> sub { {
-EOT
-        foreach my $from (sort keys %{$calendars{months_aliases}}) {
-            say $file "\t\t\tq($from) => q($calendars{months_aliases}{$from}),";
-        }
-        print $file <<EOT;
-\t} },
-);
-
-EOT
-    }
-
-    my %days = (
+   my %days = (
         mon => 0,
         tue => 1,
         wed => 2,
@@ -2774,18 +2754,12 @@ sub process_months {
 
     say "Processing Months ($type)" if $verbose;
 
-    my (%months,$aliases);
-    my $default_context = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/default));
-    if ($default_context->size) {
-        my $default_node = ($default_context->get_nodelist)[0];
-        my $choice = $default_node->getAttribute('choice');
-        $months{default} = $choice;
-    }
-
+    my (%months);
     my $months_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/alias));
     if ($months_alias->size) {
         my $path = ($months_alias->get_nodelist)[0]->getAttribute('path');
-        ($aliases) = $path=~/\[\@type='(.*?)']/;
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$months{alias} = $alias;
     }
     else {
         my $months_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext));
@@ -2795,33 +2769,29 @@ sub process_months {
         foreach my $context_node ($months_nodes->get_nodelist) {
             my $context_type = $context_node->getAttribute('type');
 
-            my $default_width = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$context_type"]/default));
-
-            if ($default_width->size) {
-                my $default_node = ($default_width->get_nodelist)[0];
-                my $choice = $default_node->getAttribute('choice');
-                $months{$context_type}{default} = $choice;
-            }
-
             my $width = findnodes($xpath,
                 qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$context_type"]/monthWidth));
 
             foreach my $width_node ($width->get_nodelist) {
-                my $width_type;
-                my $width_context = $context_type;
-
-                if ($width_node->getLocalName() eq 'alias') {
-                    my $path = $width_node->getAttribute('path');
+                my $width_type = $width_node->getAttribute('type');
+				
+				my $width_alias_nodes = findnodes($xpath,
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$context_type"]/monthWidth[\@type="$width_type"]/alias)
+				);
+				
+				if ($width_alias_nodes->size) {
+                    my $path = my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
                     my ($new_width_context) = $path =~ /monthContext\[\@type='([^']+)'\]/;
-                    $width_context = $new_width_context if $new_width_context;
-                    ($width_type) = $path =~ /monthWidth\[\@type='([^']})'\]/;
+                    $new_width_context //= $context_type;
+                    my ($new_width_type) = $path =~ /monthWidth\[\@type='([^']+)'\]/;
+					$months{$context_type}{$width_type}{alias} = {
+						context	=> $new_width_context,
+						type	=> $new_width_type,
+					};
+					next;
                 }
-                else {
-                    $width_type = $width_node->getAttribute('type');
-                }
-
                 my $month_nodes = findnodes($xpath, 
-                    qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$width_context"]/monthWidth[\@type="$width_type"]/month));
+                    qq(/ldml/dates/calendars/calendar[\@type="$type"]/months/monthContext[\@type="$context_type"]/monthWidth[\@type="$width_type"]/month));
                 foreach my $month ($month_nodes->get_nodelist) {
                     my $month_type = $month->getAttribute('type') -1;
                     my $year_type = $month->getAttribute('yeartype') || 'nonleap';
@@ -2831,7 +2801,7 @@ sub process_months {
             }
         }
     }
-    return \%months, $aliases;
+    return \%months;
 }
 
 #/ldml/dates/calendars/calendar/days/
@@ -3941,7 +3911,7 @@ sub write_out_number_formatter {
 	# write out the code for the CLDR::NumberFormater module
 	my $file = shift;
 	
-	print $file <<END_OF_NUMBER_FORMATTER;
+	print $file <<'END_OF_NUMBER_FORMATTER';
 package Locale::CLDR::NumberFormatter;
 
 use v5.18;

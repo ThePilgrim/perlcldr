@@ -6,7 +6,7 @@ use Moose;
 use MooseX::ClassAttribute;
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
 	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
-	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::TerritoryContainment';
+	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::TerritoryContainment', 'Locale::CLDR::CalendarPreferences';
 	
 use Class::Load;
 
@@ -275,7 +275,7 @@ foreach my $property (qw(
 		clearer => "_clear_$property",
 	);
 }
-
+	
 foreach my $property (qw(
 	id
 	date_format_full date_formart_long 
@@ -317,8 +317,9 @@ has 'format_data' => (
 	clearer => "_clear_format_data",
 );
 
+# default_calendar
 foreach my $property (qw(
-	default_date_format_length default_time_format_length default_calendar
+	default_date_format_length default_time_format_length
 )) {
 	has $property => (
 		is => 'ro',
@@ -329,11 +330,6 @@ foreach my $property (qw(
 		writer => "set_$property" 
 	);
 }
-
-after 'set_default_calendar' => sub {
-	my $self = shift;
-	$self->_clear_calendar_data;
-};
 
 has 'prefers_24_hour_time' => (
 	is => 'ro',
@@ -1621,18 +1617,6 @@ sub plural {
 	return 'other';
 }
 
-sub _build_default_calendar {
-	my $self = shift;
-	
-	my $extentions = $self->extentions;
-	if (defined $extentions) {
-		return $extentions->{ca} if $extentions->{ca};
-	}
-
-	my $bundle = $self->_find_bundle('calendar_default');
-	return $bundle->calendar_default;
-}
-
 sub _clear_calendar_data {
 	my $self = shift;
 
@@ -1660,41 +1644,48 @@ sub _clear_calendar_data {
 sub _build_month_format_wide {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_months_alias');
-	my %month_aliases;
-	foreach my $aliases (@bundles) {
-		my $alias = $aliases->calendar_months_alias;
-		$month_aliases{$alias->[0]} = $alias->[1];
-	}
-
-	@bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
+	my ($type, $width) = (qw(format wide));
+	my @bundles = $self->_find_bundle('calendar_months');
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
-			my $result = $months->{$calendar}{format}{wide}{nonleap};
+			if (exists $months->{$default_calendar}{alias}) {
+				$default_calendar = $months->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+
+			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
+				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
+				redo BUNDLES;
+			}
+			
+			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
 			return $result if defined $result;
 		}
 	}
+	
 	return [];
 }
 
 sub _build_month_format_abbreviated {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_months_alias');
-	my %month_aliases;
-	foreach my $aliases (@bundles) {
-		my $alias = $aliases->calendar_months_alias;
-		$month_aliases{$alias->[0]} = $alias->[1];
-	}
-
-	@bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
+	my ($type, $width) = (qw(format abbreviated));
+	my @bundles = $self->_find_bundle('calendar_months');
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
-			my $result = $months->{$calendar}{format}{abbreviated}{nonleap};
+			if (exists $months->{$default_calendar}{alias}) {
+				$default_calendar = $months->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+			
+			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
+				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
+				redo BUNDLES;
+			}
+			
+			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
 			return $result if defined $result;
 		}
 	}
@@ -1705,19 +1696,22 @@ sub _build_month_format_abbreviated {
 sub _build_month_format_narrow {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_months_alias');
-	my %month_aliases;
-	foreach my $aliases (@bundles) {
-		my $alias = $aliases->calendar_months_alias;
-		$month_aliases{$alias->[0]} = $alias->[1];
-	}
-
-	@bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, $month_aliases{default_calendar}) {
+	my ($type, $width) = (qw(format narrow));
+	my @bundles = $self->_find_bundle('calendar_months');
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
-			my $result = $months->{$calendar}{format}{narrow}{nonleap};
+			if (exists $months->{$default_calendar}{alias}) {
+				$default_calendar = $months->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+			
+			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
+				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
+				redo BUNDLES;
+			}
+			
+			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
 			return $result if defined $result;
 		}
 	}
@@ -1728,19 +1722,22 @@ sub _build_month_format_narrow {
 sub _build_month_stand_alone_wide {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_months_alias');
-	my %month_aliases;
-	foreach my $aliases (@bundles) {
-		my $alias = $aliases->calendar_months_alias;
-		$month_aliases{$alias->[0]} = $alias->[1];
-	}
-
-	@bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
+	my ($type, $width) = ('stand-alone', 'wide');
+	my @bundles = $self->_find_bundle('calendar_months');
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
-			my $result = $months->{$calendar}{'stand-alone'}{wide}{nonleap};
+			if (exists $months->{$default_calendar}{alias}) {
+				$default_calendar = $months->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+			
+			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
+				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
+				redo BUNDLES;
+			}
+			
+			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
 			return $result if defined $result;
 		}
 	}
@@ -1751,19 +1748,22 @@ sub _build_month_stand_alone_wide {
 sub _build_month_stand_alone_abbreviated {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_months_alias');
-	my %month_aliases;
-	foreach my $aliases (@bundles) {
-		my $alias = $aliases->calendar_months_alias;
-		$month_aliases{$alias->[0]} = $alias->[1];
-	}
-
-	@bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
+	my ($type, $width) = ('stand-alone', 'abbreviated');
+	my @bundles = $self->_find_bundle('calendar_months');
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
-			my $result = $months->{$calendar}{'stand-alone'}{abbreviated}{nonleap};
+			if (exists $months->{$default_calendar}{alias}) {
+				$default_calendar = $months->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+			
+			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
+				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
+				redo BUNDLES;
+			}
+			
+			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
 			return $result if defined $result;
 		}
 	}
@@ -1774,19 +1774,23 @@ sub _build_month_stand_alone_abbreviated {
 sub _build_month_stand_alone_narrow {
 	my $self = shift;
 	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_months_alias');
-	my %month_aliases;
-	foreach my $aliases (@bundles) {
-		my $alias = $aliases->calendar_months_alias;
-		$month_aliases{$alias->[0]} = $alias->[1];
-	}
-
-	@bundles = $self->_find_bundle('calendar_months');
-	foreach my $calendar ($default_calendar, $month_aliases{$default_calendar}) {
+	my ($type, $width) = ('stand-alone', 'narrow');
+	my @bundles = $self->_find_bundle('calendar_months');
+	
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
-			my $result = $months->{$calendar}{'stand-alone'}{narrow}{nonleap};
+			if (exists $months->{$default_calendar}{alias}) {
+				$default_calendar = $months->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+			
+			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
+				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
+				redo BUNDLES;
+			}
+			
+			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
 			return $result if defined $result;
 		}
 	}
@@ -1803,7 +1807,7 @@ sub _build_day_format_wide {
 		foreach my $bundle (@bundles) {
 			my $days = $bundle->calendar_days;
 			my $result = $days->{$calendar}{format}{wide};
-			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
+			return [@$result{qw( mon tue wed thu fri sat sun )}] if defined $result;
 		}
 	}
 
