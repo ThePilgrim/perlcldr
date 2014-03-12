@@ -261,14 +261,28 @@ foreach my $property (qw(
 	month_stand_alone_wide month_stand_alone_abbreviated month_stand_alone_narrow
 	day_format_wide day_format_abbreviated day_format_narrow
 	day_stand_alone_wide day_stand_alone_abbreviated day_stand_alone_narrow
-	quater_format_wide quater_format_abbreviated quater_format_narrow
-	quater_stand_alone_wide quater_stand_alone_abreviated quater_stand_alone_narrow
+	quarter_format_wide quarter_format_abbreviated quarter_format_narrow
+	quarter_stand_alone_wide quarter_stand_alone_abbreviated quarter_stand_alone_narrow
 	am_pm_wide am_pm_abbreviated am_pm_narrow
 	era_wide era_abbreviated era_narrow
 )) {
 	has $property => (
 		is => 'ro',
 		isa => 'ArrayRef',
+		init_arg => undef,
+		lazy => 1,
+		builder => "_build_$property",
+		clearer => "_clear_$property",
+	);
+}
+	
+foreach my $property (qw( 
+	am_pm_format_wide am_pm_format_abbreviated am_pm_format_narrow
+	am_pm_stand_alone_wide am_pm_stand_alone_abbreviated am_pm_stand_alone_narrow
+)) {
+	has $property => (
+		is => 'ro',
+		isa => 'HashRef',
 		init_arg => undef,
 		lazy => 1,
 		builder => "_build_$property",
@@ -1628,8 +1642,10 @@ sub _clear_calendar_data {
 		day_stand_alone_narrow quater_format_wide quater_format_abbreviated
 		quater_format_narrow quater_stand_alone_wide
 		quater_stand_alone_abreviated quater_stand_alone_narrow
-		am_pm_wide am_pm_abbreviated am_pm_narrow era_wide era_abbreviated
-		era_narrow date_format_full date_formart_long date_format_medium
+		am_pm_wide am_pm_abbreviated am_pm_narrow am_pm_format_wide 
+		am_pm_format_abbreviated am_pm_format_narrow am_pm_stand_alone_wide 
+		am_pm_stand_alone_abbreviated am_pm_stand_alone_narrow era_wide 
+		era_abbreviated era_narrow date_format_full date_formart_long date_format_medium
 		date_format_short date_format_default time_format_full
 		time_formart_long time_format_medium time_format_short
 		timeformat_default datetime_format_full datetime_formart_long
@@ -1777,158 +1793,181 @@ sub _build_day_stand_alone_narrow {
 	return $self->_build_any_day($type, $width);
 }
 
-sub _build_quarter_format_wide {
-	my $self = shift;
+sub _build_any_quarter {
+	my ($self, $type, $width) = @_;
+	
 	my $default_calendar = $self->default_calendar();
 
 	my @bundles = $self->_find_bundle('calendar_quarters');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
-			my $quarters = $bundle->calendar_quarters;
-			my $result = $quarters->{$calendar}{format}{wide};
-			return $result if defined $result;
+			my $quarters= $bundle->calendar_quarters;
+			
+			if (exists $quarters->{$default_calendar}{alias}) {
+				$default_calendar = $quarters->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+
+			if (exists $quarters->{$default_calendar}{$type}{$width}{alias}) {
+				($type, $width) = @{$quarters->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
+				redo BUNDLES;
+			}
+			
+			my $result = $quarters->{$default_calendar}{$type}{$width};
+			return [ @{$result}{qw( 0 1 2 3 )} ] if keys %$result;
 		}
 	}
 
 	return [];
+}
+
+sub _build_quarter_format_wide {
+	my $self = shift;
+	my ($type, $width) = (qw( format wide ));
+	
+	return $self->_build_any_quarter($type, $width);
 }
 
 sub _build_quarter_format_abbreviated {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($type, $width) = (qw(format abbreviated));
 
-	my @bundles = $self->_find_bundle('calendar_quarters');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $quarters = $bundle->calendar_quarters;
-			my $result = $quarters->{$calendar}{format}{abbreviated};
-			return $result if defined $result;
-		}
-	}
-
-	return [];
+	return $self->_build_any_quarter($type, $width);
 }
 
 sub _build_quarter_format_narrow {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($type, $width) = (qw(format narrow));
 
-	my @bundles = $self->_find_bundle('calendar_quarters');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $quarters = $bundle->calendar_quarters;
-			my $result = $quarters->{$calendar}{format}{narrow};
-			return $result if defined $result;
-		}
-	}
-
-	return [];
+	return $self->_build_any_quarter($type, $width);
 }
 
 sub _build_quarter_stand_alone_wide {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($type, $width) = ('stand-alone', 'wide');
 
-	my @bundles = $self->_find_bundle('calendar_quarters');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $quarters = $bundle->calendar_quarters;
-			my $result = $quarters->{$calendar}{'stand-alone'}{wide};
-			return $result if defined $result;
-		}
-	}
-
-	return [];
+	return $self->_build_any_quarter($type, $width);
 }
 
 sub _build_quarter_stand_alone_abbreviated {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_quarters');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $quarters = $bundle->calendar_quarters;
-			my $result = $quarters->{$calendar}{'stand-alone'}{abbreviated};
-			return $result if defined $result;
-		}
-	}
-
-	return [];
+	my ($type, $width) = ('stand-alone', 'abbreviated');
+	
+	return $self->_build_any_quarter($type, $width);
 }
 
 sub _build_quarter_stand_alone_narrow {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($type, $width) = ('stand-alone', 'narrow');
 
-	my @bundles = $self->_find_bundle('calendar_quarters');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	return $self->_build_any_quarter($type, $width);
+}
+
+sub _build_any_am_pm {
+	my ($self, $type, $width) = @_;
+
+	my $default_calendar = $self->default_calendar();
+	my @result;
+	my @bundles = $self->_find_bundle('day_periods');
+
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
-			my $quarters= $bundle->calendar_quarters;
-			my $result = $quarters->{$calendar}{'stand-alone'}{narrow};
-			return $result if defined $result;
+			my $am_pm = $bundle->day_periods;
+	
+			if (exists $am_pm->{$default_calendar}{alias}) {
+				$default_calendar = $am_pm->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+
+			if (exists $am_pm->{$default_calendar}{$type}{alias}) {
+				$type = $am_pm->{$default_calendar}{$type}{alias};
+				redo BUNDLES;
+			}
+			
+			if (exists $am_pm->{$default_calendar}{$type}{$width}{alias}) {
+				$width = $am_pm->{$default_calendar}{$type}{$width}{alias};
+				redo BUNDLES;
+			}
+			
+			my $result = $am_pm->{$default_calendar}{$type}{$width};
+			
+			return $result if keys %$result;
 		}
 	}
 
-	return [];
+	return {};
 }
 
+# The first 3 are to link in with Date::Time::Locale
 sub _build_am_pm_wide {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @result;
-	my @bundles = $self->_find_bundle('day_periods');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $am_pm = $bundle->day_periods;
-			my $result = $am_pm->{$calendar}{format}{wide};
-			$result[0] //= $result->{am};
-			$result[1] //= $result->{pm};
-			return \@result if ((map {defined} @result) == 2);
-		}
-	}
-
-	return [];
+	my ($type, $width) = (qw( format wide ));
+	
+	my $result = $self->_build_any_am_pm($type, $width);
+	
+	return [ @$result{qw( am pm )} ];
 }
 
-sub _build_am_pm_abbrivated {
+sub _build_am_pm_abbreviated {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($type, $width) = (qw( format abbreviated ));
 
-	my @result;
-	my @bundles = $self->_find_bundle('day_periods');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $am_pm = $bundle->day_periods;
-			my $result = $am_pm->{$calendar}{format}{abbrivated} ;
-			$result[0] //= $result->{am};
-			$result[1] //= $result->{pm};
-			return \@result if ((map {defined} @result) == 2);
-		}
-	}
-
-	return [];
+	my $result = $self->_build_any_am_pm($type, $width);
+	
+	return [ @$result{qw( am pm )} ];
 }
 
 sub _build_am_pm_narrow {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @result;
-	my @bundles = $self->_find_bundle('day_periods');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $am_pm = $bundle->day_periods;
-			my $result = $am_pm->{$calendar}{format}{narrow};
-			$result[0] //= $result->{am};
-			$result[1] //= $result->{pm};
-			return \@result if ((map {defined} @result) == 2);
-		}
-	}
-
-	return [];
+	my ($type, $width) = (qw( format narrow ));
+	
+	my $result = $self->_build_any_am_pm($type, $width);
+	
+	return [ @$result{qw( am pm )} ];
 }
+
+sub _build_am_pm_format_wide {
+	my $self = shift;
+	my ($type, $width) = (qw( format wide ));
+	
+	return $self->_build_any_am_pm($type, $width);
+}
+
+sub _build_am_pm_format_abbreviated {
+	my $self = shift;
+	my ($type, $width) = (qw( format abbreviated ));
+
+	return $self->_build_any_am_pm($type, $width);
+}
+
+sub _build_am_pm_format_narrow {
+	my $self = shift;
+	my ($type, $width) = (qw( format narrow ));
+	
+	return $self->_build_any_am_pm($type, $width);
+}
+
+sub _build_am_pm_stand_alone_wide {
+	my $self = shift;
+	my ($type, $width) = ('stand-alone', 'wide');
+	
+	return $self->_build_any_am_pm($type, $width);
+}
+
+sub _build_am_pm_stand_alone_abbreviated {
+	my $self = shift;
+	my ($type, $width) = ('stand-alone', 'abbreviated');
+
+	return $self->_build_any_am_pm($type, $width);
+}
+
+sub _build_am_pm_stand_alone_narrow {
+	my $self = shift;
+	my ($type, $width) = ('stand-alone', 'narrow');
+	
+	return $self->_build_any_am_pm($type, $width);
+}
+
 
 sub _build_era_wide {
 	my $self = shift;

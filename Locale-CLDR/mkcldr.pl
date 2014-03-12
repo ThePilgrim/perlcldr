@@ -117,7 +117,7 @@ my $xml = XML::XPath->new(
 );
 
 # Number Formatter
-open my $file, '>', File::Spec->catfile($lib_directory, 'NumberFormatter.pm');
+open my $file, '>:raw', File::Spec->catfile($lib_directory, 'NumberFormatter.pm');
 write_out_number_formatter($file);
 close $file;
 
@@ -2450,20 +2450,35 @@ has 'calendar_quarters' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-
         foreach my $type (sort keys %{$calendars{quarters}}) {
             say $file "\t\t\t'$type' => {";
             foreach my $context ( sort keys %{$calendars{quarters}{$type}} ) {
-                say $file "\t\t\t\t'$context' => {";
+                if ($context eq 'alias') {
+                    say $file "\t\t\t\t'alias' => q{$calendars{quarters}{$type}{alias}},";
+                    next;
+                }
+				
+				say $file "\t\t\t\t'$context' => {";
                 foreach my $width (sort keys %{$calendars{quarters}{$type}{$context}}) {
-                    print $file "\t\t\t\t\t$width => [";
+					if (exists $calendars{quarters}{$type}{$context}{$width}{alias}) {
+						say $file "\t\t\t\t\t'$width' => {";
+                        say $file "\t\t\t\t\t\t'alias' => {";
+						say $file "\t\t\t\t\t\t\tcontext\t=> q{$calendars{quarters}{$type}{$context}{$width}{alias}{context}},";
+						say $file "\t\t\t\t\t\t\ttype\t=> q{$calendars{quarters}{$type}{$context}{$width}{alias}{type}},";
+						say $file "\t\t\t\t\t\t},";
+						say $file "\t\t\t\t\t},";
+                        next;
+                    }
+					
+                    print $file "\t\t\t\t\t$width => {";
                     say $file join ",\n\t\t\t\t\t\t",
                         map {
-                            my $quarter = $_;
+                            my $quarter = $calendars{quarters}{$type}{$context}{$width}{$_};
                             $quarter =~ s/'/\\'/;
                             $quarter = "'$quarter'";
-                        } @{$calendars{quarters}{$type}{$context}{$width}};
-                    say $file "\t\t\t\t\t],";
+							"$_ => $quarter";
+                        } sort { $a <=> $b } keys %{$calendars{quarters}{$type}{$context}{$width}};
+                    say $file "\t\t\t\t\t},";
                 }
                 say $file "\t\t\t\t},";
             }
@@ -2532,12 +2547,30 @@ has 'day_periods' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-        foreach my $ctype (keys %{$calendars{day_periods}}) {
+        foreach my $ctype (sort keys %{$calendars{day_periods}}) {
             say $file "\t\t'$ctype' => {";
-            foreach my $type (keys %{$calendars{day_periods}{$ctype}}) {
-                say $file "\t\t\t'$type' => {";
+			if (exists $calendars{day_periods}{$ctype}{alias}) {
+				say $file "\t\t\t'alias' => '$calendars{day_periods}{$ctype}{alias}',";
+				say $file "\t\t},";
+				next;
+			}
+			
+            foreach my $type (sort keys %{$calendars{day_periods}{$ctype}}) {
+				say $file "\t\t\t'$type' => {";
+				if (exists $calendars{day_periods}{$ctype}{$type}{alias}) {
+					say $file "\t\t\t\t'alias' => '$calendars{day_periods}{$ctype}{$type}{alias}',";
+					say $file "\t\t\t},";
+					next;
+				}
+				
                 foreach my $width (keys %{$calendars{day_periods}{$ctype}{$type}}) {
                     say $file "\t\t\t\t'$width' => {";
+					if (exists $calendars{day_periods}{$ctype}{$type}{$width}{alias}) {
+						say $file "\t\t\t\t\t'alias' => '$calendars{day_periods}{$ctype}{$type}{$width}{alias}',";
+						say $file "\t\t\t\t},";
+						next;
+					}
+				
                     foreach my $period (keys %{$calendars{day_periods}{$ctype}{$type}{$width}}) {
                         say $file "\t\t\t\t\t'$period' => q{$calendars{day_periods}{$ctype}{$type}{$width}{$period}},"
                     }
@@ -2872,84 +2905,107 @@ sub process_quarters {
     say "Processing Quarters ($type)" if $verbose;
 
     my %quarters;
-
     my $quarters_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/alias));
     if ($quarters_alias->size) {
-        $type = 'gregorian';
+        my $path = ($quarters_alias->get_nodelist)[0]->getAttribute('path');
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$quarters{alias} = $alias;
     }
+	else {
+		my $quarters_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext));
+		return 0 unless $quarters_nodes->size;
 
-    my $quarters_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext));
-    return 0 unless $quarters_nodes->size;
-
-    foreach my $context_node ($quarters_nodes->get_nodelist) {
-        my $context_type = $context_node->getAttribute('type');
-        my $width = findnodes($xpath,
-            qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext[\@type="$context_type"]/quarterWidth));
-        foreach my $width_node ($width->get_nodelist) {
-            if ($width_node->getLocalName() eq 'alias') {
-                my $path = $width_node->getAttribute('path');
+		foreach my $context_node ($quarters_nodes->get_nodelist) {
+			my $context_type = $context_node->getAttribute('type');
+			
+			my $width = findnodes($xpath,
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext[\@type="$context_type"]/quarterWidth));
+        
+			foreach my $width_node ($width->get_nodelist) {
+				my $width_type = $width_node->getAttribute('type');
+				
+				my $width_alias_nodes = findnodes($xpath,
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext[\@type="$context_type"]/quarterWidth[\@type="$width_type"]/alias)
+				);
+			
+				if ($width_alias_nodes->size) {
+                    my $path = my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                    my ($new_width_context) = $path =~ /quarterContext\[\@type='([^']+)'\]/;
+                    $new_width_context //= $context_type;
+                    my ($new_width_type) = $path =~ /quarterWidth\[\@type='([^']+)'\]/;
+					$quarters{$context_type}{$width_type}{alias} = {
+						context	=> $new_width_context,
+						type	=> $new_width_type,
+					};
+					next;
+                }
                 
-            }
-            my $width_type = $width_node->getAttribute('type');
-            my $quarter_nodes = findnodes($xpath, 
-                qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext[\@type="$context_type"]/quarterWidth[\@type="$width_type"]/quarter));
-            foreach my $quarter ($quarter_nodes->get_nodelist) {
-                my $quarter_type = $quarter->getAttribute('type') -1;
-                $quarters{$context_type}{$width_type}[$quarter_type] = 
-                    $quarter->getChildNode(1)->getValue();
-            }
-        }
-    }
-    return \%quarters;
+				my $quarter_nodes = findnodes($xpath, 
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/quarters/quarterContext[\@type="$context_type"]/quarterWidth[\@type="$width_type"]/quarter));
+            
+				foreach my $quarter ($quarter_nodes->get_nodelist) {
+					my $quarter_type = $quarter->getAttribute('type') -1;
+					$quarters{$context_type}{$width_type}{$quarter_type} = 
+						$quarter->getChildNode(1)->getValue();
+				}
+			}
+		}
+	}
+    
+	return \%quarters;
 }
 
-{
-    my %day_period_data;
-    sub process_day_period_data {
-        my $locale = shift;
-        unless (keys %day_period_data) {
+sub process_day_period_data {
+    my $locale = shift;
 
-# The supplemental/dayPeriods.xml file contains a list of all valid
-# day periods
-            my $xml = XML::XPath->new(
-                            File::Spec->catfile($base_directory,
-                        'supplemental',
-                        'dayPeriods.xml',
-                )
-                        );
+	use feature 'state';
+	state %day_period_data;	
 
-            my $dayPeriodRules = findnodes($xml, 
-                q(/supplementalData/dayPeriodRuleSet/dayPeriodRules)
+    unless (keys %day_period_data) {
+
+	# The supplemental/dayPeriods.xml file contains a list of all valid
+	# day periods
+        my $xml = XML::XPath->new(
+            File::Spec->catfile(
+				$base_directory,
+				'supplemental',
+				'dayPeriods.xml',
+			)
+        );
+
+        my $dayPeriodRules = findnodes($xml, 
+            q(/supplementalData/dayPeriodRuleSet/dayPeriodRules)
+        );
+
+        foreach my $day_period_rule ($dayPeriodRules->get_nodelist) {
+            my $locales = $day_period_rule->getAttribute('locales');
+            my %data;
+            my $day_periods = findnodes($xml, 
+                qq(/supplementalData/dayPeriodRuleSet/dayPeriodRules[\@locales="$locales"]/dayPeriodRule)
             );
-            foreach my $day_period_rule ($dayPeriodRules->get_nodelist) {
-                my $locales = $day_period_rule->getAttribute('locales');
-                my %data;
-                my $day_periods = findnodes($xml, 
-                    qq(/supplementalData/dayPeriodRuleSet/dayPeriodRules[\@locales="$locales"]/dayPeriodRule)
-                );
-                foreach my $day_period ($day_periods->get_nodelist) {
-                    my $type;
-                    my @data;
-                    foreach my $attribute_node ($day_period->getAttributes) {
-                        if ($attribute_node->getLocalName() eq 'type') {
-                            $type = $attribute_node->getData;
-                        }
-                        else {
-                            push @data, [
-                                $attribute_node->getLocalName,
-                                $attribute_node->getData
-                            ]
-                        }
-                    }
-                    $data{$type} = \@data;
-                }
-                my @locales = split / /, $locales;
-                @day_period_data{@locales} = (\%data) x @locales;
-            }
-        }
 
-        return $day_period_data{$locale};
+            foreach my $day_period ($day_periods->get_nodelist) {
+                my $type;
+                my @data;
+                foreach my $attribute_node ($day_period->getAttributes) {
+                    if ($attribute_node->getLocalName() eq 'type') {
+                        $type = $attribute_node->getData;
+                    }
+                    else {
+                        push @data, [
+                            $attribute_node->getLocalName,
+                            $attribute_node->getData
+                        ]
+                    }
+                }
+                $data{$type} = \@data;
+            }
+            my @locales = split / /, $locales;
+            @day_period_data{@locales} = (\%data) x @locales;
+        }
     }
+
+    return $day_period_data{$locale};
 }
 
 #/ldml/dates/calendars/calendar/dayPeriods/
@@ -2961,28 +3017,60 @@ sub process_day_periods {
     my %dayPeriods;
     my $dayPeriods_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/alias));
     if ($dayPeriods_alias->size) {
-        $type = 'gregorian';
+        my $path = ($dayPeriods_alias->get_nodelist)[0]->getAttribute('path');
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$dayPeriods{alias} = $alias;
     }
+	else {
+		my $dayPeriods_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext));
+		return 0 unless $dayPeriods_nodes->size;
 
-    my $dayPeriods_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext));
-    return 0 unless $dayPeriods_nodes->size;
-
-    foreach my $context_node ($dayPeriods_nodes->get_nodelist) {
-        my $context_type = $context_node->getAttribute('type');
-        my $width = findnodes($xpath,
-            qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext[\@type="$context_type"]/dayPeriodWidth));
-        foreach my $width_node ($width->get_nodelist) {
-            my $width_type = $width_node->getAttribute('type');
-            my $dayPeriod_nodes = findnodes($xpath, 
-                qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext[\@type="$context_type"]/dayPeriodWidth[\@type="$width_type"]/dayPeriod));
-            foreach my $dayPeriod ($dayPeriod_nodes->get_nodelist) {
-                my $dayPeriod_type = $dayPeriod->getAttribute('type');
-                $dayPeriods{$context_type}{$width_type}{$dayPeriod_type} = 
-                    $dayPeriod->getChildNode(1)->getValue();
+		foreach my $context_node ($dayPeriods_nodes->get_nodelist) {
+			my $context_type = $context_node->getAttribute('type');
+        
+			my $context_alias_nodes = findnodes($xpath,
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext[\@type="$context_type"]/alias)
+			);
+			
+			if ($context_alias_nodes->size) {
+                my $path = ($context_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                my ($new_context) = $path =~ /dayPeriodContext\[\@type='([^']+)'\]/;
+                $dayPeriods{$context_type}{alias} = $new_context;
+				next;
             }
-        }
+				
+			my $width = findnodes($xpath,
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext[\@type="$context_type"]/dayPeriodWidth)
+			);
+        
+			foreach my $width_node ($width->get_nodelist) {
+				my $width_type = $width_node->getAttribute('type');
+            
+				my $width_alias_nodes = findnodes($xpath,
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext[\@type="$context_type"]/dayPeriodWidth[\@type="$width_type"]/alias)
+				);
+			
+				if ($width_alias_nodes->size) {
+                    my $path = my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                    my ($new_width_type) = $path =~ /dayPeriodWidth\[\@type='([^']+)'\]/;
+					$dayPeriods{$context_type}{$width_type}{alias} = $new_width_type;
+					next;
+                }
+                
+				my $dayPeriod_nodes = findnodes($xpath, 
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/dayPeriods/dayPeriodContext[\@type="$context_type"]/dayPeriodWidth[\@type="$width_type"]/dayPeriod)
+				);
+            
+				foreach my $dayPeriod ($dayPeriod_nodes->get_nodelist) {
+					my $dayPeriod_type = $dayPeriod->getAttribute('type');
+					$dayPeriods{$context_type}{$width_type}{$dayPeriod_type} = 
+						$dayPeriod->getChildNode(1)->getValue();
+				}
+			}
+		}
     }
-    return \%dayPeriods;
+	
+	return \%dayPeriods;
 }
 
 #/ldml/dates/calendars/calendar/eras/
@@ -3922,7 +4010,10 @@ sub write_out_number_formatter {
 	# write out the code for the CLDR::NumberFormater module
 	my $file = shift;
 	
-	print $file <<'END_OF_NUMBER_FORMATTER';
+	print $file $_ while <DATA>;
+}
+
+__DATA__
 package Locale::CLDR::NumberFormatter;
 
 use v5.18;
@@ -4164,7 +4255,3 @@ no Moose::Role;
 1;
 
 # vim: tabstop=4
-END_OF_NUMBER_FORMATTER
-}
-
-# vim:tabstop=4

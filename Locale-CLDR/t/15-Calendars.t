@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 13;
+use Test::More tests => 28;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -37,3 +37,35 @@ $days = $locale->day_stand_alone_abbreviated();
 is_deeply ($days, [qw( Mon Tue Wed Thu Fri Sat Sun )], 'Day stand alone abbreviated');
 $days = $locale->day_stand_alone_narrow();
 is_deeply ($days, [qw( M T W T F S S )], 'Day stand alone narrow');
+
+my $quarters = $locale->quarter_format_wide();
+is_deeply ($quarters, ['1st quarter', '2nd quarter', '3rd quarter', '4th quarter'], 'Quarter format wide');
+$quarters = $locale->quarter_format_abbreviated();
+is_deeply ($quarters, [qw( Q1 Q2 Q3 Q4 )], 'Quarter format abbreviated');
+$quarters = $locale->quarter_format_narrow();
+is_deeply ($quarters, [qw( 1 2 3 4 )], 'Quarter format narrow');
+$quarters = $locale->quarter_stand_alone_wide();
+is_deeply ($quarters, [ '1st quarter', '2nd quarter', '3rd quarter', '4th quarter' ], 'Quarter stand alone wide');
+$quarters = $locale->quarter_stand_alone_abbreviated();
+is_deeply ($quarters, [qw( Q1 Q2 Q3 Q4 )], 'Quarter stand alone abbreviated');
+$quarters = $locale->quarter_stand_alone_narrow();
+is_deeply ($quarters, [qw( 1 2 3 4 )], 'Quarter stand alone narrow');
+
+my $am_pm = $locale->am_pm_wide();
+is_deeply ($am_pm, [qw( a.m. p.m. )], 'AM PM wide');
+$am_pm = $locale->am_pm_abbreviated();
+is_deeply ($am_pm, [qw( a.m. p.m. )], 'AM PM abbreviated');
+$am_pm = $locale->am_pm_narrow();
+is_deeply ($am_pm, [qw( a p )], 'AM PM narrow');
+$am_pm = $locale->am_pm_format_wide();
+is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM format wide');
+$am_pm = $locale->am_pm_format_abbreviated();
+is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM format abbreviated');
+$am_pm = $locale->am_pm_format_narrow();
+is_deeply ($am_pm, { am => 'a', noon => 'n', pm => 'p' }, 'AM PM format narrow');
+$am_pm = $locale->am_pm_stand_alone_wide();
+is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM stand alone wide');
+$am_pm = $locale->am_pm_stand_alone_abbreviated();
+is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM stand alone abbreviated');
+$am_pm = $locale->am_pm_stand_alone_narrow();
+is_deeply ($am_pm, { am => 'a', noon => 'n', pm => 'p' }, 'AM PM stand alone narrow');
