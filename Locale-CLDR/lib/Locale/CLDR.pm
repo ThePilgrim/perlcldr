@@ -260,7 +260,7 @@ foreach my $property (qw(
 	month_format_wide month_format_abbreviated month_format_narrow
 	month_stand_alone_wide month_stand_alone_abbreviated month_stand_alone_narrow
 	day_format_wide day_format_abbreviated day_format_narrow
-	day_stand_alone_wide day_stand_alone_abreviated day_stand_alone_narrow
+	day_stand_alone_wide day_stand_alone_abbreviated day_stand_alone_narrow
 	quater_format_wide quater_format_abbreviated quater_format_narrow
 	quater_stand_alone_wide quater_stand_alone_abreviated quater_stand_alone_narrow
 	am_pm_wide am_pm_abbreviated am_pm_narrow
@@ -1641,10 +1641,9 @@ sub _clear_calendar_data {
 	}
 }
 
-sub _build_month_format_wide {
-	my $self = shift;
+sub _build_any_month {
+	my ($self, $type, $width) = @_;
 	my $default_calendar = $self->default_calendar();
-	my ($type, $width) = (qw(format wide));
 	my @bundles = $self->_find_bundle('calendar_months');
 	BUNDLES: {
 		foreach my $bundle (@bundles) {
@@ -1665,133 +1664,71 @@ sub _build_month_format_wide {
 	}
 	
 	return [];
+}
+
+sub _build_month_format_wide {
+	my $self = shift;
+	my ($type, $width) = (qw(format wide));
+	
+	return $self->_build_any_month($type, $width);
 }
 
 sub _build_month_format_abbreviated {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
 	my ($type, $width) = (qw(format abbreviated));
-	my @bundles = $self->_find_bundle('calendar_months');
-	BUNDLES: {
-		foreach my $bundle (@bundles) {
-			my $months = $bundle->calendar_months;
-			if (exists $months->{$default_calendar}{alias}) {
-				$default_calendar = $months->{$default_calendar}{alias};
-				redo BUNDLES;
-			}
-			
-			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
-				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
-				redo BUNDLES;
-			}
-			
-			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
-			return $result if defined $result;
-		}
-	}
-
-	return [];
+	
+	return $self->_build_any_month($type, $width);
 }
 
 sub _build_month_format_narrow {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
 	my ($type, $width) = (qw(format narrow));
-	my @bundles = $self->_find_bundle('calendar_months');
-	BUNDLES: {
-		foreach my $bundle (@bundles) {
-			my $months = $bundle->calendar_months;
-			if (exists $months->{$default_calendar}{alias}) {
-				$default_calendar = $months->{$default_calendar}{alias};
-				redo BUNDLES;
-			}
-			
-			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
-				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
-				redo BUNDLES;
-			}
-			
-			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
-			return $result if defined $result;
-		}
-	}
-
-	return [];
+	
+	return $self->_build_any_month($type, $width);
 }
 
 sub _build_month_stand_alone_wide {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
 	my ($type, $width) = ('stand-alone', 'wide');
-	my @bundles = $self->_find_bundle('calendar_months');
-	BUNDLES: {
-		foreach my $bundle (@bundles) {
-			my $months = $bundle->calendar_months;
-			if (exists $months->{$default_calendar}{alias}) {
-				$default_calendar = $months->{$default_calendar}{alias};
-				redo BUNDLES;
-			}
-			
-			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
-				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
-				redo BUNDLES;
-			}
-			
-			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
-			return $result if defined $result;
-		}
-	}
-
-	return [];
+	
+	return $self->_build_any_month($type, $width);
 }
 
 sub _build_month_stand_alone_abbreviated {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
 	my ($type, $width) = ('stand-alone', 'abbreviated');
-	my @bundles = $self->_find_bundle('calendar_months');
-	BUNDLES: {
-		foreach my $bundle (@bundles) {
-			my $months = $bundle->calendar_months;
-			if (exists $months->{$default_calendar}{alias}) {
-				$default_calendar = $months->{$default_calendar}{alias};
-				redo BUNDLES;
-			}
-			
-			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
-				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
-				redo BUNDLES;
-			}
-			
-			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
-			return $result if defined $result;
-		}
-	}
-
-	return [];
+	
+	return $self->_build_any_month($type, $width);
 }
 
 sub _build_month_stand_alone_narrow {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
 	my ($type, $width) = ('stand-alone', 'narrow');
-	my @bundles = $self->_find_bundle('calendar_months');
 	
+	return $self->_build_any_month($type, $width);
+}
+
+sub _build_any_day {
+	my ($self, $type, $width) = @_;
+	
+	my $default_calendar = $self->default_calendar();
+
+	my @bundles = $self->_find_bundle('calendar_days');
 	BUNDLES: {
 		foreach my $bundle (@bundles) {
-			my $months = $bundle->calendar_months;
-			if (exists $months->{$default_calendar}{alias}) {
-				$default_calendar = $months->{$default_calendar}{alias};
+			my $days= $bundle->calendar_days;
+			
+			if (exists $days->{$default_calendar}{alias}) {
+				$default_calendar = $days->{$default_calendar}{alias};
 				redo BUNDLES;
 			}
-			
-			if (exists $months->{$default_calendar}{$type}{$width}{alias}) {
-				($type, $width) = @{$months->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
+
+			if (exists $days->{$default_calendar}{$type}{$width}{alias}) {
+				($type, $width) = @{$days->{$default_calendar}{$type}{$width}{alias}}{qw(context type)};
 				redo BUNDLES;
 			}
-			
-			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
-			return $result if defined $result;
+			my $result = $days->{$default_calendar}{$type}{$width};
+			return [ @{$result}{qw( mon tue wed thu fri sat sun )} ] if keys %$result;
 		}
 	}
 
@@ -1800,98 +1737,44 @@ sub _build_month_stand_alone_narrow {
 
 sub _build_day_format_wide {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_days');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $days = $bundle->calendar_days;
-			my $result = $days->{$calendar}{format}{wide};
-			return [@$result{qw( mon tue wed thu fri sat sun )}] if defined $result;
-		}
-	}
-
-	return [];
+	my ($type, $width) = (qw(format wide));
+	
+	return $self->_build_any_day($type, $width);
 }
 
 sub _build_day_format_abbreviated {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_days');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $days= $bundle->calendar_days;
-			my $result = $days->{$calendar}{format}{abbreviated};
-			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
-		}
-	}
-
-	return [];
+	my ($type, $width) = (qw(format abbreviated));
+	
+	return $self->_build_any_day($type, $width);
 }
 
 sub _build_day_format_narrow {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_days');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $days = $bundle->calendar_days;
-			my $result = $days->{$calendar}{format}{narrow};
-			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
-		}
-	}
-
-	return [];
+	my ($type, $width) = (qw(format narrow));
+	
+	return $self->_build_any_day($type, $width);
 }
 
 sub _build_day_stand_alone_wide {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_days');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $days= $bundle->calendar_days;
-			my $result = $days->{$calendar}{'stand-alone'}{wide};
-			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
-		}
-	}
-
-	return [];
+	my ($type, $width) = ('stand-alone', 'wide');
+	
+	return $self->_build_any_day($type, $width);
 }
 
 sub _build_day_stand_alone_abbreviated {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($type, $width) = ('stand-alone', 'abbreviated');
 
-	my @bundles = $self->_find_bundle('calendar_days');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $days= $bundle->calendar_days;
-			my $result = $days->{$calendar}{'stand-alone'}{abbreviated};
-			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
-		}
-	}
-
-	return [];
+	return $self->_build_any_day($type, $width);
 }
 
 sub _build_day_stand_alone_narrow {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('calendar_days');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $days= $bundle->calendar_days;
-			my $result = $days->{$calendar}{'stand-alone'}{narrow};
-			return @{$result}{qw( mon tue wed thu fri sat sun )} if defined $result;
-		}
-	}
-
-	return [];
+	my ($type, $width) = ('stand-alone', 'narrow');
+	
+	return $self->_build_any_day($type, $width);
 }
 
 sub _build_quarter_format_wide {

@@ -2298,7 +2298,7 @@ sub process_calendars {
         my $type = $calendar->getAttribute('type');
         my ($months) = process_months($xpath, $type);
         $calendars{months}{$type} = $months if $months;
-        my ($days, $days_alias) = process_days($xpath, $type);
+        my ($days) = process_days($xpath, $type);
         $calendars{days}{$type} = $days if $days;
         my $quarters = process_quarters($xpath, $type);
         $calendars{quarters}{$type} = $quarters if $quarters;
@@ -2399,15 +2399,20 @@ EOT
         foreach my $type (sort keys %{$calendars{days}}) {
             say $file "\t\t\t'$type' => {";
             foreach my $context ( sort keys %{$calendars{days}{$type}} ) {
-                if ($context eq 'default') {
-                    say $file "\t\t\t\t'default' => q{$calendars{days}{$type}{default}},";
+                if ($context eq 'alias') {
+                    say $file "\t\t\t\t'alias' => q{$calendars{days}{$type}{alias}},";
                     next;
                 }
 
                 say $file "\t\t\t\t'$context' => {";
                 foreach my $width (sort keys %{$calendars{days}{$type}{$context}}) {
-                    if ($width eq 'default') {
-                        say $file "\t\t\t\t\tdefault => q{$calendars{days}{$type}{$context}{default}},";
+                    if (exists $calendars{days}{$type}{$context}{$width}{alias}) {
+						say $file "\t\t\t\t\t'$width' => {";
+                        say $file "\t\t\t\t\t\t'alias' => {";
+						say $file "\t\t\t\t\t\t\tcontext\t=> q{$calendars{days}{$type}{$context}{$width}{alias}{context}},";
+						say $file "\t\t\t\t\t\t\ttype\t=> q{$calendars{days}{$type}{$context}{$width}{alias}{type}},";
+						say $file "\t\t\t\t\t\t},";
+						say $file "\t\t\t\t\t},";
                         next;
                     }
 
@@ -2810,48 +2815,54 @@ sub process_days {
 
     say "Processing Days ($type)" if $verbose;
 
-    my (%days, %aliases);
+    my (%days);
     my $days_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/alias));
     if ($days_alias->size) {
         my $path = ($days_alias->get_nodelist)[0]->getAttribute('path');
-        ($aliases{$type}) = $path=~/\[\@type='(.*?)']/;
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$days{alias} = $alias;
     }
+	else {
+		my $days_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext));
+		return 0 unless $days_nodes->size;
 
-    my $days_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext));
-    return 0 unless $days_nodes->size;
+		foreach my $context_node ($days_nodes->get_nodelist) {
+			my $context_type = $context_node->getAttribute('type');
 
-    my $default_context = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/default));
-    if ($default_context->size) {
-        my $default_node = ($default_context->get_nodelist)[0];
-        my $choice = $default_node->getAttribute('choice');
-        $days{default} = $choice;
-    }
-
-    foreach my $context_node ($days_nodes->get_nodelist) {
-        my $context_type = $context_node->getAttribute('type');
-
-        my $default_width = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext[\@type="$context_type"]/default));
-
-        if ($default_width->size) {
-            my $default_node = ($default_width->get_nodelist)[0];
-            my $choice = $default_node->getAttribute('choice');
-            $days{$context_type}{default} = $choice;
-        }
-
-        my $width = findnodes($xpath,
-            qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext[\@type="$context_type"]/dayWidth));
-        foreach my $width_node ($width->get_nodelist) {
-            my $width_type = $width_node->getAttribute('type');
-            my $day_nodes = findnodes($xpath, 
-                qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext[\@type="$context_type"]/dayWidth[\@type="$width_type"]/day));
-            foreach my $day ($day_nodes->get_nodelist) {
-                my $day_type = $day->getAttribute('type');
-                $days{$context_type}{$width_type}{$day_type} = 
-                    $day->getChildNode(1)->getValue();
+			my $width = findnodes($xpath,
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext[\@type="$context_type"]/dayWidth));
+        
+			foreach my $width_node ($width->get_nodelist) {
+				my $width_type = $width_node->getAttribute('type');
+				
+				my $width_alias_nodes = findnodes($xpath,
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext[\@type="$context_type"]/dayWidth[\@type="$width_type"]/alias)
+				);
+				
+				if ($width_alias_nodes->size) {
+                    my $path = my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                    my ($new_width_context) = $path =~ /dayContext\[\@type='([^']+)'\]/;
+                    $new_width_context //= $context_type;
+                    my ($new_width_type) = $path =~ /dayWidth\[\@type='([^']+)'\]/;
+					$days{$context_type}{$width_type}{alias} = {
+						context	=> $new_width_context,
+						type	=> $new_width_type,
+					};
+					next;
+                }
+                
+                my $day_nodes = findnodes($xpath, 
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/days/dayContext[\@type="$context_type"]/dayWidth[\@type="$width_type"]/day));
+				
+				foreach my $day ($day_nodes->get_nodelist) {
+					my $day_type = $day->getAttribute('type');
+					$days{$context_type}{$width_type}{$day_type} = 
+						$day->getChildNode(1)->getValue();
+				}
             }
-        }
+		}
     }
-    return \%days, \%aliases;
+    return \%days;
 }
 
 #/ldml/dates/calendars/calendar/quarters/
