@@ -2547,7 +2547,8 @@ has 'day_periods' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-        foreach my $ctype (sort keys %{$calendars{day_periods}}) {
+        
+		foreach my $ctype (sort keys %{$calendars{day_periods}}) {
             say $file "\t\t'$ctype' => {";
 			if (exists $calendars{day_periods}{$ctype}{alias}) {
 				say $file "\t\t\t'alias' => '$calendars{day_periods}{$ctype}{alias}',";
@@ -2595,17 +2596,22 @@ has 'eras' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-        foreach my $ctype (keys %{$calendars{eras}}) {
+        foreach my $ctype (sort keys %{$calendars{eras}}) {
             say $file "\t\t'$ctype' => {";
-            foreach my $type (keys %{$calendars{eras}{$ctype}}) {
-                say $file "\t\t\t$type => [";
+            foreach my $type (sort keys %{$calendars{eras}{$ctype}}) {
+				if ($type eq 'alias') {
+					say $file "\t\t\t'alias' => '$calendars{eras}{$ctype}{alias}',";
+					next;
+				}
+                
+				say $file "\t\t\t$type => {";
                 print $file "\t\t\t\t";
                 print $file join ",\n\t\t\t\t", map {
-                    my $name = $_;
+                    my $name = $calendars{eras}{$ctype}{$type}{$_};
                     $name =~ s/'/\\'/;
-                    "'$name'";
-                } @{$calendars{eras}{$ctype}{$type}};
-                say $file "\n\t\t\t],";
+                    "'$_' => '$name'";
+                } sort { $a <=> $b } keys %{$calendars{eras}{$ctype}{$type}};
+                say $file "\n\t\t\t},";
             }
             say $file "\t\t},";
         }
@@ -3080,48 +3086,71 @@ sub process_eras {
     say "Processing Eras ($type)" if $verbose;
 
     my %eras;
-    my $eras = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras));
-
-    return 0 unless $eras->size;
-    my $eraNames = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNames/era));
-    if ($eraNames->size) {
-        foreach my $eraName ($eraNames->get_nodelist) {
-            my $era_type = $eraName->getAttribute('type');
-            $eras{wide}[$era_type] = $eraName->getChildNode(1)->getValue();
-        }
+	my %alias_size = (
+		eraNames 	=> 'wide',
+		eraAbbr		=> 'abbreviated',
+		eraNarrow	=> 'narrow',
+	);
+	
+    my $eras_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/alias));
+	if ($eras_alias->size) {
+        my $path = ($eras_alias->get_nodelist)[0]->getAttribute('path');
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$eras{alias} = $alias;
     }
-    else {
-        if(findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNames/alias))->size) {
-            $eraNames = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraAbbr/era));
-            foreach my $eraName ($eraNames->get_nodelist) {
-                my $era_type = $eraName->getAttribute('type');
-                $eras{wide}[$era_type] = $eraName->getChildNode(1)->getValue();
-            }
+	else {
+		my $eras_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras));
+		return {} unless $eras_nodes->size;
+		
+		my $eraNames_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNames/alias));
+		if ($eraNames_alias->size) {
+			my $path = ($eraNames_alias->get_nodelist)[0]->getAttribute('path');
+			my ($alias) = $path=~/\.\.\/(.*)/;
+			$eras{wide}{alias} = $alias_size{$alias};
+		}
+		else {
+			my $eraNames = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNames/era[not(\@alt)]));
+			if ($eraNames->size) {
+				foreach my $eraName ($eraNames->get_nodelist) {
+					my $era_type = $eraName->getAttribute('type');
+					$eras{wide}{$era_type} = $eraName->getChildNode(1)->getValue();
+				}
+			}
         }
+    
+		my $eraAbbrs_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraAbbr/alias));
+		if ($eraAbbrs_alias->size) {
+			my $path = ($eraAbbrs_alias->get_nodelist)[0]->getAttribute('path');
+			my ($alias) = $path=~/\.\.\/(.*)/;
+			$eras{abbreviated}{alias} = $alias_size{$alias};
+		}
+		else {
+			my $eraAbbrs = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraAbbr/era[not(\@alt)]));
+			if ($eraAbbrs->size) {
+				foreach my $eraAbbr ($eraAbbrs->get_nodelist) {
+					my $era_type = $eraAbbr->getAttribute('type');
+					$eras{abbreviated}{$era_type} = $eraAbbr->getChildNode(1)->getValue();
+				}
+			}
+		}
+		
+		my $eraNarrow_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNarrow/alias));
+		if ($eraNarrow_alias->size) {
+			my $path = ($eraNarrow_alias->get_nodelist)[0]->getAttribute('path');
+			my ($alias) = $path=~/\.\.\/(.*)/;
+			$eras{narrow}{alias} = $alias_size{$alias};
+		}
+		else {
+			my $eraNarrows = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNarrow/era[not(\@alt)]));
+			if ($eraNarrows->size) {
+				foreach my $eraNarrow ($eraNarrows->get_nodelist) {
+					my $era_type = $eraNarrow->getAttribute('type');
+					$eras{narrow}{$era_type} = $eraNarrow->getChildNode(1)->getValue();
+				}
+			}
+		}
     }
-    my $eraAbbrs = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraAbbr/era));
-    if ($eraAbbrs->size) {
-        foreach my $eraAbbr ($eraAbbrs->get_nodelist) {
-            my $era_type = $eraAbbr->getAttribute('type');
-            $eras{abbriviated}[$era_type] = $eraAbbr->getChildNode(1)->getValue();
-        }
-    }
-    my $eraNarrows = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNarrow/era));
-    if ($eraNarrows->size) {
-        foreach my $eraNarrow ($eraNarrows->get_nodelist) {
-            my $era_type = $eraNarrow->getAttribute('type');
-            $eras{narrow}[$era_type] = $eraNarrow->getChildNode(1)->getValue();
-        }
-    }
-    else {
-        if(findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraNarrow/alias))->size) {
-            $eraNarrows = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/eras/eraAbbr/era));
-            foreach my $eraNarrow ($eraNarrows->get_nodelist) {
-                my $era_type = $eraNarrow->getAttribute('type');
-                $eras{narrow}[$era_type] = $eraNarrow->getChildNode(1)->getValue();
-            }
-        }
-    }
+    
     return \%eras;
 }
 

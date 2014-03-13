@@ -275,10 +275,14 @@ foreach my $property (qw(
 		clearer => "_clear_$property",
 	);
 }
-	
+
+# This set of properties are not used by DateTime::Locale but we have the data 
+# so might as well expose it
 foreach my $property (qw( 
 	am_pm_format_wide am_pm_format_abbreviated am_pm_format_narrow
 	am_pm_stand_alone_wide am_pm_stand_alone_abbreviated am_pm_stand_alone_narrow
+	era_format_wide era_format_abbreviated era_format_narrow
+	era_stand_alone_wide era_stand_alone_abbreviated era_stand_alone_narrow
 )) {
 	has $property => (
 		is => 'ro',
@@ -1020,7 +1024,7 @@ sub code_pattern {
 	my ($self, $type, $locale) = @_;
 	$type = lc $type;
 
-	# If locale isnot passed in then we are using ourself
+	# If locale is not passed in then we are using ourself
 	$locale //= $self;
 
 	# If locale is not an object then inflate it
@@ -1029,14 +1033,14 @@ sub code_pattern {
 	return '' unless $type =~ m{ \A (?: language | script | territory ) \z }xms;
 
 	my $method = $type . '_name';
-	my $substute = $self->$method($locale);
+	my $substitute = $self->$method($locale);
 
 	my @bundles = $self->_find_bundle('display_name_code_patterns');
 	foreach my $bundle (@bundles) {
 		my $text = $bundle->display_name_code_patterns->{$type};
 		next unless defined $text;
 		my $match = qr{ \{ 0 \} }xms;
-		$text=~ s{ $match }{$substute}gxms;
+		$text=~ s{ $match }{$substitute}gxms;
 		return $text;
 	}
 
@@ -1230,7 +1234,6 @@ sub truncated_word_between {
 sub truncated_word_end {
 	shift->_truncated('word-final' => @_);
 }
-
 
 sub more_information {
 	my $self = shift;
@@ -1863,6 +1866,22 @@ sub _build_quarter_stand_alone_narrow {
 	return $self->_build_any_quarter($type, $width);
 }
 
+sub get_day_period {
+	# Time in hhmm
+	my ($self, $time) = @_;
+	
+	my $default_calendar = $self->default_calendar();
+	
+	my $bundle = $self->_find_bundle('day_period_data');
+	
+	my $day_period = $bundle->day_period_data;
+	$day_period = $self->$day_period($default_calendar, $time);
+	
+	my $am_pm = $self->am_pm_format_abbreviated;
+	
+	return $am_pm->{$day_period};
+}
+
 sub _build_any_am_pm {
 	my ($self, $type, $width) = @_;
 
@@ -1926,6 +1945,7 @@ sub _build_am_pm_narrow {
 	return [ @$result{qw( am pm )} ];
 }
 
+# Now we do the full set of data
 sub _build_am_pm_format_wide {
 	my $self = shift;
 	my ($type, $width) = (qw( format wide ));
@@ -1968,70 +1988,87 @@ sub _build_am_pm_stand_alone_narrow {
 	return $self->_build_any_am_pm($type, $width);
 }
 
+sub _build_any_era {
+	my ($self, $width) = @_;
 
+	my $default_calendar = $self->default_calendar();
+	my @bundles = $self->_find_bundle('eras');
+	BUNDLES: {
+		foreach my $bundle (@bundles) {
+			my $eras = $bundle->eras;
+	
+			if (exists $eras->{$default_calendar}{alias}) {
+				$default_calendar = $eras->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+
+			if (exists $eras->{$default_calendar}{$width}{alias}) {
+				$width = $eras->{$default_calendar}{$width}{alias};
+				redo BUNDLES;
+			}
+						
+			my $result = $eras->{$default_calendar}{$width};
+			
+			return $result if keys %$result;
+		}
+	}
+
+	return {};
+}
+	
+# The next three are for DateDime::Locale
 sub _build_era_wide {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($width) = (qw( wide ));
 
-	my @bundles = $self->_find_bundle('eras');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $eras = $bundle->eras;
-			my $result = $eras->{$calendar}{wide};
-			return $result if $result;
-		}
-	}
-
-	return 0;
+	my $result = $self->_build_any_era($width);
+	
+	return [@$result{qw(0 1)}];
 }
 
-sub _build_era_abbrivated {
+sub _build_era_abbreviated {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($width) = (qw( abbreviated ));
 
-	my @bundles = $self->_find_bundle('eras');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $eras = $bundle->eras;
-			my $result = $eras->{$calendar}{abbrivated} ;
-			return $result if $result;
-		}
-	}
-
-	return 0;
+	my $result = $self->_build_any_era($width);
+	
+	return [@$result{qw(0 1)}];
 }
 
 sub _build_era_narrow {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($width) = (qw( narrow ));
 
-	my @bundles = $self->_find_bundle('eras');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $eras = $bundle->day_periods;
-			my $result = $eras->{$calendar}{narrow};
-			return $result if $result;
-		}
-	}
-
-	return 0;
+	my $result = $self->_build_any_era($width);
+	
+	return [@$result{qw(0 1)}];
 }
 
-sub _build_date_format_full {
+# Now get all the era data
+sub _build_era_format_wide {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	my ($width) = (qw( wide ));
 
-	my @bundles = $self->_find_bundle('date_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $date_formats = $bundle->date_formats;
-			my $result = $date_formats->{$calendar}{full};
-			return $result if $result;
-		}
-	}
-
-	return '';
+	return $self->_build_any_era($width);
 }
+
+sub _build_era_format_abbreviated {
+	my $self = shift;
+	my ($width) = (qw( abbreviated ));
+
+	return $self->_build_any_era($width);
+}
+
+sub _build_era_format_narrow {
+	my $self = shift;
+	my ($type, $width) = (qw( narrow ));
+
+	return $self->_build_any_era($type, $width);
+}
+
+*_build_era_stand_alone_wide = \&_build_era_format_wide;
+*_build_era_stand_alone_abbreviated = \&_build_era_format_abbreviated;
+*_build_era_stand_alone_narrow = \&_build_era_format_narrow;
 
 sub _build_date_format_long {
 	my $self = shift;

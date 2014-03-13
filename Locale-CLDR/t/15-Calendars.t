@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 28;
+use Test::More tests => 40;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -69,3 +69,30 @@ $am_pm = $locale->am_pm_stand_alone_abbreviated();
 is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM stand alone abbreviated');
 $am_pm = $locale->am_pm_stand_alone_narrow();
 is_deeply ($am_pm, { am => 'a', noon => 'n', pm => 'p' }, 'AM PM stand alone narrow');
+
+my $era = $locale->era_wide();
+is_deeply ($era, ['Before Christ', 'Anno Domini'], 'Era wide');
+$era = $locale->era_abbreviated();
+is_deeply ($era, [qw( BC AD )], 'Era abbreviated');
+$era = $locale->era_narrow();
+is_deeply ($era, [qw( B A )], 'Era narrow');
+$era = $locale->era_format_wide();
+is_deeply ($era, { 0 => 'Before Christ', 1 => 'Anno Domini' }, 'Era format wide');
+$era = $locale->era_format_abbreviated();
+is_deeply ($era, { 0 => 'BC', 1 => 'AD' }, 'Era format abbreviated');
+$era = $locale->era_format_narrow();
+is_deeply ($era, { 0 => 'B', 1 => 'A' }, 'Era format narrow');
+$era = $locale->era_stand_alone_wide();
+is_deeply ($era, { 0 => 'Before Christ', 1 => 'Anno Domini' }, 'Era stand alone wide');
+$era = $locale->era_stand_alone_abbreviated();
+is_deeply ($era, { 0 => 'BC', 1 => 'AD' }, 'Era stand alone abbreviated');
+$era = $locale->era_stand_alone_narrow();
+is_deeply ($era, { 0 => 'B', 1 => 'A' }, 'Era stand alone narrow');
+
+my $day_period_data = $locale->get_day_period('0000');
+is($day_period_data, 'a.m.', 'Day period data AM');
+$day_period_data = $locale->get_day_period('1200');
+is($day_period_data, 'noon', 'Day period data Noon');
+$day_period_data = $locale->get_day_period('1210');
+is($day_period_data, 'p.m.', 'Day period data PM');
+
