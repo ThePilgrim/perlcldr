@@ -1,4 +1,4 @@
-package Locale::CLDR v2.0.2;
+package Locale::CLDR v0.0.1;
 use v5.18;
 use open ':encoding(utf8)';
 use utf8;
@@ -296,12 +296,12 @@ foreach my $property (qw(
 	
 foreach my $property (qw(
 	id
-	date_format_full date_formart_long 
-	date_format_medium date_format_short date_format_default
-	time_format_full time_formart_long
-	time_format_medium time_format_short timeformat_default
-	datetime_format_full datetime_formart_long
-	datetime_format_medium datetime_format_short datetimeformat_default
+	date_format_full date_format_long 
+	date_format_medium date_format_short
+	time_format_full time_format_long
+	time_format_medium time_format_short
+	datetime_format_full datetime_format_long
+	datetime_format_medium datetime_format_short
 )) {
 	has $property => (
 		is => 'ro',
@@ -1648,11 +1648,11 @@ sub _clear_calendar_data {
 		am_pm_wide am_pm_abbreviated am_pm_narrow am_pm_format_wide 
 		am_pm_format_abbreviated am_pm_format_narrow am_pm_stand_alone_wide 
 		am_pm_stand_alone_abbreviated am_pm_stand_alone_narrow era_wide 
-		era_abbreviated era_narrow date_format_full date_formart_long date_format_medium
-		date_format_short date_format_default time_format_full
-		time_formart_long time_format_medium time_format_short
-		timeformat_default datetime_format_full datetime_formart_long
-		datetime_format_medium datetime_format_short datetimeformat_default
+		era_abbreviated era_narrow date_format_full date_format_long date_format_medium
+		date_format_short time_format_full
+		time_format_long time_format_medium time_format_short
+		datetime_format_full datetime_format_long
+		datetime_format_medium datetime_format_short
 		available_formats format_data
 	)) {
 		my $method = "_clear_$property";
@@ -2070,244 +2070,152 @@ sub _build_era_format_narrow {
 *_build_era_stand_alone_abbreviated = \&_build_era_format_abbreviated;
 *_build_era_stand_alone_narrow = \&_build_era_format_narrow;
 
-sub _build_date_format_long {
-	my $self = shift;
+sub _build_any_date_formats {
+	my ($self, $width) = @_;
 	my $default_calendar = $self->default_calendar();
-
+	
 	my @bundles = $self->_find_bundle('date_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $date_formats = $bundle->date_formats;
-			my $result = $date_formats->{$calendar}{long};
+			if (exists $date_formats->{alias}) {
+				$default_calendar = $date_formats->{alias};
+				redo BUNDLES;
+			}
+			
+			my $result = $date_formats->{$default_calendar}{$width};
 			return $result if $result;
 		}
 	}
-
 	return '';
+}
+
+sub _build_date_format_full {
+	my $self = shift;
+	
+	my ($width) = ('full');
+	return $self->_build_any_date_formats($width);
+}
+
+sub _build_date_format_long {
+	my $self = shift;
+	
+	my ($width) = ('long');
+	return $self->_build_any_date_formats($width);
 }
 
 sub _build_date_format_medium {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('date_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $date_formats = $bundle->date_formats;
-			my $result = $date_formats->{$calendar}{medium};
-			return $result if $result;
-		}
-	}
-
-	return '';
+	
+	my ($width) = ('medium');
+	return $self->_build_any_date_formats($width);
 }
 
 sub _build_date_format_short {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('date_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $date_formats = $bundle->date_formats;
-			my $result = $date_formats->{$calendar}{short};
-			return $result if $result;
-		}
-	}
-
-	return '';
+	
+	my ($width) = ('short');
+	return $self->_build_any_date_formats($width);
 }
 
-sub _build_date_format_default {
-	my $self = shift;
+sub _build_any_time_format {
+	my ($self, $width) = @_;
 	my $default_calendar = $self->default_calendar();
+	
+	my @bundles = $self->_find_bundle('time_formats');
 
-	my @bundles = $self->_find_bundle('date_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
-			my $date_formats = $bundle->date_formats;
-			my $result = $date_formats->{$calendar}{default};
+			my $time_formats = $bundle->time_formats;
+			if (exists $time_formats->{alias}) {
+				$default_calendar = $time_formats->{alias};
+				redo BUNDLES;
+			}
+			
+			my $result = $time_formats->{$default_calendar}{$width};
 			return $result if $result;
 		}
 	}
-
 	return '';
 }
 
 sub _build_time_format_full {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('time_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $time_formats = $bundle->time_formats;
-			my $result = $time_formats->{$calendar}{full};
-			return $result if $result;
-		}
-	}
-
-	return '';
+	my $width = 'full';
+	
+	return $self->_build_any_time_format($width);
 }
 
 sub _build_time_format_long {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('time_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $time_formats = $bundle->time_formats;
-			my $result = $time_formats->{$calendar}{long};
-			return $result if $result;
-		}
-	}
-
-	return '';
+	
+	my $width = 'long';
+	return $self->_build_any_time_format($width);
 }
 
 sub _build_time_format_medium {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('time_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $time_formats = $bundle->time_formats;
-			my $result = $time_formats->{$calendar}{medium};
-			return $result if $result;
-		}
-	}
-
-	return '';
+	
+	my $width = 'medium';
+	return $self->_build_any_time_format($width);
 }
 
 sub _build_time_format_short {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
+	
+	my $width = 'short';
+	return $self->_build_any_time_format($width);
+}
 
-	my @bundles = $self->_find_bundle('time_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
+sub _build_any_datetime_format {
+	my ($self, $width) = @_;
+	my $default_calendar = $self->default_calendar();
+	
+	my @bundles = $self->_find_bundle('datetime_formats');
+
+	BUNDLES: {
 		foreach my $bundle (@bundles) {
-			my $time_formats = $bundle->time_formats;
-			my $result = $time_formats->{$calendar}{short};
+			my $datetime_formats = $bundle->datetime_formats;
+			if (exists $datetime_formats->{alias}) {
+				$default_calendar = $datetime_formats->{alias};
+				redo BUNDLES;
+			}
+			
+			my $result = $datetime_formats->{$default_calendar}{$width};
 			return $result if $result;
 		}
 	}
-
+	
 	return '';
-}
-
-sub _build_time_format_default {
-	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('time_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $time_formats = $bundle->time_formats;
-			my $result = $time_formats->{$calendar}{default};
-			return $result if $result;
-		}
-	}
-
-	return '';
-}
+}	
 
 sub _build_datetime_format_full {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('datetime_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $datetime_formats = $bundle->datetime_formats;
-			my $result = $datetime_formats->{$calendar}{full};
-			next unless $result;
-			my $date_format_full = $self->date_format_full;
-			my $time_format_full = $self->time_format_full;
-			$result =~ s/ \{ 0 \} /$time_format_full/gx;
-			$result =~ s/ \{ 1 \} /$date_format_full/gx;
-		}
-	}
-
-	return '';
+	
+	my $width = 'full';
+	$self->_build_any_datetime_format($width);
 }
 
 sub _build_datetime_format_long {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('datetime_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $datetime_formats = $bundle->datetime_formats;
-			my $result = $datetime_formats->{$calendar}{long};
-			next unless $result;
-			my $date_format_long = $self->date_format_long;
-			my $time_format_long = $self->time_format_long;
-			$result =~ s/ \{ 0 \} /$time_format_long/gx;
-			$result =~ s/ \{ 1 \} /$date_format_long/gx;
-		}
-	}
-
-	return '';
+		
+	my $width = 'long';
+	$self->_build_any_datetime_format($width);
 }
 
 sub _build_datetime_format_medium {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('datetime_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $datetime_formats = $bundle->datetime_formats;
-			my $result = $datetime_formats->{$calendar}{medium};
-			next unless $result;
-			my $date_format_medium = $self->date_format_medium;
-			my $time_format_medium = $self->time_format_medium;
-			$result =~ s/ \{ 0 \} /$time_format_medium/gx;
-			$result =~ s/ \{ 1 \} /$date_format_medium/gx;
-		}
-	}
-
-	return '';
+	
+	my $width = 'medium';
+	$self->_build_any_datetime_format($width);
 }
 
 sub _build_datetime_format_short {
 	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('datetime_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $datetime_formats = $bundle->datetime_formats;
-			my $result = $datetime_formats->{$calendar}{short};
-			next unless $result;
-			my $date_format_short = $self->date_format_short;
-			my $time_format_short = $self->time_format_short;
-			$result =~ s/ \{ 0 \} /$time_format_short/gx;
-			$result =~ s/ \{ 1 \} /$date_format_short/gx;
-		}
-	}
-
-	return '';
-}
-
-sub _build_datetime_format_default {
-	my $self = shift;
-	my $default_calendar = $self->default_calendar();
-
-	my @bundles = $self->_find_bundle('datetime_formats');
-	foreach my $calendar ($default_calendar, 'gregorian') {
-		foreach my $bundle (@bundles) {
-			my $datetime_formats = $bundle->datetime_formats;
-			my $result = $datetime_formats->{$calendar}{default};
-			return $result if $result;
-		}
-	}
-
-	return '';
+	
+	my $width = 'short';
+	$self->_build_any_datetime_format($width);
 }
 
 sub _build_format_data {

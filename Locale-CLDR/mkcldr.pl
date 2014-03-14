@@ -1873,43 +1873,37 @@ sub process_numbers {
 	
 	# Formats
 	my %formats;
-	my $default_format_type = '';
 	foreach my $format_type ( qw( decimalFormat percentFormat scientificFormat ) ) {
-		my $number_system = 'latn';
-		my $nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/\@numberSystem/text()");
-		if ($nodes->size) {
-			$number_system = ($nodes->get_nodelist)[0]->getValue;
-		}
-		
-		$nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/default/\@type/text()");
-		if ($nodes->size) {
-			$default_format_type = ($nodes->get_nodelist)[0]->getValue;
-		}
-		
-		$nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/alias/\@path");
-		if ( $nodes->size) {
-			my $alias = ($nodes->get_nodelist)[0]->getValue =~ /\[\@numberSystem='(.*?)'\]/;
-			$formats{$format_type}{alias} = $alias;
-			next;
-		}
-		
-		my $format_nodes_length = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length");
-		foreach my $format_node ( $format_nodes_length->get_nodelist ) { 
-			my $length_type = $format_node->getAttribute('type');
-			my $attribute = $length_type ? qq([\@type="$length_type"]) : '';
-			my $nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/alias/\@path");
-			if ($nodes->size) {
-				my $alias = ($nodes->get_nodelist)[0]->getValue =~ /${format_type}Length\[\@type='(.*?)'\]/;
-				$formats{$format_type}{$length_type || 'default'}{alias} = $alias;
-				next;
+		my $format_nodes = findnodes($xpath, qq(/ldml/numbers/${format_type}s));
+		foreach my $format_node ($format_nodes->get_nodelist) {
+			my $number_system = $format_node->getAttribute('numberSystem');
+			my $format_xpath = qq(/ldml/numbers/${format_type}s[\@numberSystem="$number_system"]);
+			$format_xpath = qq(/ldml/numbers/${format_type}s[not(\@numberSystem)]) unless $number_system;
+			my $format_alias_nodes = findnodes($xpath, "$format_xpath/alias");
+			if ($format_alias_nodes->size) {
+				my ($alias) = ($format_alias_nodes->get_nodelist)[0]->getAttribute('path') =~ /\[\@numberSystem='(.*?)'\]/;
+				$formats{$number_system || 'default'}{alias} = $alias;
 			}
-			
-			my $pattern_nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/pattern");
-			foreach my $pattern ($pattern_nodes->get_nodelist) {
-				my $pattern_type = $pattern->getAttribute('type') || 0;
-				my $pattern_count = $pattern->getAttribute('count') || 'other';
-				my $pattern_text = $pattern->getChildNode(1)->getValue();
-				$formats{$format_type}{$length_type || 'default'}{$pattern_type}{$pattern_count} = $pattern_text;
+			else {
+				my $format_nodes_length = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length");
+				foreach my $format_node ( $format_nodes_length->get_nodelist ) { 
+					my $length_type = $format_node->getAttribute('type');
+					my $attribute = $length_type ? qq([\@type="$length_type"]) : '';
+					my $nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/alias/\@path");
+					if ($nodes->size) {
+						my $alias = ($nodes->get_nodelist)[0]->getValue =~ /${format_type}Length\[\@type='(.*?)'\]/;
+						$formats{$format_type}{$length_type || 'default'}{alias} = $alias;
+					}
+					else { 
+						my $pattern_nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/pattern");
+						foreach my $pattern ($pattern_nodes->get_nodelist) {
+							my $pattern_type = $pattern->getAttribute('type') || 0;
+							my $pattern_count = $pattern->getAttribute('count') || 'other';
+							my $pattern_text = $pattern->getChildNode(1)->getValue();
+							$formats{$format_type}{$length_type || 'default'}{$pattern_type}{$pattern_count} = $pattern_text;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -2033,18 +2027,6 @@ EOT
 );
 
 EOT
-
-	if ($default_format_type) {
-		print $file <<EOT;
-has 'default_numbering_format_type' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
-\tinit_arg\t=> undef,
-\tdefault\t\t=> '$default_format_type',
-);
-
-EOT
-	}
 	
 	if (keys %formats) {
 		print $file <<EOT;
@@ -2314,8 +2296,6 @@ sub process_calendars {
         $calendars{time_formats}{$type} = $time_formats if $time_formats;
         my $datetime_formats = process_datetime_formats($xpath, $type);
         $calendars{datetime_formats}{$type} = $datetime_formats if $datetime_formats;
-        my $fields = process_fields($xpath, $type);
-        $calendars{fields}{$type} = $fields if $fields;
     }
 
     # Got all the data now write it out to the file;
@@ -2630,10 +2610,10 @@ has 'date_formats' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-        foreach my $ctype (keys %{$calendars{date_formats}}) {
+        foreach my $ctype (sort keys %{$calendars{date_formats}}) {
             say $file "\t\t'$ctype' => {";
-            foreach my $length (keys %{$calendars{date_formats}{$ctype}}) {
-                say $file "\t\t\t'$length' => q{$calendars{date_formats}{$ctype}{$length}},";
+            foreach my $width (sort keys %{$calendars{date_formats}{$ctype}}) {
+                say $file "\t\t\t'$width' => q{$calendars{date_formats}{$ctype}{$width}},";
             }
             say $file "\t\t},";
         }
@@ -2653,10 +2633,10 @@ has 'time_formats' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-        foreach my $ctype (keys %{$calendars{time_formats}}) {
+        foreach my $ctype (sort keys %{$calendars{time_formats}}) {
             say $file "\t\t'$ctype' => {";
-            foreach my $length (keys %{$calendars{time_formats}{$ctype}}) {
-                say $file "\t\t\t'$length' => q{$calendars{time_formats}{$ctype}{$length}},";
+            foreach my $width (sort keys %{$calendars{time_formats}{$ctype}}) {
+                say $file "\t\t\t'$width' => q{$calendars{time_formats}{$ctype}{$width}},";
             }
             say $file "\t\t},";
         }
@@ -2676,15 +2656,17 @@ has 'datetime_formats' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-        foreach my $ctype (keys %{$calendars{datetime_formats}}) {
+        foreach my $ctype (sort keys %{$calendars{datetime_formats}}) {
             say $file "\t\t'$ctype' => {";
-            foreach my $length (keys %{$calendars{datetime_formats}{$ctype}{formats}}) {
-                say $file "\t\t\t'$length' => q{$calendars{datetime_formats}{$ctype}{formats}{$length}},";
-            }
-            if (exists $calendars{datetime_formats}{$ctype}{default}) {
-                say $file "\t\t\tdefault => q{$calendars{datetime_formats}{$ctype}{default}},";
-            }
-            say $file "\t\t},";
+			if (exists $calendars{datetime_formats}{$ctype}{alias}) {
+			    say $file "\t\t\t'alias' => q{$calendars{datetime_formats}{$ctype}{alias}},";
+			}
+			else {
+				foreach my $length (sort keys %{$calendars{datetime_formats}{$ctype}{formats}}) {
+					say $file "\t\t\t'$length' => q{$calendars{datetime_formats}{$ctype}{formats}{$length}},";
+				}
+			}
+			say $file "\t\t},";
         }
 
         print $file <<EOT;
@@ -2698,12 +2680,19 @@ has 'datetime_formats_available_formats' => (
 \tdefault\t\t=> sub { {
 EOT
         foreach my $ctype (keys %{$calendars{datetime_formats}}) {
-            if (exists $calendars{datetime_formats}{$ctype}{available_formats}) {
-                say $file "\t\t'$ctype' => {";
-                foreach my $type (sort keys %{$calendars{datetime_formats}{$ctype}{available_formats}}) {
-                    say $file "\t\t\t$type => q{$calendars{datetime_formats}{$ctype}{available_formats}{$type}},";
-                }
-                say $file "\t\t},";
+			if (exists $calendars{datetime_formats}{$ctype}{alias}) {
+				say $file "\t\t'$ctype' => {";
+				say $file "\t\t\t'alias' => q{$calendars{datetime_formats}{$ctype}{alias}},";
+				say $file "\t\t},";
+			}
+			else {
+				if (exists $calendars{datetime_formats}{$ctype}{available_formats}) {
+					say $file "\t\t'$ctype' => {";
+					foreach my $type (sort keys %{$calendars{datetime_formats}{$ctype}{available_formats}}) {
+						say $file "\t\t\t$type => q{$calendars{datetime_formats}{$ctype}{available_formats}{$type}},";
+					}
+					say $file "\t\t},";
+				}
             }
         }
         print $file <<EOT;
@@ -2718,13 +2707,20 @@ has 'datetime_formats_append_item' => (
 EOT
 
         foreach my $ctype (keys %{$calendars{datetime_formats}}) {
-            if (exists $calendars{datetime_formats}{$ctype}{appendItem}) {
-                say $file "\t\t'$ctype' => {";
-                foreach my $type (sort keys %{$calendars{datetime_formats}{$ctype}{appendItem}}) {
-                    say $file "\t\t\t'$type' => '$calendars{datetime_formats}{$ctype}{appendItem}{$type}',";
-                }
-                say $file "\t\t},";
-            }
+			if (exists $calendars{datetime_formats}{$ctype}{alias}) {
+				say $file "\t\t'$ctype' => {";
+				say $file "\t\t\t'alias' => q{$calendars{datetime_formats}{$ctype}{alias}},";
+				say $file "\t\t},";
+			}
+			else {
+				if (exists $calendars{datetime_formats}{$ctype}{appendItem}) {
+					say $file "\t\t'$ctype' => {";
+					foreach my $type (sort keys %{$calendars{datetime_formats}{$ctype}{appendItem}}) {
+						say $file "\t\t\t'$type' => '$calendars{datetime_formats}{$ctype}{appendItem}{$type}',";
+					}
+					say $file "\t\t},";
+				}
+			}
         }
         print $file <<EOT;
 \t} },
@@ -2738,51 +2734,28 @@ has 'datetime_formats_interval' => (
 EOT
 
         foreach my $ctype (keys %{$calendars{datetime_formats}}) {
-            if (exists $calendars{datetime_formats}{$ctype}{interval}) {
-                say $file "\t\t'$ctype' => {";
-                foreach my $format_id ( sort keys %{$calendars{datetime_formats}{$ctype}{interval}}) {
-                    if ($format_id eq 'fallback') {
-                        say $file "\t\t\tfallback => '$calendars{datetime_formats}{$ctype}{interval}{fallback}',";
-                        next;
-                    }
-                    say $file "\t\t\t$format_id => {";
-                    foreach my $greatest_difference (sort keys %{$calendars{datetime_formats}{$ctype}{interval}{$format_id}}) {
-                        say $file "\t\t\t\t$greatest_difference => q{$calendars{datetime_formats}{$ctype}{interval}{$format_id}{$greatest_difference}},";
-                    }
-                    say $file "\t\t\t},";
-                }
-                say $file "\t\t},";
-            }
-        }
-        print $file <<EOT;
-\t} },
-);
-    
-EOT
-    }
-
-    if (keys %{$calendars{fields}}) {
-        print $file <<EOT;
-has 'calendar_fields ' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
-\tinit_arg\t=> undef,
-\tdefault\t\t=> sub { {
-EOT
-
-        foreach my $ctype (keys %{$calendars{fields}}) {
-            say $file "\t\t'$ctype' => {";
-            foreach my $type (sort keys %{$calendars{fields}{$ctype}}) {
-                say $file "\t\t\t'$type' => {";
-                if (exists $calendars{fields}{$ctype}{$type}{name}) {
-                    say $file "\t\t\t\tname => '$calendars{fields}{$ctype}{$type}{name}',";
-                }
-                foreach my $rtype (sort keys %{$calendars{fields}{$ctype}{$type}{relative}}) {
-                    say $file "\t\t\t\t$rtype => q{$calendars{fields}{$ctype}{$type}{relative}{$rtype}},";
-                }
-                say $file "\t\t\t},";
-            }
-            say $file "\t\t},";
+			if (exists $calendars{datetime_formats}{$ctype}{alias}) {
+				say $file "\t\t'$ctype' => {";
+				say $file "\t\t\t'alias' => q{$calendars{datetime_formats}{$ctype}{alias}},";
+				say $file "\t\t},";
+			}
+			else {
+				if (exists $calendars{datetime_formats}{$ctype}{interval}) {
+					say $file "\t\t'$ctype' => {";
+					foreach my $format_id ( sort keys %{$calendars{datetime_formats}{$ctype}{interval}}) {
+						if ($format_id eq 'fallback') {
+							say $file "\t\t\tfallback => '$calendars{datetime_formats}{$ctype}{interval}{fallback}',";
+							next;
+						}
+						say $file "\t\t\t$format_id => {";
+						foreach my $greatest_difference (sort keys %{$calendars{datetime_formats}{$ctype}{interval}{$format_id}}) {
+							say $file "\t\t\t\t$greatest_difference => q{$calendars{datetime_formats}{$ctype}{interval}{$format_id}{$greatest_difference}},";
+						}
+						say $file "\t\t\t},";
+					}
+					say $file "\t\t},";
+				}
+			}
         }
         print $file <<EOT;
 \t} },
@@ -3161,34 +3134,34 @@ sub process_date_formats {
     say "Processing Date Formats ($type)" if $verbose;
 
     my %dateFormats;
-    my $dateFormats = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateFormats));
-
-    return 0 unless $dateFormats->size;
-
-    my %dateFormats;
-
-    my $default_context = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateFormats/default));
-    if ($default_context->size) {
-        my $default_node = ($default_context->get_nodelist)[0];
-        my $choice = $default_node->getAttribute('choice');
-        $dateFormats{default} = $choice;
+	my $dateFormats_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateFormats/alias));
+	if ($dateFormats_alias->size) {
+		my $path = ($dateFormats_alias->get_nodelist)[0]->getAttribute('path');
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$dateFormats{alias} = $alias;
     }
+	else {
+		my $dateFormats = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateFormats));
 
-    my $dateFormatLength_nodes = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateFormats/dateFormatLength)
+		return {} unless $dateFormats->size;
+
+		my $dateFormatLength_nodes = findnodes($xpath,
+			qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateFormats/dateFormatLength)
         );
 
-    foreach my $dateFormatLength ($dateFormatLength_nodes->get_nodelist) {
-        my $date_format_type = $dateFormatLength->getAttribute('type');
+		foreach my $dateFormatLength ($dateFormatLength_nodes->get_nodelist) {
+			my $date_format_width = $dateFormatLength->getAttribute('type');
 
-        my $patterns = findnodes($xpath,
-            qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateFormats/dateFormatLength[\@type="$date_format_type"]/dateFormat/pattern)
-        );
+			my $patterns = findnodes($xpath,
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateFormats/dateFormatLength[\@type="$date_format_width"]/dateFormat/pattern)
+			);
 
-        my $pattern = $patterns->[0]->getChildNode(1)->getValue;
-        $dateFormats{$date_format_type} = $pattern;
+			my $pattern = $patterns->[0]->getChildNode(1)->getValue;
+			$dateFormats{$date_format_width} = $pattern;
+		}
     }
-    return \%dateFormats;
+		
+	return \%dateFormats;
 }
 
 #/ldml/dates/calendars/calendar/timeFormats/
@@ -3198,38 +3171,34 @@ sub process_time_formats {
     say "Processing Time Formats ($type)" if $verbose;
 
     my %timeFormats;
-    my $timeFormats = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats));
-
-    return 0 unless $timeFormats->size;
-
-    my %timeFormats;
-
-    if (findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/alias))->size) {
-        $type = 'gregorian';
+	my $timeFormats_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/alias));
+	if ($timeFormats_alias->size) {
+		my $path = ($timeFormats_alias->get_nodelist)[0]->getAttribute('path');
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$timeFormats{alias} = $alias;
     }
+	else {
+		my $timeFormats = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats));
 
-    my $default_context = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/default));
-    if ($default_context->size) {
-        my $default_node = ($default_context->get_nodelist)[0];
-        my $choice = $default_node->getAttribute('choice');
-        $timeFormats{default} = $choice;
-    }
+		return {} unless $timeFormats->size;
 
-    my $timeFormatLength_nodes = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/timeFormatLength)
+		my $timeFormatLength_nodes = findnodes($xpath,
+			qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/timeFormatLength)
         );
 
-    foreach my $timeFormatLength ($timeFormatLength_nodes->get_nodelist) {
-        my $time_format_type = $timeFormatLength->getAttribute('type');
+		foreach my $timeFormatLength ($timeFormatLength_nodes->get_nodelist) {
+			my $time_format_width = $timeFormatLength->getAttribute('type');
 
-        my $patterns = findnodes($xpath,
-            qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/timeFormatLength[\@type="$time_format_type"]/timeFormat/pattern)
-        );
+			my $patterns = findnodes($xpath,
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/timeFormats/timeFormatLength[\@type="$time_format_width"]/timeFormat/pattern)
+			);
 
-        my $pattern = $patterns->[0]->getChildNode(1)->getValue;
-        $timeFormats{$time_format_type} = $pattern;
+			my $pattern = $patterns->[0]->getChildNode(1)->getValue;
+			$timeFormats{$time_format_width} = $pattern;
+		}
     }
-    return \%timeFormats;
+		
+	return \%timeFormats;
 }
 
 #/ldml/dates/calendars/calendar/dateTimeFormats/
@@ -3239,92 +3208,75 @@ sub process_datetime_formats {
     say "Processing Date Time Formats ($type)" if $verbose;
 
     my %dateTimeFormats;
-    my $dateTimeFormats = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats));
+    my $dateTimeFormats_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/alias));
 
-    return 0 unless $dateTimeFormats->size;
-
-    my %dateTimeFormats;
-
-    my $default_context = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/default));
-    if ($default_context->size) {
-        my $default_node = ($default_context->get_nodelist)[0];
-        my $choice = $default_node->getAttribute('choice');
-        $dateTimeFormats{default} = $choice;
+    if ($dateTimeFormats_alias->size) {
+		my $path = ($dateTimeFormats_alias->get_nodelist)[0]->getAttribute('path');
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$dateTimeFormats{alias} = $alias;
     }
+	else {
+		my $dateTimeFormats = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats));
 
-    my $dateTimeFormatLength_alias = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/dateTimeFormatLength/alias)
+		return {} unless $dateTimeFormats->size;
+		
+		my $dateTimeFormatLength_nodes = findnodes($xpath,
+			qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/dateTimeFormatLength)
         );
 
-    if ($dateTimeFormatLength_alias->size){
-        $type = 'gregorian';
-    }
+		foreach my $dateTimeFormatLength ($dateTimeFormatLength_nodes->get_nodelist) {
+			my $dateTime_format_type = $dateTimeFormatLength->getAttribute('type');
 
-    my $dateTimeFormatLength_nodes = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/dateTimeFormatLength)
-        );
+			my $patterns = findnodes($xpath,
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/dateTimeFormatLength[\@type="$dateTime_format_type"]/dateTimeFormat/pattern)
+			);
 
-    foreach my $dateTimeFormatLength ($dateTimeFormatLength_nodes->get_nodelist) {
-        my $dateTime_format_type = $dateTimeFormatLength->getAttribute('type');
+			my $pattern = $patterns->[0]->getChildNode(1)->getValue;
+			$dateTimeFormats{formats}{$dateTime_format_type} = $pattern;
+		}
 
-        my $patterns = findnodes($xpath,
-            qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/dateTimeFormatLength[\@type="$dateTime_format_type"]/dateTimeFormat/pattern)
-        );
+		# Available Formats
+		my $availableFormats_nodes = findnodes($xpath,
+			qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/availableFormats/dateFormatItem)
+		);
 
-        my $pattern = $patterns->[0]->getChildNode(1)->getValue;
-        $dateTimeFormats{formats}{$dateTime_format_type} = $pattern;
-    }
+		foreach my $dateFormatItem ($availableFormats_nodes->get_nodelist) {
+			my $id = $dateFormatItem->getAttribute('id');
 
-    # Available Formats
-    my $availableFormats_nodes = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/availableFormats/dateFormatItem)
-        );
-
-    foreach my $dateFormatItem ($availableFormats_nodes->get_nodelist) {
-        my $id = $dateFormatItem->getAttribute('id');
-
-        my $pattern = $dateFormatItem->getChildNode(1)->getValue;
-        $dateTimeFormats{available_formats}{$id} = $pattern;
-    }
+			my $pattern = $dateFormatItem->getChildNode(1)->getValue;
+			$dateTimeFormats{available_formats}{$id} = $pattern;
+		}
     
-    # Append items
-    my $appendItems_nodes = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/appendItems/appendItem)
+		# Append items
+		my $appendItems_nodes = findnodes($xpath,
+			qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/appendItems/appendItem)
         );
 
-    foreach my $appendItem ($appendItems_nodes->get_nodelist) {
-        my $request = $appendItem->getAttribute('request');
+		foreach my $appendItem ($appendItems_nodes->get_nodelist) {
+			my $request = $appendItem->getAttribute('request');
 
-        my $pattern = $appendItem->getChildNode(1)->getValue;
-        $dateTimeFormats{appendItem}{$request} = $pattern;
-    }
+			my $pattern = $appendItem->getChildNode(1)->getValue;
+			$dateTimeFormats{appendItem}{$request} = $pattern;
+		}
 
-    # Interval formats
-    my $intervalFormats_alias = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/alias)
-    );
-
-    if ($intervalFormats_alias->size) {
-        $type = 'gregorian';
-    }
-
-    my $intervalFormats_nodes = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/intervalFormatItem)
+		# Interval formats
+		my $intervalFormats_nodes = findnodes($xpath,
+			qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/intervalFormatItem)
         );
 
-    my $fallback_node = findnodes($xpath,
-        qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/intervalFormatFallback)
+		my $fallback_node = findnodes($xpath,
+			qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/intervalFormatFallback)
         );
     
-    if ($fallback_node->size) {
-        $dateTimeFormats{interval}{fallback} = ($fallback_node->get_nodelist)[0]->getChildNode(1)->getValue;
-    }
+		if ($fallback_node->size) {
+			$dateTimeFormats{interval}{fallback} = ($fallback_node->get_nodelist)[0]->getChildNode(1)->getValue;
+		}
 
-    foreach my $intervalFormatItem ($intervalFormats_nodes->get_nodelist) {
-        my $id = $intervalFormatItem->getAttribute('id');
+		foreach my $intervalFormatItem ($intervalFormats_nodes->get_nodelist) {
+			my $id = $intervalFormatItem->getAttribute('id');
         
-        my $greatestDifference_nodes = findnodes($xpath,
-            qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/intervalFormatItem[\@id="$id"]/greatestDifference)
+			my $greatestDifference_nodes = findnodes($xpath,
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/dateTimeFormats/intervalFormats/intervalFormatItem[\@id="$id"]/greatestDifference)
             );
 
             foreach my $greatestDifference ($greatestDifference_nodes->get_nodelist) {
@@ -3332,8 +3284,9 @@ sub process_datetime_formats {
                 my $gd_id = $greatestDifference->getAttribute('id');
                 $dateTimeFormats{interval}{$id}{$gd_id} = $pattern;
             }
+		}
     }
-    
+	
     return \%dateTimeFormats;
 }
 
