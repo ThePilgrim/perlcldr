@@ -1,4 +1,29 @@
 package Locale::CLDR v0.0.1;
+
+=encoding utf8
+
+=head1 NAME
+
+Locale::CLDR - Main Class for CLDR Locals
+
+=head1 VERSION
+
+Version 0.0.1
+
+=head1 SYNOPSIS
+
+This module handles Locale Data from the CLDR.
+
+=head1 USAGE
+
+ my $locale = Locale::CLDR->new('en_GB');
+
+or
+
+ my $locale = Locale::CLDR->new(language_id => 'en', territory_id => 'gb');
+
+=cut
+
 use v5.18;
 use open ':encoding(utf8)';
 use utf8;
@@ -9,29 +34,21 @@ with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::We
 	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::TerritoryContainment', 'Locale::CLDR::CalendarPreferences';
 	
 use Class::Load;
-
 use namespace::autoclean;
-
-=head1 NAME
-
-Locale::CLDR - Main Class for CLDR Locals
-
-=head1 VERSION
-
-Version 1.8.0 To match the CLDR Version
-
-=cut
-
 use List::Util qw(first);
 use Class::MOP;
 use DateTime::Locale;
 use Unicode::Normalize();
 
-=head1 SYNOPSIS
+=head1 ATTRIBUTES
 
-This module handles Local Data from the CLDR
+These can be passed into the constructor and all are optional.
 
-=head1 Attributes
+=over 4
+
+=item language_id
+
+A valid language or language alias id, such as C<en>
 
 =cut
 
@@ -48,12 +65,25 @@ around 'language_id' => sub {
 	return $self->language_aliases->{$value} // $value;
 };
 
+=item script_id
+
+A valid script id, such as C<latn> or C<Ctcl>. The code will pick a likely script
+depending on the given language if non is provided.
+
+=cut
+
 has 'script_id' => (
 	is			=> 'ro',
 	isa			=> 'Str',
 	default		=> '',
 	predicate	=> 'has_script',
 );
+
+=item territory_id
+
+A valid territory id or territory alias such as C<GB>
+
+=cut
 
 has 'territory_id' => (
 	is			=> 'ro',
@@ -71,6 +101,12 @@ around 'territory_id' => sub {
 	return (split /\s+/, $alias)[0];
 };
 
+=item variant_id
+
+A valid variant id. The code currently ignores this
+
+=cut
+
 has 'variant_id' => (
 	is			=> 'ro',
 	isa			=> 'Str',
@@ -78,12 +114,35 @@ has 'variant_id' => (
 	predicate	=> 'has_variant',
 );
 
-has 'extentions' => (
+=item extensions 
+
+A Hashref of extension names and values. This is currently ignored but future releases
+will use it to override various assumptions such as calendar type and number type
+
+=cut
+
+has 'extensions' => (
 	is			=> 'ro',
 	isa			=> 'Undef|HashRef',
 	default		=> undef,
-	writer		=> '_set_extentions',
+	writer		=> '_set_extensions',
 );
+
+=back
+
+=head1 Methods
+
+The following methods can be called on the locale object
+
+=over 4
+
+=item likely_language()
+
+Given a locale with no language passed in or with the explicit language
+code of C<und>, this method attempts to use the script and territory
+data to guess the locales language.
+
+=cut
 
 has 'likely_language' => (
 	is			=> 'ro',
@@ -103,6 +162,13 @@ sub _build_likely_language {
 	return $self->likely_subtag->language;
 }
 
+=item likely_script()
+
+Given a locale with no script passed in this method attempts to use the
+language and territory data to guess the locales script.
+
+=cut
+
 has 'likely_script' => (
 	is			=> 'ro',
 	isa			=> 'Str',
@@ -120,6 +186,15 @@ sub _build_likely_script {
 	
 	return $self->likely_subtag->script || '';
 }
+
+=item likely_territory()
+
+Given a locale with no territory passed in this method attempts to use the
+language and script data to guess the locales territory.
+
+=back
+
+=cut
 
 has 'likely_territory' => (
 	is			=> 'ro',
@@ -236,6 +311,74 @@ has 'break_sentence' => (
 	default => sub {shift->_build_break('SentenceBreak')},
 );
 
+=head2 Meta Data
+
+The following methods return, in English, the names if the various 
+id's passed into the locales constructor. I.e. if you passed 
+C<language => 'fr'> to the constructor you would get back C<French>
+for the language.
+
+=over 4
+
+=item name
+
+The locales name. This is usually built up out of the language, 
+script, territory and variant of the locale
+
+=item language
+
+The name of the locales language
+
+=item script
+
+The name of the locales script
+
+=item territory
+
+The name of the locales territory
+
+=item variant
+
+The name of the locales variant
+
+=back
+
+=head2 Native Meta Data
+
+Like Meta Data above this provides the names of the various id's 
+passed into the locales constructor. However in this case the
+names are formatted to match the locale. I.e. if you passed 
+C<language => 'fr'> to the constructor you would get back 
+C<français> for the language.
+
+=over 4
+
+=item native_name
+
+The locales name. This is usually built up out of the language, 
+script, territory and variant of the locale. Returned in the locales
+language and script
+
+=item native_language
+
+The name of the locales language in the locales language and script.
+
+=item native_script
+
+The name of the locales script in the locales language and script.
+
+=item native_territory
+
+The name of the locales territory in the locales language and script.
+
+=item native_variant
+
+The name of the locales variant in the locales language and script.
+
+=back
+
+=cut
+
 foreach my $property (qw( name language script territory variant)) {
 	has $property => (
 		is => 'ro',
@@ -255,7 +398,79 @@ foreach my $property (qw( name language script territory variant)) {
 	};
 }
 
-#DateTime::Local
+=head2 Calenders
+
+The Calendar data is built to hook into L<DateTime::Locale> so that 
+all Locale::CLDR objects can be used as replacements for DateTime::Locale's 
+locale data
+
+=over 4
+
+=item month_format_wide 
+
+=item month_format_abbreviated 
+
+=item month_format_narrow
+
+=item month_stand_alone_wide
+
+=item month_stand_alone_abbreviated
+
+=item month_stand_alone_narrow
+
+All the above return an arrayref of month names in the requested style.
+
+=item day_format_wide 
+
+=item day_format_abbreviated 
+
+=item day_format_narrow
+
+=item day_stand_alone_wide
+
+=item day_stand_alone_abbreviated
+
+=item day_stand_alone_narrow
+
+All the above return an array ref of day names in the requested style.
+
+=item quarter_format_wide 
+
+=item quarter_format_abbreviated 
+
+=item quarter_format_narrow
+
+=item quarter_stand_alone_wide
+
+=item quarter_stand_alone_abbreviated
+
+=item quarter_stand_alone_narrow
+
+All the above return an arrayref of quarter names in the requested style.
+
+=item am_pm_wide
+
+=item am_pm_abbreviated
+
+=item am_pm_narrow
+
+All the above return the date period name for AM and PM
+in the requested style
+
+=item era_wide
+
+=item era_abbreviated
+
+=item era_narrow
+
+All the above return an array ref of era names. Note that these 
+return the first two eras which is what you normally want for 
+BC and AD etc. but won't work correctly for Japanese calendars.
+
+=back
+
+=cut
+
 foreach my $property (qw( 
 	month_format_wide month_format_abbreviated month_format_narrow
 	month_stand_alone_wide month_stand_alone_abbreviated month_stand_alone_narrow
@@ -265,6 +480,8 @@ foreach my $property (qw(
 	quarter_stand_alone_wide quarter_stand_alone_abbreviated quarter_stand_alone_narrow
 	am_pm_wide am_pm_abbreviated am_pm_narrow
 	era_wide era_abbreviated era_narrow
+	era_format_wide era_format_abbreviated era_format_narrow
+	era_stand_alone_wide era_stand_alone_abbreviated era_stand_alone_narrow
 )) {
 	has $property => (
 		is => 'ro',
@@ -276,13 +493,54 @@ foreach my $property (qw(
 	);
 }
 
-# This set of properties are not used by DateTime::Locale but we have the data 
-# so might as well expose it
+=pod
+
+The next set of methods are not used by DateTime::Locale but CLDR provide
+the data and you might want it
+
+=over 4
+
+=item am_pm_format_wide 
+
+=item am_pm_format_abbreviated
+
+=item am_pm_format_narrow
+
+=item am_pm_stand_alone_wide
+
+=item am_pm_stand_alone_abbreviated
+
+=item am_pm_stand_alone_narrow
+
+All the above return a hashref keyed on date period
+with the value being the value for that date period
+
+The get_day_period() method will calculate the correct
+period for a given time and return the period name in
+the Locales language and script
+
+=item era_format_wide 
+
+=item era_format_abbreviated 
+
+=item era_format_narrow
+	
+=item era_stand_alone_wide 
+
+=item era_stand_alone_abbreviated 
+
+=item era_stand_alone_narrow
+
+All the above return an array ref with I<all> the era data for the
+locale formatted to the requested width
+
+=back
+
+=cut
+
 foreach my $property (qw( 
 	am_pm_format_wide am_pm_format_abbreviated am_pm_format_narrow
 	am_pm_stand_alone_wide am_pm_stand_alone_abbreviated am_pm_stand_alone_narrow
-	era_format_wide era_format_abbreviated era_format_narrow
-	era_stand_alone_wide era_stand_alone_abbreviated era_stand_alone_narrow
 )) {
 	has $property => (
 		is => 'ro',
@@ -293,7 +551,8 @@ foreach my $property (qw(
 		clearer => "_clear_$property",
 	);
 }
-	
+
+
 foreach my $property (qw(
 	id
 	date_format_full date_format_long 
@@ -454,7 +713,7 @@ sub BUILDARGS {
 	}
 
 	if (1 == @_ && ! ref $_[0]) {
-		my ($language, $script, $territory, $variant, $extentions)
+		my ($language, $script, $territory, $variant, $extensions)
 		 	= $_[0]=~/^
 				([a-zA-Z]+)
 				(?:[-_]([a-zA-Z]{4}))?
@@ -472,7 +731,7 @@ sub BUILDARGS {
 			script_id		=> $script,
 			territory_id	=> $territory,
 			variant_id		=> $variant,
-			extentions	=> $extentions,
+			extensions	=> $extensions,
 		);
 	}
 
@@ -483,10 +742,10 @@ sub BUILDARGS {
 	}
 
 	# Split up the extensions
-	if ( defined $args{extentions} && ! ref $args{extentions} ) {
-		$args{extentions} = {
+	if ( defined $args{extensions} && ! ref $args{extensions} ) {
+		$args{extensions} = {
 			map {lc}
-			split /[_-]/, $args{extentions}
+			split /[_-]/, $args{extensions}
 		};
 	}
 
@@ -526,24 +785,24 @@ sub BUILD {
 			&& ( ! $self->variant_aliases->{lc $self->{variant_id}} )
 	);
 	
-	if ($args->{extentions}) {
+	if ($args->{extensions}) {
 		my %valid_keys = $self->valid_keys;
 		my %key_aliases = $self->key_aliases;
-		my @keys = keys %{$args->{extentions}};
+		my @keys = keys %{$args->{extensions}};
 
 		foreach my $key ( @keys ) {
 			my $canonical_key = $key_aliases{$key} if exists $key_aliases{$key};
 			$canonical_key //= $key;
 			if ($canonical_key ne $key) {
-				$args->{extentions}{$canonical_key} = delete $args->{extentions}{$key};
+				$args->{extensions}{$canonical_key} = delete $args->{extensions}{$key};
 			}
 
 			$key = $canonical_key;
-			die "Invalid extention name" unless exists $valid_keys{$key};
-			die "Invalid extention value" unless 
-				first { $_ eq $args->{extentions}{$key} } @{$valid_keys{$key}};
+			die "Invalid extension name" unless exists $valid_keys{$key};
+			die "Invalid extension value" unless 
+				first { $_ eq $args->{extensions}{$key} } @{$valid_keys{$key}};
 
-			$self->_set_extentions($args->{extentions})
+			$self->_set_extensions($args->{extensions})
 		}
 	}
 
@@ -619,10 +878,10 @@ sub _build_id {
 		$string.= '_' . uc $self->variant_id;
 	}
 
-	if (defined $self->extentions) {
+	if (defined $self->extensions) {
 		$string.= '_u';
-		foreach my $key (sort keys %{$self->extentions}) {
-			my $value = $self->extentions->{$key};
+		foreach my $key (sort keys %{$self->extensions}) {
+			my $value = $self->extensions->{$key};
 			$string .= "_${key}_$value";
 		}
 		chop $string;
@@ -2009,11 +2268,13 @@ sub _build_any_era {
 						
 			my $result = $eras->{$default_calendar}{$width};
 			
-			return $result if keys %$result;
+			my @result = map {$result->{$_}} sort { $a <=> $b } keys %$result;
+			
+			return \@result if keys %$result;
 		}
 	}
 
-	return {};
+	return [];
 }
 	
 # The next three are for DateDime::Locale
@@ -2023,7 +2284,7 @@ sub _build_era_wide {
 
 	my $result = $self->_build_any_era($width);
 	
-	return [@$result{qw(0 1)}];
+	return [@$result[0, 1]];
 }
 
 sub _build_era_abbreviated {
@@ -2032,7 +2293,7 @@ sub _build_era_abbreviated {
 
 	my $result = $self->_build_any_era($width);
 	
-	return [@$result{qw(0 1)}];
+	return [@$result[0, 1]];
 }
 
 sub _build_era_narrow {
@@ -2041,7 +2302,7 @@ sub _build_era_narrow {
 
 	my $result = $self->_build_any_era($width);
 	
-	return [@$result{qw(0 1)}];
+	return [@$result[0, 1]];
 }
 
 # Now get all the era data
@@ -2326,7 +2587,7 @@ sub unicode_to_perl {
 					[^\[\]\\]+     	# One or more of not []\
 					|               # or
 					(?:
-						(?:\\\\)*+	# One or more pairs of \ witout back tracking
+						(?:\\\\)*+	# One or more pairs of \ without back tracking
 						\\.         # Followed by an escaped character
 					)
 					|				# or
@@ -2355,7 +2616,7 @@ sub convert {
 	my $normal = 0;
 	
 	$normal = 1 if $set =~ /^
-		\s* 					# Possible whitespace
+		\s* 					# Possible white space
 		\[  					# Opening set
 		^?  					# Possible negation
 		(?:           			# One of
@@ -2364,18 +2625,18 @@ sub convert {
 			(?<=\\)[\[\]]       # An open or close set preceded by \
 			|                   # Or
 			(?:
-				\s*      		# Posible Whitespace
+				\s*      		# Possible white space
 				(?&posix)		# A posix class
-				(?!         	# Not followd by
-					\s*			# Possible whitespace
-					[&-]    	# A unicode regex op
-					\s*     	# Posible whitespace
+				(?!         	# Not followed by
+					\s*			# Possible white space
+					[&-]    	# A Unicode regex op
+					\s*     	# Possible white space
 					\[      	# A set opener
 				)
 			)
 		)+
 		\] 						# Close the set
-		\s*						# Possible whitespace
+		\s*						# Possible white space
 		$
 		$posix
 	/x;
@@ -2416,11 +2677,11 @@ sub convert {
 
 =head1 AUTHOR
 
-John Imrie, C<< <j dot imrie1 at virginemail.com> >>
+John Imrie, C<< <j dot imrie1 at virginmedia.com> >>
 
 =head1 BUGS
 
-Please report any bugs or feture requests to me at the above email adddress 
+Please report any bugs or feature requests to me at the above email address 
 and ignore the CPAN stuff below for the present
 
 Please report any bugs or feature requests to C<bug-locale-cldr at rt.cpan.org>, or through
@@ -2462,7 +2723,7 @@ L<http://search.cpan.org/dist/Locale-CLDR/>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009-2011 John Imrie.
+Copyright 2009-2014 John Imrie.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
