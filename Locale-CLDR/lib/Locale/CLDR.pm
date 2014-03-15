@@ -136,6 +136,11 @@ The following methods can be called on the locale object
 
 =over 4
 
+=item id()
+
+The local identifier. This is what you get if you attempt to
+stringify a locale object.
+
 =item likely_language()
 
 Given a locale with no language passed in or with the explicit language
@@ -534,8 +539,6 @@ the Locales language and script
 All the above return an array ref with I<all> the era data for the
 locale formatted to the requested width
 
-=back
-
 =cut
 
 foreach my $property (qw( 
@@ -552,6 +555,34 @@ foreach my $property (qw(
 	);
 }
 
+=item date_format_full 
+
+=item date_format_long 
+
+=item date_format_medium 
+
+=item date_format_short
+	
+=item time_format_full
+
+=item time_format_long
+
+=item time_format_medium
+
+=item time_format_short
+	
+=item datetime_format_full
+
+=item datetime_format_long
+	
+=item datetime_format_medium
+
+=item datetime_format_short
+
+All the above return the CLDR I<date format pattern> for the given 
+element and width
+
+=cut
 
 foreach my $property (qw(
 	id
@@ -608,6 +639,13 @@ foreach my $property (qw(
 	);
 }
 
+=item prefers_24_hour_time()
+
+Returns a boolean value, true if the locale has a preference
+for 24 hour time over 12 hour
+
+=cut
+
 has 'prefers_24_hour_time' => (
 	is => 'ro',
 	isa => 'Bool',
@@ -616,9 +654,16 @@ has 'prefers_24_hour_time' => (
 	builder => "_build_prefers_24_hour_time",
 );
 
+=item first_day_of_week()
+
+Returns the numeric representation of the first day of the week
+With 0 = Saturday
+
+=cut
+
 has 'first_day_of_week' => (
 	is => 'ro',
-	isa => 'Bool',
+	isa => 'Int',
 	init_arg => undef,
 	lazy => 1,
 	builder => "_build_first_day_of_week",
@@ -988,13 +1033,20 @@ sub _find_bundle {
 		: $self->method_cache->{$id}{$method_name}[0];
 }
 
-# Method to return the given locale name in the current locales format
+=item locale_name($name)
+
+Returns the given locale name in the current locales format. The name can be
+a locale id or a locale object or non existent. If a name is not passed in
+then the name of the current locale is returned.
+
+=cut
+
 sub locale_name {
 	my ($self, $name) = @_;
 	$name //= $self;
 
 	my $code = ref $name
-		? join ('_', $name->language_id, $name->territory_id)
+		? join ( '_', $name->language_id, $name->territory_id ? $name->territory_id : () )
 		: $name;
 	
 	my @bundles = $self->_find_bundle('display_name_language');
@@ -1020,6 +1072,14 @@ sub locale_name {
 	return $bundle
 		->display_name_pattern($language, $territory, $script, $variant);
 }
+
+=item language_name
+
+Returns the language name in the current locales format. The name can be
+a locale language id or a locale object or non existent. If a name is not
+passed in then the language name of the current locale is returned.
+
+=cut
 
 sub language_name {
 	my ($self, $name) = @_;
@@ -1053,6 +1113,8 @@ sub language_name {
 
 	return $language;
 }
+
+
 
 sub all_languages {
 	my $self = shift;

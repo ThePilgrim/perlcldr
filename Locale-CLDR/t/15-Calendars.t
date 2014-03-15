@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 52;
+use Test::More tests => 54;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -122,3 +122,6 @@ $date_time_format = $locale->datetime_format_medium;
 is($date_time_format, '{1}, {0}', 'Date Time Format Medium');
 $date_time_format = $locale->datetime_format_short;
 is($date_time_format, '{1}, {0}', 'Date Time Format Short');
+
+is ($locale->prefers_24_hour_time(), 0, 'Prefers 24 hour time');
+is ($locale->first_day_of_week(), 7, 'First day of week');
