@@ -343,7 +343,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     close $file;
 }
 
-say "Duration: ", time() -$start_time;
+say "Duration: ", time() -$start_time if $verbose;
 
 # This sub looks for nodes along an xpath.
 sub findnodes {
@@ -1018,7 +1018,7 @@ sub process_cp {
             }
             else {
                 my $hex = $character->getAttribute('hex');
-                    my $chr = chr(hex $hex);
+                my $chr = chr(hex $hex);
                 $text .= $chr;
             }
             $parent->removeChild($sibling);
@@ -3668,10 +3668,10 @@ sub process_transform_conversion {
             $filter =~ s/^(\[ # Start with a [
                 (?:
                     [^\[\]]++ # One or more non [] not backtracking
-                    (?<!\\)   # Not preced by a single back slash
+                    (?<!\\)   # Not preceded by a single back slash
                     (?>\\\\)* # After we eat an even number of 0 or more backslashes
                     |
-                    (?1)     # Recurse capture group 1
+                    (?1)     # Recurs capture group 1
                 )*
                 \]           # Followed by the terminating ]
                 )
@@ -3706,10 +3706,10 @@ sub process_transform_conversion {
             	(\[               # Start with a [
                     (?:
                         [^\[\]]++ # One or more non [] not backtracking
-                        (?<!\\)   # Not preced by a single back slash
+                        (?<!\\)   # Not preceded by a single back slash
                         (?>\\\\)* # After we eat an even number of 0 or more backslashes
                         |
-                        (?1)      # Recurse capture group 1
+                        (?1)      # Recurs capture group 1
                     )*
                 \]                # Followed by the terminating ]
                 )
@@ -3900,7 +3900,7 @@ sub unicode_to_perl {
 					[^\[\]\\]+     	# One or more of not []\
 					|               # or
 					(?:
-						(?:\\\\)*+	# One or more pairs of \ witout back tracking
+						(?:\\\\)*+	# One or more pairs of \ without back tracking
 						\\.         # Followed by an escaped character
 					)
 					|				# or
@@ -3937,12 +3937,12 @@ sub convert {
 			(?<=\\)[\[\]]       # An open or close set preceded by \
 			|                   # Or
 			(?:
-				\s*      		# Posible Whitespace
+				\s*      		# Possible Whitespace
 				(?&posix)		# A posix class
-				(?!         	# Not followd by
+				(?!         	# Not followed by
 					\s*			# Possible whitespace
-					[&-]    	# A unicode regex op
-					\s*     	# Posible whitespace
+					[&-]    	# A Unicode regex op
+					\s*     	# Possible whitespace
 					\[      	# A set opener
 				)
 			)
