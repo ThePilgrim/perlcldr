@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 290;
+use Test::More tests => 303;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -302,3 +302,19 @@ is($locale->is_yes('Yes'), 1, 'English is yes');
 is($locale->is_yes('es'), 0, 'English is not yes');
 is($locale->is_no('nO'), 1, 'English is no');
 is($locale->is_no('N&'), 0, 'English is not no');
+
+$locale = Locale::CLDR->new('ks');
+
+is($locale->unit(1, 'acre', 'narrow'), '۱ ac', 'Kashmiri narrow 1 acre');
+is($locale->unit(2, 'acre', 'narrow'), '۲ ac', 'Kashmiri narrow 2 acres');
+is($locale->unit(1, 'acre', 'short'), '۱ ac', 'Kashmiri short 1 acre');
+is($locale->unit(2, 'acre', 'short'), '۲ ac', 'Kashmiri short 2 acres');
+is($locale->duration_unit('hm', 1, 2), '۱:۰۲', 'Kashmiri duration hour, minuet');
+is($locale->duration_unit('hms', 1, 2, 3 ), '۱:۰۲:۰۳', 'Kashmiri duration hour, minuet, second');
+is($locale->duration_unit('ms', 1, 2 ), '۱:۰۲', 'Kashmiri duration minuet, second');
+is($locale->is_yes('Yes'), 1, 'Kashmiri is yes');
+is($locale->is_yes('اۭں'), 1, 'Kashmiri is yes');
+is($locale->is_yes('es'), 0, 'Kashmiri is not yes');
+is($locale->is_no('nO'), 1, 'Kashmiri is no');
+is($locale->is_no('نَہ'), 1, 'Kashmiri is no');
+is($locale->is_no('N&'), 0, 'Kashmiri is not no');

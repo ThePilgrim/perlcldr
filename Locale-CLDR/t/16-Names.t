@@ -1113,3 +1113,13 @@ is($other_locale->key_name('colCaseLevel'), 'Tri sensible à la casse', 'Key nam
 
 is($locale->type_name(colCaseFirst => 'lower'), 'Sort Lowercase First', 'Type name from string');
 is($other_locale->type_name(colCaseFirst => 'lower'), q(Trier avec les minuscules d'abord), 'Type name from string');
+
+is($locale->measurement_system_name('metric'), 'Metric', 'Measurement system name English Metric');
+is($locale->measurement_system_name('us'), 'US', 'Measurement system name English US');
+is($locale->measurement_system_name('uk'), 'UK', 'Measurement system name English UK');
+is($other_locale->measurement_system_name('METRIC'), 'métrique', 'Measurement system name French Metric');
+is($other_locale->measurement_system_name('US'), 'américain', 'Measurement system name French US');
+is($other_locale->measurement_system_name('UK'), 'R-U', 'Measurement system name French UK');
+
+is($locale->transform_name('Numeric'), 'Numeric', 'Transform name from string');
+is($other_locale->transform_name('Numeric'), 'Chiffres', 'Transform name from string');

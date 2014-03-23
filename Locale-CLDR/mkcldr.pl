@@ -4,6 +4,7 @@ use v5.18;
 use strict;
 use warnings 'FATAL';
 use open ':encoding(utf8)', ':std';
+use autodie;
 
 use FindBin;
 use File::Spec;
@@ -1354,7 +1355,7 @@ sub process_display_transform_name {
 
     my @names = $names->get_nodelist;
     foreach my $name (@names) {
-        my $type = $name->getAttribute('type');
+        my $type = lc $name->getAttribute('type');
         my $value = $name->getChildNode(1)->getValue;
         $name =~s/\\/\\\\/g;
         $name =~s/'/\\'/g;

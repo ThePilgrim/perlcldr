@@ -1368,15 +1368,19 @@ sub type_name {
 	return '';
 }
 	
+=item measurement_system_name($measurement_system)
+
+Returns the measurement system name in the current locales format. The measurement system must be
+a measurement system id as a string
+
+=cut
+	
 sub measurement_system_name {
 	my ($self, $name) = @_;
 
 	# Fix case of code
 	$name = uc $name;
 	$name = 'metric' if $name eq 'METRIC';
-
-	# Check valid values
-	return '' unless $name=~m{ \A (?: US | metric ) \z }xms;
 
 	my @bundles = $self->_find_bundle('display_name_measurement_system');
 	foreach my $bundle (@bundles) {
@@ -1387,7 +1391,12 @@ sub measurement_system_name {
 	return '';
 }
 
+=item transform_name($measurement_system)
 
+Returns the transform (transliteration) name in the current locales format. The transform must be
+a transform id as a string
+
+=cut
 
 sub transform_name {
 	my ($self, $name) = @_;
@@ -1430,6 +1439,13 @@ sub code_pattern {
 	return '';
 }
 
+=item text_orientation($type)
+
+Gets the text orientation for the locale. Type must be one of 
+C<lines> or C<characters>
+
+=cut
+
 sub text_orientation {
 	my $self = shift;
 	my $type = shift;
@@ -1468,7 +1484,13 @@ sub _set_casing {
 	return join '', @words;
 }
 
-# Split a string at various points
+=item split_grapheme_clusters($string)
+
+Splits a string on grapheme clusters using the locals segmentation rules.
+Returns a list of grapheme clusters.
+
+=cut
+
 sub split_grapheme_clusters {
 	my ($self, $string) = @_;
 
@@ -1477,6 +1499,13 @@ sub split_grapheme_clusters {
 
 	return @clusters;
 }
+
+=item split_words($string)
+
+Splits a string on word boundaries using the locals segmentation rules.
+Returns a list of words.
+
+=cut
 
 sub split_words {
 	my ($self, $string) = @_;
@@ -1487,6 +1516,15 @@ sub split_words {
 	return @words;
 }
 
+=item split_sentences($string)
+
+Splits a string on on all points where a sentence could
+end using the locals segmentation rules. Returns a list
+the end of each list element is the point where a sentence
+could end.
+
+=cut
+
 sub split_sentences {
 	my ($self, $string) = @_;
 
@@ -1495,6 +1533,15 @@ sub split_sentences {
 
 	return @sentences;
 }
+
+=item split_lines($string)
+
+Splits a string on on all points where a line could
+end using the locals segmentation rules. Returns a list
+the end of each list element is the point where a line
+could end.
+
+=cut
 
 sub split_lines {
 	my ($self, $string) = @_;
@@ -1554,20 +1601,36 @@ sub _split {
 	return @split;
 }
 
-#Exemplar characters
+=item is_exemplar_character( $type, $character)
+
+=item is_exemplar_character($character)
+
+Tests if the given character is used in the locale. There are 
+three possible types; c<main>, C<auxiliary> and c<punctuation>.
+If no type is given C<main> is assumed.
+
+=cut
+
 sub is_exemplar_character {
 	my ($self, @parameters) = @_;
 	unshift @parameters, 'main' if @parameters == 1;
 
 	my @bundles = $self->_find_bundle('characters');
 	foreach my $bundle (@bundles) {
-		my $characters = $bundle->characters->{$parameters[0]};
+		my $characters = $bundle->characters->{lc $parameters[0]};
 		next unless defined $characters;
 		return 1 if fc($parameters[1])=~$characters;
 	}
 
 	return;
 }
+
+=item index_characters()
+
+Returns an array ref of characters normally used when creating 
+an index.
+
+=cut
 
 sub index_characters {
 	my $self = shift;
@@ -1594,29 +1657,89 @@ sub _truncated {
 	}
 }
 
+=item truncated_beginning($string)
+
+Adds the locale specific marking to show that the 
+string has been truncated at the beginning.
+
+=cut
+
 sub truncated_beginning {
 	shift->_truncated(initial => @_);
 }
+
+=item truncated_between($string, $string)
+
+Adds the locale specific marking to show that something 
+has been truncated between the two strings. Returns a
+string comprising of the concatenation of the first string,
+the mark and the second string
+
+=cut
 
 sub truncated_between {
 	shift->_truncated(medial => @_);
 }
 
+=item truncated_end($string)
+
+Adds the locale specific marking to show that the 
+string has been truncated at the end.
+
+=cut
+
 sub truncated_end {
 	shift->_truncated(final => @_);
 }
+
+=item truncated_word_beginning($string)
+
+Adds the locale specific marking to show that the 
+string has been truncated at the beginning. This
+should be used in preference to C<truncated_beginning>
+when the truncation occurs on a word boundary.
+
+=cut
 
 sub truncated_word_beginning {
 	shift->_truncated('word-initial' => @_);
 }
 
+=item truncated_word_between($string, $string)
+
+Adds the locale specific marking to show that something 
+has been truncated between the two strings. Returns a
+string comprising of the concatenation of the first string,
+the mark and the second string. This should be used in
+preference to C<truncated_between> when the truncation
+occurs on a word boundary.
+
+=cut
+
 sub truncated_word_between {
 	shift->_truncated('word-medial' => @_);
 }
 
+=item truncated_word_end($string)
+
+Adds the locale specific marking to show that the 
+string has been truncated at the end. This should be
+used in preference to C<truncated_end> when the
+truncation occurs on a word boundary.
+
+=cut
+
 sub truncated_word_end {
 	shift->_truncated('word-final' => @_);
 }
+
+=item more_information()
+
+The more information string is one that can be displayed
+in an interface to indicate that more information is
+available.
+
+=cut
 
 sub more_information {
 	my $self = shift;
@@ -1629,6 +1752,17 @@ sub more_information {
 	}
 	return '';
 }
+
+=item quote($string)
+
+Adds the locales primary quotation marks to the ends of the string.
+Also scans the string for paired primary and auxiliary quotation
+marks and flips them.
+
+eg passing C<z “abc” z> to this method for the C<en_GB> locale
+gives C<“z ‘abc’ z”>
+
+=cut
 
 sub quote {
 	my ($self, $text) = @_;
@@ -1686,7 +1820,12 @@ sub quote {
 	return "$quote{start}$text$quote{end}";
 }
 
-# Measurement data
+=item measurement()
+
+Returns the measurement type for the locale
+
+=cut
+
 sub measurement {
 	my $self = shift;
 	
@@ -1695,6 +1834,12 @@ sub measurement {
 	
 	return $measurement_data->{$territory} // $measurement_data->{'001'};
 }
+
+=item paper()
+
+Returns the paper type for the locale
+
+=cut
 
 sub paper {
 	my $self = shift;
@@ -1705,7 +1850,12 @@ sub paper {
 	return $paper_size->{$territory} // $paper_size->{'001'};
 }
 
-# Units
+=item all_units()
+
+Returns a list of all the unit identifiers for the locale
+
+=cut
+
 sub all_units {
 	my $self = shift;
 	my @bundles = $self->_find_bundle('units');
@@ -1717,6 +1867,14 @@ sub all_units {
 	
 	return keys %units;
 }
+
+=item unit($number, $unit, $width)
+
+Returns the localised string for the given number and unit formatted for the 
+required width. The number must not be the localized version of the number.
+The returned string will be in the locales format, including the number.
+
+=cut
 
 sub unit {
 	my ($self, $number, $what, $type) = @_;
@@ -1810,6 +1968,15 @@ sub unit_compound {
 	return $format =~ s/\{1\}/$divisor/gr;
 }
 
+=item duration_unit($format, @data)
+
+This method formats a duration. The format must be one of
+C<hm>, C<hms> or C<ms> corresponding to C<hour minuet>, 
+C<hour minuet second> and C<minuet second> respectively.
+The data must correspond to the given format. 
+
+=cut
+
 sub duration_unit {
 	# data in hh,mm; hh,mm,ss or mm,ss 
 	my ($self, $format, @data) = @_;
@@ -1825,12 +1992,32 @@ sub duration_unit {
 	return $parsed;
 }
 
+=item is_yes($string)
+
+Returns true if the passed in string matches the locales 
+idea of a string designating yes. Note that under POSIX
+rules unless the locales word for no starts with C<Y>
+(U+0079) then a single 'y' will also be accepted as yes.
+The string will be matched case insensitive.
+
+=cut
+
 sub is_yes {
 	my ($self, $test_str) = @_;
 	
 	my $bundle = $self->_find_bundle('yesstr');
 	return $test_str =~ $bundle->yesstr ? 1 : 0;
 }
+
+=item is_no($string)
+
+Returns true if the passed in string matches the locales 
+idea of a string designating no. Note that under POSIX
+rules unless the locales word for yes starts with C<n>
+(U+006E) then a single 'n' will also be accepted as no
+The string will be matched case insensitive.
+
+=cut
 
 sub is_no {
 	my ($self, $test_str) = @_;
@@ -1839,7 +2026,15 @@ sub is_no {
 	return $test_str =~ $bundle->nostr ? 1 : 0;
 }
 
-# Transformations 
+=item transform(from => $from, to => $to, variant => $variant, text => $text)
+
+This method returns the transliterated string of C<text> from script C<from>
+to script C<to> using variant C<variant>. If c<from> is not given then the 
+current locales script is used. If C<text> is not given then it defaults to an
+empty string. The C<variant> is optional.
+
+=cut
+
 sub transform {
 	my ($self, %params) = @_;
 	
@@ -1969,6 +2164,14 @@ sub _transform_convert {
 	return $text;
 }
 
+=item list(@data)
+
+Returns C<data> as a string formatted by the locales idea of producing a list
+of elements. What is returned can be effected by the locale and the number
+of items in C<data>. Note that C<data> can contain 0 or more items.
+
+=cut
+
 sub list {
 	my ($self, @data) = @_;
 	
@@ -2010,7 +2213,7 @@ sub list {
 	
 	return $pattern;
 }
-	
+
 # Stubs until I get onto numbers
 sub plural {
 	return 'one' if $_[1] =~ /1$/;
