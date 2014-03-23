@@ -858,6 +858,9 @@ sub BUILD {
 		my ($value) = values %{$variant_alias};
 		$args->{$what} = $value;
 	}
+	
+	# Now set up the module
+	$self->_build_module;
 }
 
 after 'BUILD' => sub {
@@ -1073,7 +1076,7 @@ sub locale_name {
 		->display_name_pattern($language, $territory, $script, $variant);
 }
 
-=item language_name
+=item language_name($language)
 
 Returns the language name in the current locales format. The name can be
 a locale language id or a locale object or non existent. If a name is not
@@ -1114,7 +1117,12 @@ sub language_name {
 	return $language;
 }
 
+=item all_languages()
 
+Returns a hash ref keyed on language id of all the languages the system 
+knows about. The values are the language names for the corresponding id's 
+
+=cut
 
 sub all_languages {
 	my $self = shift;
@@ -1122,7 +1130,7 @@ sub all_languages {
 	my @bundles = $self->_find_bundle('display_name_language');
 	my %languages;
 	foreach my $bundle (@bundles) {
-		my $languages = $bundle->display_name_language;
+		my $languages = $bundle->display_name_language->();
 
 		# Remove existing languages
 		delete @{$languages}{keys %languages};
@@ -1134,12 +1142,19 @@ sub all_languages {
 	return \%languages;
 }
 
+=item script_name($script)
+
+Returns the script name in the current locales format. The script can be
+a locale script id or a locale object or non existent. If a script is not
+passed in then the script name of the current locale is returned.
+
+=cut
+
 sub script_name {
 	my ($self, $name) = @_;
 	$name //= $self;
 
 	if (! ref $name ) {
-#		$name = eval {__PACKAGE__->new(language_id => 'und', script_id => $name)};
 		$name = eval {__PACKAGE__->new(script_id => $name)};
 	}
 
@@ -1170,13 +1185,20 @@ sub script_name {
 	return $script;
 }
 
+=item all_scripts()
+
+Returns a hash ref keyed on script id of all the scripts the system 
+knows about. The values are the script names for the corresponding id's 
+
+=cut
+
 sub all_scripts {
 	my $self = shift;
 
 	my @bundles = $self->_find_bundle('display_name_script');
 	my %scripts;
 	foreach my $bundle (@bundles) {
-		my $scripts = $bundle->display_name_script;
+		my $scripts = $bundle->display_name_script->();
 
 		# Remove existing scripts
 		delete @{$scripts}{keys %scripts};
@@ -1187,6 +1209,14 @@ sub all_scripts {
 
 	return \%scripts;
 }
+
+=item territory_name($territory)
+
+Returns the territory name in the current locales format. The territory can be
+a locale territory id or a locale object or non existent. If a territory is not
+passed in then the territory name of the current locale is returned.
+
+=cut
 
 sub territory_name {
 	my ($self, $name) = @_;
@@ -1223,6 +1253,13 @@ sub territory_name {
 	return $territory;
 }
 
+=item all_territories
+
+Returns a hash ref keyed on territory id of all the territory the system 
+knows about. The values are the territory names for the corresponding id's 
+
+=cut
+
 sub all_territories {
 	my $self = shift;
 
@@ -1240,6 +1277,14 @@ sub all_territories {
 
 	return \%territories;
 }
+
+=item variant_name($variant)
+
+Returns the variant name in the current locales format. The variant can be
+a locale variant id or a locale object or non existent. If a variant is not
+passed in then the variant name of the current locale is returned.
+
+=cut
 
 sub variant_name {
 	my ($self, $name) = @_;
@@ -1264,6 +1309,13 @@ sub variant_name {
 	return $variant // '';
 }
 
+=item key_name($key)
+
+Returns the key name in the current locales format. The key must be
+a locale key id as a string
+
+=cut
+
 sub key_name {
 	my ($self, $name) = @_;
 
@@ -1272,17 +1324,24 @@ sub key_name {
 	my %key_names	= $self->key_names;
 	my %valid_keys	= $self->valid_keys;
 
-	$name = $key_aliases{$name} if exists $key_aliases{$name};
+	my $alias = $key_aliases{$name} if exists $key_aliases{$name};
 
-	return '' unless exists $valid_keys{$name};
+	return '' unless exists $valid_keys{$name} || $valid_keys{$alias};
 	my @bundles = $self->_find_bundle('display_name_key');
 	foreach my $bundle (@bundles) {
-		my $key = $bundle->display_name_key->{$name};
+		my $key = $bundle->display_name_key->{$name} // $bundle->display_name_key->{$alias};
 		return $key if length $key;
 	}
 
 	return ucfirst ($key_names{$name} || $name);
 }
+
+=item type_name($key, $type)
+
+Returns the type name in the current locales format. The key and type must be
+a locale key id and type id as a string
+
+=cut
 
 sub type_name {
 	my ($self, $key, $type) = @_;
@@ -1294,14 +1353,15 @@ sub type_name {
 	my %valid_keys	= $self->valid_keys;
 	my %key_names	= $self->key_names;
 
-	$key = $key_aliases{$key} if exists $key_aliases{$key};
+	my $alias = $key_aliases{$key} if exists $key_aliases{$key};
 
-	return '' unless exists $valid_keys{$key};
-	return '' unless first { $_ eq $type } @{$valid_keys{$key}};
+	return '' unless exists $valid_keys{$key} || $valid_keys{$alias};
+	return '' unless first { $_ eq $type } @{$valid_keys{$key} || $valid_keys{$alias} || []};
 
 	my @bundles = $self->_find_bundle('display_name_type');
 	foreach my $bundle (@bundles) {
-		my $type = $bundle->display_name_type->{$key_names{$key}}{$type};
+		next unless my $types = $bundle->display_name_type->{$key_names{$key} || $key_names{$alias}};
+		my $type = $types->{$type};
 		return $type if defined $type;
 	}
 
@@ -1326,6 +1386,8 @@ sub measurement_system_name {
 
 	return '';
 }
+
+
 
 sub transform_name {
 	my ($self, $name) = @_;

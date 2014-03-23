@@ -595,7 +595,7 @@ has 'key_aliases' => (
 \tdefault\t=> sub { return {
 EOT
     foreach my $key (sort keys %keys) {
-        my $alias = $keys{$key}{alias};
+        my $alias = lc $keys{$key}{alias};
         next unless $alias;
         say $file "\t\t$alias => '$key',";
     }
@@ -1246,7 +1246,7 @@ sub process_display_key {
     return unless $keys->size;
     my @keys = $keys->get_nodelist;
     foreach my $key (@keys) {
-        my $type = $key->getAttribute('type');
+        my $type = lc $key->getAttribute('type');
         my $name = $key->getChildNode(1)->getValue;
         $name =~s/\\/\\\\/g;
         $name =~s/'/\\'/g;
@@ -1280,8 +1280,8 @@ sub process_display_type {
     my @types = $types->get_nodelist;
     my %values;
     foreach my $type_node (@types) {
-        my $type = $type_node->getAttribute('type');
-        my $key  = $type_node->getAttribute('key');
+        my $type = lc $type_node->getAttribute('type');
+        my $key  = lc $type_node->getAttribute('key');
         my $value = $type_node->getChildNode(1)->getValue;
         $type //= 'default';
         $values{$key}{$type} = $value;
