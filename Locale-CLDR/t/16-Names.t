@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 35;
+use Test::More tests => 43;
 use Test::Exception;
 
 use ok 'Locale::CLDR';

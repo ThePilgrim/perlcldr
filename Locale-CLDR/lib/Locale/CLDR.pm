@@ -1326,10 +1326,10 @@ sub key_name {
 
 	my $alias = $key_aliases{$name} if exists $key_aliases{$name};
 
-	return '' unless exists $valid_keys{$name} || $valid_keys{$alias};
+	return '' unless exists $valid_keys{$name} || exists $valid_keys{$alias};
 	my @bundles = $self->_find_bundle('display_name_key');
 	foreach my $bundle (@bundles) {
-		my $key = $bundle->display_name_key->{$name} // $bundle->display_name_key->{$alias};
+		my $key = $bundle->display_name_key->{$name} // $alias ? $bundle->display_name_key->{$alias} : '';
 		return $key if length $key;
 	}
 
@@ -1360,7 +1360,7 @@ sub type_name {
 
 	my @bundles = $self->_find_bundle('display_name_type');
 	foreach my $bundle (@bundles) {
-		next unless my $types = $bundle->display_name_type->{$key_names{$key} || $key_names{$alias}};
+		next unless my $types = $bundle->display_name_type->{$key_names{$key} || ($alias ? $key_names{$alias} : '')};
 		my $type = $types->{$type};
 		return $type if defined $type;
 	}
