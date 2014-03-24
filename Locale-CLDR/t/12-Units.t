@@ -31,8 +31,8 @@ is($locale->unit(1, 'arc-second', 'short'), '1 sec', 'English short 1 arc second
 is($locale->unit(2, 'arc-second', 'short'), '2 secs', 'English short 2 arc seconds');
 is($locale->unit(1, 'arc-second'), '1 second', 'English long 1 arc second');
 is($locale->unit(2, 'arc-second'), '2 seconds', 'English long 2 arc seconds');
-is($locale->unit(1, 'celsius', 'narrow'), '1°', 'English narrow 1 degree Celsius');
-is($locale->unit(2, 'celsius', 'narrow'), '2°', 'English narrow 2 degrees Celsius');
+is($locale->unit(1, 'celsius', 'narrow'), '1°C', 'English narrow 1 degree Celsius');
+is($locale->unit(2, 'celsius', 'narrow'), '2°C', 'English narrow 2 degrees Celsius');
 is($locale->unit(1, 'celsius', 'short'), '1°C', 'English short 1 degree Celsius');
 is($locale->unit(2, 'celsius', 'short'), '2°C', 'English short 2 degrees Celsius');
 is($locale->unit(1, 'celsius'), '1 degree Celsius', 'English long 1 degree Celsius');

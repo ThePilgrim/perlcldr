@@ -27,8 +27,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 our $VERSION = version->parse('0.1');
-my $CLDR_VERSION = version->parse('24');
-my $CLDR_PATH = 24;
+my $CLDR_VERSION = version->parse('25');
+my $CLDR_PATH = 25;
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -851,10 +851,11 @@ has 'week_data_min_days' => (
 \tdefault\t=> sub { {
 EOT
     foreach my $node ($week_data_min_days->get_nodelist) {
-        my @territories = split / /,$node->getAttribute('territories');
+        my @territories = split /\s+/,$node->getAttribute('territories');
+		shift @territories if $territories[0] eq '';
         my $count = $node->getAttribute('count');
         foreach my $territory (@territories) {
-            say $file "\t\t$territory => $count,";
+            say $file "\t\t'$territory' => $count,";
         }
     }
     print $file <<EOT;
@@ -874,10 +875,11 @@ has 'week_data_first_day' => (
 \tdefault\t=> sub { {
 EOT
     foreach my $node ($week_data_first_day->get_nodelist) {
-        my @territories = split / /,$node->getAttribute('territories');
+        my @territories = split /\s+/,$node->getAttribute('territories');
+		shift @territories if $territories[0] eq '';
         my $day = $node->getAttribute('day');
         foreach my $territory (@territories) {
-            say $file "\t\t$territory => '$day',";
+            say $file "\t\t'$territory' => '$day',";
         }
     }
     print $file <<EOT;
@@ -897,10 +899,11 @@ has 'week_data_weekend_start' => (
 \tdefault\t=> sub { {
 EOT
     foreach my $node ($week_data_weekend_start->get_nodelist) {
-        my @territories = split / /,$node->getAttribute('territories');
+        my @territories = split /\s+/,$node->getAttribute('territories');
+		shift @territories if $territories[0] eq '';
         my $day = $node->getAttribute('day');
         foreach my $territory (@territories) {
-            say $file "\t\t$territory => '$day',";
+            say $file "\t\t'$territory' => '$day',";
         }
     }
     print $file <<EOT;
@@ -920,10 +923,10 @@ has 'week_data_weekend_end' => (
 \tdefault\t=> sub { {
 EOT
     foreach my $node ($week_data_weekend_end->get_nodelist) {
-        my @territories = split / /,$node->getAttribute('territories');
+        my @territories = split /\s+/,$node->getAttribute('territories');
         my $day = $node->getAttribute('day');
         foreach my $territory (@territories) {
-            say $file "\t\t$territory => '$day',";
+            say $file "\t\t'$territory' => '$day',";
         }
     }
     print $file <<EOT;
@@ -3540,7 +3543,9 @@ sub process_transform_data {
     my %vars;
     foreach my $node (@nodes) {
         next if $node->getLocalName() eq 'comment';
+		next unless $node->getChildNode(1);
         my $rule = $node->getChildNode(1)->getValue;
+		
 		my @terms = grep { /\S/ } parse_line(qr/\s+|[{};\x{2190}\x{2192}\x{2194}=\[\]]/, 'delimiters', $rule);
 		
 		# Escape transformation meta characters inside a set
@@ -3553,7 +3558,7 @@ sub process_transform_data {
 			if ($brackets && $term =~ /[{};]/) {
 			    $term = "\\$term";
 			}
-			last if $term eq ';';
+			last if ! $brackets && $term =~ /;\s*(?:#.*)?$/;
 		}
 		@terms = @terms[ 0 .. $count - 2 ]; 
 		

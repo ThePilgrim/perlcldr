@@ -1329,7 +1329,7 @@ sub key_name {
 	return '' unless exists $valid_keys{$name} || exists $valid_keys{$alias};
 	my @bundles = $self->_find_bundle('display_name_key');
 	foreach my $bundle (@bundles) {
-		my $key = $bundle->display_name_key->{$name} // $alias ? $bundle->display_name_key->{$alias} : '';
+		my $key = $bundle->display_name_key->{$name} // ( $alias ? $bundle->display_name_key->{$alias} : '');
 		return $key if length $key;
 	}
 
