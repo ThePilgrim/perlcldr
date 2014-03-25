@@ -1,7 +1,7 @@
 Locale-CLDR
 
 Please note that this is very much alpha code.
-Please note that I know there is insufficient documentation.
+
 Please note that this code requires Perl 5.18 and above
 
 The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
