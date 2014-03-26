@@ -1832,7 +1832,14 @@ sub measurement {
 	my $measurement_data = $self->measurement_system;
 	my $territory = $self->territory_id // '001';
 	
-	return $measurement_data->{$territory} // $measurement_data->{'001'};
+	my $data = $measurement_data->{$territory};
+	
+	until (defined $data) {
+		$territory = $self->territory_contained_by->{$territory};
+		$data = $measurement_data->{$territory};
+	}
+	
+	return $data;
 }
 
 =item paper()
@@ -1847,7 +1854,14 @@ sub paper {
 	my $paper_size = $self->paper_size;
 	my $territory = $self->territory_id // '001';
 	
-	return $paper_size->{$territory} // $paper_size->{'001'};
+	my $data = $paper_size->{$territory};
+	
+	until (defined $data) {
+		$territory = $self->territory_contained_by->{$territory};
+		$data = $paper_size->{$territory};
+	}
+	
+	return $data;
 }
 
 =item all_units()
