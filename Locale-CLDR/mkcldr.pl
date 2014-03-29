@@ -118,7 +118,7 @@ my $xml = XML::XPath->new(
 );
 
 # Number Formatter
-open my $file, '>:raw', File::Spec->catfile($lib_directory, 'NumberFormatter.pm');
+open my $file, '>', File::Spec->catfile($lib_directory, 'NumberFormatter.pm');
 write_out_number_formatter($file);
 close $file;
 
@@ -3998,6 +3998,7 @@ sub write_out_number_formatter {
 	# write out the code for the CLDR::NumberFormater module
 	my $file = shift;
 	
+	binmode DATA, ':utf8';
 	print $file $_ while <DATA>;
 }
 

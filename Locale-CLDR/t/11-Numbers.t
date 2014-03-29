@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 9;
+use Test::More tests => 10;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -58,5 +58,6 @@ $format_data->{negative}{suffix} = " food ";
 is_deeply($locale_en->parse_number_format('###,##0.###;###,##0.### \'food\' *x'), $format_data, 'A more complex Number format');
 is($locale_en->format_number(12345.6, '###,##0.###'), '12,345.6', 'Format a number');
 is($locale_en->format_number(12345.6, '###,#00%'), '1,234,560%', 'Format a percent');
+is($locale_en->format_number(12345.6, '###,#00‰'), '12,345,600‰', 'Format a per thousand' );
 is($locale_en->format_number(12345678, '#,####,00%'), '1234,5678,00%', 'Format percent with different grouping');
 is($locale_ks->format_number(12345678.9, '#,####,00'), "۱۲٬۳۴۵۶٬۷۸٫۹", 'Format with different grouping and different digits');
