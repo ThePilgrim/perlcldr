@@ -896,14 +896,6 @@ after 'BUILD' => sub {
 	if ($likely_subtag) {
 		$self->_set_likely_subtag(__PACKAGE__->new($likely_subtag));
 	}
-	
-	# Register with DateTime::Locale
-	DateTime::Locale->register(
-		id 	    => $self->id,
-		en_language => $self->language,
-		class   => __PACKAGE__,
-		replace => 1,
-	);
 };
 
 use overload 
@@ -2672,7 +2664,7 @@ sub _build_era_format_narrow {
 *_build_era_stand_alone_abbreviated = \&_build_era_format_abbreviated;
 *_build_era_stand_alone_narrow = \&_build_era_format_narrow;
 
-sub _build_any_date_formats {
+sub _build_any_date_format {
 	my ($self, $width) = @_;
 	my $default_calendar = $self->default_calendar();
 	
@@ -2697,28 +2689,28 @@ sub _build_date_format_full {
 	my $self = shift;
 	
 	my ($width) = ('full');
-	return $self->_build_any_date_formats($width);
+	return $self->_build_any_date_format($width);
 }
 
 sub _build_date_format_long {
 	my $self = shift;
 	
 	my ($width) = ('long');
-	return $self->_build_any_date_formats($width);
+	return $self->_build_any_date_format($width);
 }
 
 sub _build_date_format_medium {
 	my $self = shift;
 	
 	my ($width) = ('medium');
-	return $self->_build_any_date_formats($width);
+	return $self->_build_any_date_format($width);
 }
 
 sub _build_date_format_short {
 	my $self = shift;
 	
 	my ($width) = ('short');
-	return $self->_build_any_date_formats($width);
+	return $self->_build_any_date_format($width);
 }
 
 sub _build_any_time_format {
@@ -2796,28 +2788,60 @@ sub _build_datetime_format_full {
 	my $self = shift;
 	
 	my $width = 'full';
-	$self->_build_any_datetime_format($width);
+	my $format = $self->_build_any_datetime_format($width);
+	
+	my $date = $self->_build_any_date_format($width);
+	my $time = $self->_build_any_time_format($width);
+	
+	$format =~ s/\{0\}/$time/;
+	$format =~ s/\{1\}/$date/;
+	
+	return $format;
 }
 
 sub _build_datetime_format_long {
 	my $self = shift;
 		
 	my $width = 'long';
-	$self->_build_any_datetime_format($width);
+	my $format = $self->_build_any_datetime_format($width);
+	
+	my $date = $self->_build_any_date_format($width);
+	my $time = $self->_build_any_time_format($width);
+	
+	$format =~ s/\{0\}/$time/;
+	$format =~ s/\{1\}/$date/;
+	
+	return $format;
 }
 
 sub _build_datetime_format_medium {
 	my $self = shift;
 	
 	my $width = 'medium';
-	$self->_build_any_datetime_format($width);
+	my $format = $self->_build_any_datetime_format($width);
+	
+	my $date = $self->_build_any_date_format($width);
+	my $time = $self->_build_any_time_format($width);
+	
+	$format =~ s/\{0\}/$time/;
+	$format =~ s/\{1\}/$date/;
+	
+	return $format;
 }
 
 sub _build_datetime_format_short {
 	my $self = shift;
 	
 	my $width = 'short';
-	$self->_build_any_datetime_format($width);
+	my $format = $self->_build_any_datetime_format($width);
+	
+	my $date = $self->_build_any_date_format($width);
+	my $time = $self->_build_any_time_format($width);
+	
+	$format =~ s/\{0\}/$time/;
+	$format =~ s/\{1\}/$date/;
+	
+	return $format;
 }
 
 sub _build_format_data {

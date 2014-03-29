@@ -115,13 +115,13 @@ $time_format = $locale->time_format_short;
 is($time_format, 'h:mm a', 'Time Format Short');
 
 my $date_time_format = $locale->datetime_format_full;
-is($date_time_format, "{1} 'at' {0}", 'Date Time Format Full');
+is($date_time_format, "EEEE, MMMM d, y 'at' h:mm:ss a zzzz", 'Date Time Format Full');
 $date_time_format = $locale->datetime_format_long;
-is($date_time_format, "{1} 'at' {0}", 'Date Time Format Long');
+is($date_time_format, "MMMM d, y 'at' h:mm:ss a z", 'Date Time Format Long');
 $date_time_format = $locale->datetime_format_medium;
-is($date_time_format, '{1}, {0}', 'Date Time Format Medium');
+is($date_time_format, 'MMM d, y, h:mm:ss a', 'Date Time Format Medium');
 $date_time_format = $locale->datetime_format_short;
-is($date_time_format, '{1}, {0}', 'Date Time Format Short');
+is($date_time_format, 'M/d/yy, h:mm a', 'Date Time Format Short');
 
 is ($locale->prefers_24_hour_time(), 0, 'Prefers 24 hour time');
 is ($locale->first_day_of_week(), 7, 'First day of week');
