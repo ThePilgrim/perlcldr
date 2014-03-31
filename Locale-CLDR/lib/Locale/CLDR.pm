@@ -1900,6 +1900,11 @@ sub unit {
 			$format = $bundle->units()->{$type}{$what}{other};
 			last;
 		}
+		
+		if (exists $bundle->units()->{$type}{$what}{default}) {
+			$format = $bundle->units()->{$type}{$what}{default};
+			last;
+		}
 	}
 	
 	# Check for aliases
@@ -1917,6 +1922,11 @@ sub unit {
 			
 				if (exists $bundle->units()->{$type}{$what}{other}) {
 					$format = $bundle->units()->{$type}{$what}{other};
+					last;
+				}
+				
+				if (exists $bundle->units()->{$type}{$what}{default}) {
+					$format = $bundle->units()->{$type}{$what}{default};
 					last;
 				}
 			}
@@ -1949,8 +1959,8 @@ sub unit_compound {
 	my @bundles = $self->_find_bundle('units');
 	my $format;
 	foreach my $bundle (@bundles) {
-		if (exists $bundle->units()->{$type}{per}{other}) {
-			$format = $bundle->units()->{$type}{per}{other};
+		if (exists $bundle->units()->{$type}{per}{default}) {
+			$format = $bundle->units()->{$type}{per}{default};
 			last;
 		}
 	}
@@ -1962,8 +1972,8 @@ sub unit_compound {
 		foreach my $alias (@aliases) {
 			$type = $alias->unit_alias()->{$original_type};
 			foreach my $bundle (@bundles) {
-				if (exists $bundle->units()->{$type}{per}{other}) {
-					$format = $bundle->units()->{$type}{per}{other};
+				if (exists $bundle->units()->{$type}{per}{default}) {
+					$format = $bundle->units()->{$type}{per}{default};
 					last;
 				}
 			}

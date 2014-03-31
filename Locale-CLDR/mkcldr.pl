@@ -1661,7 +1661,7 @@ sub process_units {
 			$unit_type_name =~ s/^[^\-]+-//;
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
-				my $count = $unit_pattern->getAttribute('count') // 'other';
+				my $count = $unit_pattern->getAttribute('count') // 'default';
 				my $pattern = $unit_pattern->getChildNode(1)->getValue;
 				$units{$length}{$unit_type_name}{$count} = $pattern;
 			}
@@ -1902,7 +1902,7 @@ sub process_numbers {
 						my $pattern_nodes = findnodes($xpath, "/ldml/numbers/${format_type}s/${format_type}Length$attribute/$format_type/pattern");
 						foreach my $pattern ($pattern_nodes->get_nodelist) {
 							my $pattern_type = $pattern->getAttribute('type') || 0;
-							my $pattern_count = $pattern->getAttribute('count') || 'other';
+							my $pattern_count = $pattern->getAttribute('count') // 'default';
 							my $pattern_text = $pattern->getChildNode(1)->getValue();
 							$formats{$format_type}{$length_type || 'default'}{$pattern_type}{$pattern_count} = $pattern_text;
 						}
@@ -1965,7 +1965,7 @@ sub process_numbers {
 	
 	# Currencies
 	my %currencies;
-	my $currency_nodes = findnodes($xpath, "/ldml/numbers/currencies");
+	my $currency_nodes = findnodes($xpath, "/ldml/numbers/currencies/currency");
 	foreach my $currency_node ($currency_nodes->get_nodelist) {
 		my $currency_code = $currency_node->getAttribute('type');
 		my $currency_symbol_nodes = findnodes($xpath, "/ldml/numbers/currencies/currency[\@type='$currency_code']/symbol/text()");
@@ -1974,7 +1974,7 @@ sub process_numbers {
 		}
 		my $display_name_nodes = findnodes($xpath, "/ldml/numbers/currencies/currency[\@type='$currency_code']/displayName");
 		foreach my $display_name_node ($display_name_nodes->get_nodelist) {
-			my $count = $display_name_node->getAttribute('count') // '';
+			my $count = $display_name_node->getAttribute('count') || 'default';
 			my $name = $display_name_node->getChildNode(1)->getValue();
 			$currencies{$currency_code}{display_name}{$count} = $name;
 		}
@@ -2131,13 +2131,22 @@ has 'curriencies' => (
 \tdefault\t\t=> sub { {
 EOT
 		foreach my $currency (sort keys %currencies) {
-			say $file <<EOT;
-\t\t'$currency' => {
-\t\t\tsymbol => '$currencies{currency_symbol}',
-\t\t\tdisplay_name => q($currencies{display_name}),
-\t\t},
-EOT
+			say $file "\t\t'$currency' => {";
+			say $file "\t\t\tsymbol => '$currencies{$currency}{currency_symbol}'," 
+				if exists $currencies{$currency}{currency_symbol};
+
+			if ( exists $currencies{$currency}{display_name} ) {
+				say $file "\t\t\tdisplay_name => {";
+				foreach my $count (sort keys %{$currencies{$currency}{display_name}}) {
+					my $display_name = $currencies{$currency}{display_name}{$count};
+					$display_name = $display_name =~ s/\(/\\(/gr =~ s/\)/\\)/gr;
+					say $file "\t\t\t\t'$count' => q($display_name),";
+				}
+				say $file "\t\t\t},";
+			}
+			say $file "\t\t},";
 		}
+
 		say $file <<EOT;
 \t} },
 );
