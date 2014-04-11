@@ -1,0 +1,38 @@
+Locale-CLDR
+
+Please note that this is very much alpha code.
+
+Please note that this code requires Perl 5.18 and above
+
+The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
+modules that can be loaded from the main Local::CLDR when needed to do what ever localisation is required.
+
+INSTALLATION
+
+To install this module, run the following commands:
+
+	perl Build.PL
+	./Build
+	./Build test
+	./Build install
+
+The installation should run the mkcldr.pl script which will download the
+latest CLDR data file and process the data.
+
+SUPPORT AND DOCUMENTATION
+
+After installing, you can find documentation for this module with the
+perldoc command.
+
+    perldoc Locale::CLDR
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2009 - 2014 John Imrie
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of either: the GNU General Public License as published
+by the Free Software Foundation; or the Artistic License.
+
+See http://dev.perl.org/licenses/ for more information.
+
