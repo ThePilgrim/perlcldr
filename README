@@ -1,7 +1,5 @@
 Locale-CLDR
 
-Please note that this is very much alpha code.
-
 Please note that this code requires Perl 5.18 and above
 
 The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
@@ -16,7 +14,7 @@ To install this module, run the following commands:
 	./Build test
 	./Build install
 
-The installation should run the mkcldr.pl script which will download the
+The installation comes with the mkcldr.pl script which I use to download the
 latest CLDR data file and process the data.
 
 SUPPORT AND DOCUMENTATION
@@ -35,4 +33,3 @@ under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
-
