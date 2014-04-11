@@ -62,6 +62,7 @@ local.properties
 *.vspscc
 .builds
 *.dotCover
+*.bat
 
 ## TODO: If you have NuGet Package Restore enabled, uncomment this
 #packages/
@@ -166,3 +167,8 @@ pip-log.txt
 Data/
 CLDR/
 *~
+_build*
+Makefile.PL
+META.*
+MYMETA.*
+Locale-CLDR-v*

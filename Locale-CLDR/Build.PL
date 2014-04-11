@@ -26,6 +26,7 @@ my $builder = Module::Build->new(
     add_to_cleanup      => [ 'Locale-CLDR-*' ],
 	configure_requires => { 'Module::Build' => '0.40' },
     create_makefile_pl => 'traditional',
+	release_status => 'unstable',
 );
 
 $builder->create_build_script();
