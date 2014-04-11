@@ -26,7 +26,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
 
 use version;
-our $VERSION = version->parse('0.1');
+our $VERSION = version->parse('0.0.1');
 my $CLDR_VERSION = version->parse('25');
 my $CLDR_PATH = 25;
 

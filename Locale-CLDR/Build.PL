@@ -22,6 +22,7 @@ my $builder = Module::Build->new(
         'FindBin'           => '1.50',
         'LWP'               => '6.03',
         'Test::More'        => '0.98',
+		'ok'				=> '0.11',
     },
     add_to_cleanup      => [ 'Locale-CLDR-*' ],
 	configure_requires => { 'Module::Build' => '0.40' },
