@@ -1150,7 +1150,10 @@ lib/Locale/CLDR/Zh/Hant/Tw.pm
 lib/Locale/CLDR/Zu.pm
 lib/Locale/CLDR/Zu/Any.pm
 lib/Locale/CLDR/Zu/Any/Za.pm
+Makefile.PL
 MANIFEST
+META.json
+META.yml
 mkcldr.pl
 README
 t/00-load.t
@@ -1173,6 +1176,3 @@ t/16-Names.t
 t/17-DateTime.t
 t/pod-coverage.t
 t/pod.t
-Makefile.PL
-META.yml
-META.json

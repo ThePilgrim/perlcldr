@@ -1,10 +1,10 @@
-package Locale::CLDR v0.0.1;
+package Locale::CLDR v0.0.3;
 
 =encoding utf8
 
 =head1 NAME
 
-Locale::CLDR - Main Class for CLDR Locals
+Locale::CLDR - A Module to create locale objects with localisation data from the CLDR
 
 =head1 VERSION
 

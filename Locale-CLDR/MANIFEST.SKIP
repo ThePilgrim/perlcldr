@@ -70,7 +70,7 @@
 ^MANIFEST\.SKIP
 
 # Avoid archives of this distribution
-\bLocale-CLDR-[\d\.\_]+
+\bLocale-CLDR-v[\d\.\_]+
 
 # Avoid Data directory
 \bData
