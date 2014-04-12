@@ -1,4 +1,4 @@
-package Locale::CLDR v0.0.3;
+package Locale::CLDR v0.0.4;
 
 =encoding utf8
 
@@ -8,11 +8,12 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.0.1
+Version 0.0.4
 
 =head1 SYNOPSIS
 
-This module handles Locale Data from the CLDR.
+This module provides a locale object you can use to localise your output.
+The localisation data comes from the Unicode Common Locale Data Repository.
 
 =head1 USAGE
 
@@ -3077,12 +3078,9 @@ sub _convert {
 
 =head1 AUTHOR
 
-John Imrie, C<< <j dot imrie1 at virginmedia.com> >>
+John Imrie, C<< <john dot imrie1 at gmail dot com> >>
 
 =head1 BUGS
-
-Please report any bugs or feature requests to me at the above email address 
-and ignore the CPAN stuff below for the present
 
 Please report any bugs or feature requests to C<bug-locale-cldr at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Locale-CLDR>.  I will be notified, and then you'll

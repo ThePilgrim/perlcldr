@@ -26,7 +26,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
 
 use version;
-our $VERSION = version->parse('0.0.1');
+our $VERSION = version->parse('0.0.4');
 my $CLDR_VERSION = version->parse('25');
 my $CLDR_PATH = 25;
 
@@ -425,7 +425,7 @@ sub process_header {
     $xml_generated=~s/^\$Date: (.*) \$$/$1/;
 
 	my $header = <<EOT;
-package $class;
+package $class $VERSION;
 # This file auto generated from $xml_name
 #\ton $now GMT
 # XML file generated $xml_generated
@@ -1662,7 +1662,7 @@ sub process_units {
 			$unit_type_name =~ s/^[^\-]+-//;
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
-				my $count = $unit_pattern->getAttribute('count') // 'default';
+				my $count = $unit_pattern->getAttribute('count');
 				my $pattern = $unit_pattern->getChildNode(1)->getValue;
 				$units{$length}{$unit_type_name}{$count} = $pattern;
 			}
@@ -1741,7 +1741,7 @@ sub process_posix {
     say 'Processing Posix' if $verbose;
     my $yes = findnodes($xpath, '/ldml/posix/messages/yesstr/text()');
     my $no  = findnodes($xpath, '/ldml/posix/messages/nostr/text()');
-    next unless $yes->size || $no->size;
+    return unless $yes->size || $no->size;
     $yes = $yes->size
       ? ($yes->get_nodelist)[0]->getValue()
       : '';
@@ -1975,7 +1975,7 @@ sub process_numbers {
 		}
 		my $display_name_nodes = findnodes($xpath, "/ldml/numbers/currencies/currency[\@type='$currency_code']/displayName");
 		foreach my $display_name_node ($display_name_nodes->get_nodelist) {
-			my $count = $display_name_node->getAttribute('count') || 'default';
+			my $count = $display_name_node->getAttribute('count') || 'currency';
 			my $name = $display_name_node->getChildNode(1)->getValue();
 			$currencies{$currency_code}{display_name}{$count} = $name;
 		}
@@ -3347,7 +3347,7 @@ sub process_time_zone_names {
     my $time_zone_names = findnodes($xpath,
         q(/ldml/dates/timeZoneNames/*));
 
-    next unless $time_zone_names->size;
+    return unless $time_zone_names->size;
 
     print $file <<EOT;
 has 'time_zone_names' => (
@@ -4008,12 +4008,12 @@ sub write_out_number_formatter {
 	# write out the code for the CLDR::NumberFormater module
 	my $file = shift;
 	
+	say $file "package Locale::CLDR::NumberFormatter v$VERSION";
 	binmode DATA, ':utf8';
 	print $file $_ while <DATA>;
 }
 
 __DATA__
-package Locale::CLDR::NumberFormatter;
 
 use v5.18;
 use mro 'c3';
