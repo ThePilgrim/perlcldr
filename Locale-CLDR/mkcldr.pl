@@ -598,7 +598,7 @@ EOT
     foreach my $key (sort keys %keys) {
         my $alias = lc $keys{$key}{alias};
         next unless $alias;
-        say $file "\t\t$alias => '$key',";
+        say $file "\t\t'$key' => '$alias',";
     }
     print $file <<EOT;
 \t}},
@@ -609,6 +609,7 @@ has 'key_names' => (
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
 \tauto_deref\t=> 1,
+\tlazy\t\t=> 1,
 \tdefault\t=> sub { return { reverse shift()->key_aliases }; },
 );
 

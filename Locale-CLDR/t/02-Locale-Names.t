@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 19;
+use Test::More tests => 21;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -29,4 +29,6 @@ is ($locale->territory_name('BQ'), 'Caribbean Netherlands', 'Territory alias');
 is ($locale->territory_name('830'), 'Unknown Region', 'Territory alias');
 is ($locale->variant_name('BOKMAL'), '', 'Variant alias');
 is ($locale->key_name('ca'), 'Calendar', 'Key name');
+is ($locale->key_name('calendar'), 'Calendar', 'Key name');
+is ($locale->type_name('ca', 'gregorian'), 'Gregorian Calendar', 'Type name');
 is ($locale->type_name('calendar', 'gregorian'), 'Gregorian Calendar', 'Type name');

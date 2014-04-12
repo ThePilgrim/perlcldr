@@ -1309,23 +1309,28 @@ a locale key id as a string
 =cut
 
 sub key_name {
-	my ($self, $name) = @_;
+	my ($self, $key) = @_;
 
-	$name = lc $name;
+	$key = lc $key;
+	
 	my %key_aliases = $self->key_aliases;
 	my %key_names	= $self->key_names;
 	my %valid_keys	= $self->valid_keys;
 
-	my $alias = $key_aliases{$name} if exists $key_aliases{$name};
+	my $alias = $key_aliases{$key} // '';
+	my $name  = $key_names{$key} // '';
 
-	return '' unless exists $valid_keys{$name} || exists $valid_keys{$alias};
+	return '' unless exists $valid_keys{$key} || exists $valid_keys{$alias} || exists $valid_keys{$name};
 	my @bundles = $self->_find_bundle('display_name_key');
 	foreach my $bundle (@bundles) {
-		my $key = $bundle->display_name_key->{$name} // ( $alias ? $bundle->display_name_key->{$alias} : '');
-		return $key if length $key;
+		my $return = $bundle->display_name_key->{$key};
+		$return //= $bundle->display_name_key->{$alias}; 
+		$return //= $bundle->display_name_key->{$name}; 
+
+		return $return if defined $return && length $return;
 	}
 
-	return ucfirst ($key_names{$name} || $name);
+	return ucfirst ($key_names{$name} || $key_names{$alias} || $key_names{$key} || $key);
 }
 
 =item type_name($key, $type)
@@ -1345,14 +1350,15 @@ sub type_name {
 	my %valid_keys	= $self->valid_keys;
 	my %key_names	= $self->key_names;
 
-	my $alias = $key_aliases{$key} if exists $key_aliases{$key};
+	my $alias = $key_aliases{$key} // '';
+	my $name  = $key_names{$key}   // '';
 
-	return '' unless exists $valid_keys{$key} || $valid_keys{$alias};
-	return '' unless first { $_ eq $type } @{$valid_keys{$key} || $valid_keys{$alias} || []};
+	return '' unless exists $valid_keys{$key} || $valid_keys{$alias} || $valid_keys{$name};
+	return '' unless first { $_ eq $type } @{$valid_keys{$key} || []}, @{$valid_keys{$alias} || []}, @{$valid_keys{$name} || []};
 
 	my @bundles = $self->_find_bundle('display_name_type');
 	foreach my $bundle (@bundles) {
-		next unless my $types = $bundle->display_name_type->{$key_names{$key} || ($alias ? $key_names{$alias} : '')};
+		my $types = $bundle->display_name_type->{$key} // $bundle->display_name_type->{$alias} // $bundle->display_name_type->{$name};
 		my $type = $types->{$type};
 		return $type if defined $type;
 	}
@@ -1900,11 +1906,6 @@ sub unit {
 			$format = $bundle->units()->{$type}{$what}{other};
 			last;
 		}
-		
-		if (exists $bundle->units()->{$type}{$what}{default}) {
-			$format = $bundle->units()->{$type}{$what}{default};
-			last;
-		}
 	}
 	
 	# Check for aliases
@@ -1922,11 +1923,6 @@ sub unit {
 			
 				if (exists $bundle->units()->{$type}{$what}{other}) {
 					$format = $bundle->units()->{$type}{$what}{other};
-					last;
-				}
-				
-				if (exists $bundle->units()->{$type}{$what}{default}) {
-					$format = $bundle->units()->{$type}{$what}{default};
 					last;
 				}
 			}
