@@ -871,7 +871,7 @@ after 'BUILD' => sub {
 	my ($language_id, $script_id, $territory_id) = ($self->language_id, $self->script_id, $self->territory_id);
 	
 	unless ($language_id ne 'und' && $script_id && $territory_id ) {
-		$likely_subtag = $likely_subtags->{join '_', $language_id, $script_id, $territory_id};
+		$likely_subtag = $likely_subtags->{join '_', grep { length() } ($language_id, $script_id, $territory_id)};
 		
 		if (! $likely_subtag ) {
 			$likely_subtag = $likely_subtags->{join '_', $language_id, $territory_id};
@@ -891,7 +891,11 @@ after 'BUILD' => sub {
 	}
 		
 	if ($likely_subtag) {
-		$self->_set_likely_subtag(__PACKAGE__->new($likely_subtag));
+		my ($likely_language_id, $likely_script_id, $likely_territory_id) = split /_/, $likely_subtag;
+		$likely_language_id		= $language_id 	unless $language_id eq 'und';
+		$likely_script_id		= $script_id	if length $script_id;
+		$likely_territory_id	= $territory_id	if length $territory_id;
+		$self->_set_likely_subtag(__PACKAGE__->new(join '_',$likely_language_id, $likely_script_id, $likely_territory_id));
 	}
 };
 
@@ -1006,6 +1010,8 @@ sub _find_bundle {
 	my $id = $self->has_likely_subtag()
 		? $self->likely_subtag()->id()
 		: $self->id(); 
+		
+	
 	if ($self->method_cache->{$id}{$method_name}) {
 		return wantarray
 			? @{$self->method_cache->{$id}{$method_name}}
@@ -1960,8 +1966,8 @@ sub _unit_compound {
 	my @bundles = $self->_find_bundle('units');
 	my $format;
 	foreach my $bundle (@bundles) {
-		if (exists $bundle->units()->{$type}{per}{default}) {
-			$format = $bundle->units()->{$type}{per}{default};
+		if (exists $bundle->units()->{$type}{per}{''}) {
+			$format = $bundle->units()->{$type}{per}{''};
 			last;
 		}
 	}
@@ -1973,8 +1979,8 @@ sub _unit_compound {
 		foreach my $alias (@aliases) {
 			$type = $alias->unit_alias()->{$original_type};
 			foreach my $bundle (@bundles) {
-				if (exists $bundle->units()->{$type}{per}{default}) {
-					$format = $bundle->units()->{$type}{per}{default};
+				if (exists $bundle->units()->{$type}{per}{''}) {
+					$format = $bundle->units()->{$type}{per}{''};
 					last;
 				}
 			}
@@ -2508,6 +2514,7 @@ sub _build_any_am_pm {
 	my $default_calendar = $self->default_calendar();
 	my @result;
 	my @bundles = $self->_find_bundle('day_periods');
+	my %return;
 
 	BUNDLES: {
 		foreach my $bundle (@bundles) {
@@ -2530,11 +2537,13 @@ sub _build_any_am_pm {
 			
 			my $result = $am_pm->{$default_calendar}{$type}{$width};
 			
-			return $result if keys %$result;
+			foreach (keys %$result) {
+				$return{$_} = $result->{$_} unless exists $return{$_};
+			}
 		}
 	}
 
-	return {};
+	return \%return;
 }
 
 # The first 3 are to link in with Date::Time::Locale

@@ -425,7 +425,7 @@ sub process_header {
     $xml_generated=~s/^\$Date: (.*) \$$/$1/;
 
 	my $header = <<EOT;
-package $class $VERSION;
+package $class v$VERSION;
 # This file auto generated from $xml_name
 #\ton $now GMT
 # XML file generated $xml_generated
@@ -1444,7 +1444,7 @@ EOT
 sub process_exemplar_characters {
     my ($file, $xpath) = @_;
 
-    say "Processing exemplarCharacters" if $verbose;
+    say "Processing Exemplar Characters" if $verbose;
     my $characters = findnodes($xpath, '/ldml/characters/exemplarCharacters');
     return unless $characters->size;
 
@@ -1730,7 +1730,6 @@ EOT
     print $file <<EOT;
 \t\t\t} }
 );
-
 
 EOT
 }
@@ -2026,12 +2025,12 @@ EOT
 				say $file "\t\t},";
 			}
 		}
-	}
-	print $file <<EOT;
+		print $file <<EOT;
 \t} }
 );
 
 EOT
+	}
 	
 	if (keys %formats) {
 		print $file <<EOT;
@@ -4008,7 +4007,7 @@ sub write_out_number_formatter {
 	# write out the code for the CLDR::NumberFormater module
 	my $file = shift;
 	
-	say $file "package Locale::CLDR::NumberFormatter v$VERSION";
+	say $file "package Locale::CLDR::NumberFormatter v$VERSION;";
 	binmode DATA, ':utf8';
 	print $file $_ while <DATA>;
 }

@@ -1,10 +1,16 @@
 Revision history for Locale-CLDR
+All dates are in ISO 8601 Format
 
-29/03/2014
-v0.0.1 Released to CPAN
+0.0.1 2014-03-29
+	- Released to CPAN
 
-12/04/2014
-v0.0.2 This version now passes all tests on CPAN
+0.0.2 2014-04-12
+	- This version now passes all tests on CPAN
 
-12/04/2014
-v0.0.3 This corrects a mistake in the upload of the previous version
+0.0.3 201-04-12
+	- This corrects a mistake in the upload of the previous version
+
+0.0.4 2014-04-12
+	- Fix bug causing some of the data files not to be correctly generated
+	- Fixed count attributes for currency fall back
+	- Fixed test scripts to match new corrected data
