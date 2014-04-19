@@ -1,4 +1,4 @@
-package Locale::CLDR v0.0.4;
+package Locale::CLDR v0.0.5;
 
 =encoding utf8
 
@@ -1031,6 +1031,16 @@ sub _find_bundle {
 		: $self->method_cache->{$id}{$method_name}[0];
 }
 
+=back
+
+=head2 Names
+
+These methods allow you to pass in a locale, either by C<id> or as a
+Locale::CLDR object and return an name formatted in the locale of $self.
+If you don't pass in a locale then it will use $self.
+
+=over 4 
+
 =item locale_name($name)
 
 Returns the given locale name in the current locales format. The name can be
@@ -1493,6 +1503,14 @@ sub _set_casing {
 	return join '', @words;
 }
 
+=back
+
+=head2 Segmentation
+
+This group of methods allow you to split a string in various ways
+
+=over 4
+
 =item split_grapheme_clusters($string)
 
 Splits a string on grapheme clusters using the locals segmentation rules.
@@ -1610,6 +1628,12 @@ sub _split {
 	return @split;
 }
 
+=back
+
+=head2 Characters
+
+=over 4
+
 =item is_exemplar_character( $type, $character)
 
 =item is_exemplar_character($character)
@@ -1665,6 +1689,14 @@ sub _truncated {
 		return $ellipsis;
 	}
 }
+
+=back
+
+=head2 Truncation
+
+These methods format a string to show where part of the string has been removed
+
+=over 4
 
 =item truncated_beginning($string)
 
@@ -1742,25 +1774,11 @@ sub truncated_word_end {
 	shift->_truncated('word-final' => @_);
 }
 
-=item more_information()
+=back
 
-The more information string is one that can be displayed
-in an interface to indicate that more information is
-available.
+=head2 Quoting
 
-=cut
-
-sub more_information {
-	my $self = shift;
-
-	my @bundles = $self->_find_bundle('more_information');
-	foreach my $bundle (@bundles) {
-		my $info = $bundle->more_information;
-		next unless defined $info;
-		return $info;
-	}
-	return '';
-}
+=over 4
 
 =item quote($string)
 
@@ -1829,6 +1847,33 @@ sub quote {
 	return "$quote{start}$text$quote{end}";
 }
 
+=back
+
+=head2 Miscellaneous
+
+=over 4
+
+=item more_information()
+
+The more information string is one that can be displayed
+in an interface to indicate that more information is
+available.
+
+=cut
+
+sub more_information {
+	my $self = shift;
+
+	my @bundles = $self->_find_bundle('more_information');
+	foreach my $bundle (@bundles) {
+		my $info = $bundle->more_information;
+		next unless defined $info;
+		return $info;
+	}
+	return '';
+}
+
+
 =item measurement()
 
 Returns the measurement type for the locale
@@ -1872,6 +1917,12 @@ sub paper {
 	
 	return $data;
 }
+
+=back
+
+=head2 Units
+
+=over 4
 
 =item all_units()
 
@@ -2015,11 +2066,17 @@ sub duration_unit {
 	return $parsed;
 }
 
+=back
+
+=head2 Yes or No?
+
+=over 4
+
 =item is_yes($string)
 
 Returns true if the passed in string matches the locales 
 idea of a string designating yes. Note that under POSIX
-rules unless the locales word for no starts with C<Y>
+rules unless the locales word for yes starts with C<Y>
 (U+0079) then a single 'y' will also be accepted as yes.
 The string will be matched case insensitive.
 
@@ -2048,6 +2105,12 @@ sub is_no {
 	my $bundle = $self->_find_bundle('nostr');
 	return $test_str =~ $bundle->nostr ? 1 : 0;
 }
+
+=back
+
+=head2 Transliteration
+
+=over 4
 
 =item transform(from => $from, to => $to, variant => $variant, text => $text)
 
@@ -2186,6 +2249,12 @@ sub _transform_convert {
 	
 	return $text;
 }
+
+=back
+
+=head2 Lists
+
+=over 4
 
 =item list(@data)
 
@@ -3083,6 +3152,243 @@ sub _convert {
 	return "(?$set)";
 }
 
+# The following pod is for methods defined in the Moose Role
+# files that are automatically generated from the data
+=back
+
+=head2 Valid codes
+
+=over 4
+
+=item valid_languages()
+
+This method returns a list containing all the valid language codes
+
+=item valid_scripts()
+
+This method returns a list containing all the valid script codes
+
+=item valid_territories()
+
+This method returns a list containing all the valid territory codes
+
+=item valid_variants()
+
+This method returns a list containing all the valid variant codes
+
+=item key_aliases()
+
+This method returns a hash that maps valid keys to their valid aliases
+
+=item key_names()
+
+This method returns a hash that maps valid key aliases to their valid keys
+
+=item valid_keys()
+
+This method returns a hash of valid keys and the valid type codes you 
+can have with each key
+
+=language_aliases()
+
+This method returns a hash that maps valid language codes to their valid aliases
+
+=territory_aliases
+
+This method returns a hash that maps valid territory codes to their valid aliases
+
+=variant_aliases()
+
+This method returns a hash that maps valid variant codes to their valid aliases
+
+=back
+
+=head2 Information about weeks
+
+Each of these methods returns a hash ref keyed on territory code. If the territory 
+you are looking for is not in the hash use the territory_contained_by() method
+to work your way up the territory tree until you find a territory in the hash
+
+=over 4
+
+=item week_data_min_days()
+
+This method returns a hash ref keyed on territory id the value of which is the minimum 
+number of days a week must have to count as the starting week of the new year
+
+=item week_data_first_day()
+
+This method returns a hash ref keyed on territory id the value of which is the three
+letter code of the first day of the week for that territory.
+
+=item week_data_weekend_start()
+
+This method returns a hash ref keyed on territory id the value of which is the three
+letter code of the first day of the weekend for that territory.
+
+=item week_data_weekend_end()
+
+This method returns a hash ref keyed on territory id the value of which is the three
+letter code of the last day of the weekend for that territory.
+
+=back
+
+=head2 Territory Containment
+
+=over 4
+
+=item territory_contains()
+
+This method returns a hash ref keyed on territory id. The value is an array ref
+Each element of the array ref is a territory id of a territory immediately 
+contained in the territory used as the key
+
+=item territory_contained_by()
+
+This method returns a hash ref keyed on territory id. The value of the hash
+is the territory id of the immediately containing territory.
+
+=back
+
+=head2 Numbering Systems
+
+=over 4
+
+=item numbering_system()
+
+This method returns a hash ref keyed on numbering system id which, for a given 
+locale, can be got by calling the default_numbering_system() method. The values
+of the hash are a two element hash ref the keys being C<type> and C<data>. If the
+type is C<numeric> then the data is an array ref of characters. The position in the
+array matches the numeric value of the character. If the type is C<algorithmic>
+then data is the name of the algorithm used to display numbers in that format.
+
+=back
+
+=head2 Number Formatting
+
+=over 4
+
+=item format_number($number, $format, $currency)
+
+This method formats the number $number using the format $format. If the format contains
+the currency symbol C<¤> then the currency symbol for the currency code in $currency
+will be used. If $currency is undef() then the default currency code for the locale 
+will be used.
+
+=item parse_number_format($format)
+
+This method parses a CLDR format string into a hash ref containing data used to 
+format a number. This should probably be a private function.
+
+=item round($number)
+
+This method returns $number rounded to an integer with values of .5 or more rounded up 
+and less than .5 rounded down. It's here so that people who need a more sophisticated
+rounding mechanism can easily override it.
+
+=item get_formatted_number($number, $format_hash)
+
+This method takes the $format_hash produced by parse_number_format() and uses it to
+parse $number. It returns a string containing the parsed number.
+
+=item get_digits()
+
+This method returns an array containing the digits used by the locale, The order of the
+array is the order of the digits. It the locale's numbering system is C<algorithmic> it
+will return C<[0,1,2,3,4,5,6,7,8,9]>
+
+=item default_numbering_system()
+
+This method returns the numbering system id for the locale.
+
+=back
+
+=head2 Measurement Information
+
+=over 4
+
+=item measurement_system()
+
+This method returns a hash ref keyed on territory, the value being the measurement system
+id for the territory. If the territory you are interested in is not listed use the
+territory_contained_by() method until you find an entry.
+
+=item paper_size()
+
+This method returns a hash ref keyed on territory, the value being the paper size used
+in that territory. If the territory you are interested in is not listed use the
+territory_contained_by() method until you find an entry.
+
+=back
+
+=head2 Likely Tags
+
+=over 4
+
+=item likely_subtags()
+
+A full locale tag requires, as a minimum, a language, script and territory code. However for
+some locales it is possible to infer the missing element if the other two are given, e.g.
+given C<en_GB> you can infer the script will be latn. It is also possible to fill in the 
+missing elements of a locale with sensible defaults given sufficient knowledge of the layout
+of the CLDR data and usage patterns of locales around the world.
+
+This function returns a hash ref keyed on partial locale id's with the value being the locale
+id for the most likely language, script and territory code for the key.
+
+=back
+
+=head2 Currency Information
+
+=over 4
+
+=item currency_fractions()
+
+This method returns a hash ref keyed on currency id. The value is a hash ref containing four keys.
+The keys are 
+
+=over 8
+
+=item digits
+
+The number of decimal digits normally formatted.
+
+=item rounding
+
+The rounding increment, in units of 10^-digits. 
+
+=item cashdigits
+
+The number of decimal digits to be used when formatting quantities used in cash transactions (as opposed
+to a quantity that would appear in a more formal setting, such as on a bank statement).
+
+=item cashrounding
+
+The cash rounding increment, in units of 10^-cashdigits. 
+
+=back
+
+=item default_currency()
+
+This method returns a hash ref keyed on territory. The value being the default currency id for that territory.
+
+=back
+
+=head2 Calendar Information
+
+=over 4
+
+=item calendar_preferences()
+
+This method returns a hash ref keyed on territory id. The values are array refs containing the preferred
+calendar id's in order of preference.
+
+=item  default_calendar($territory)
+
+This method returns the default calendar id for the given territory. If no territory id given it 
+used the territory of the current locale.
+
 =back
 
 =head1 AUTHOR
@@ -3100,7 +3406,6 @@ automatically be notified of progress on your bug as I make changes.
 You can find documentation for this module with the perldoc command.
 
     perldoc Locale::CLDR
-
 
 You can also look for information at:
 
@@ -3137,7 +3442,6 @@ under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
-
 
 =cut
 

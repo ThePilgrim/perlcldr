@@ -26,7 +26,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
 
 use version;
-our $VERSION = version->parse('0.0.4');
+our $VERSION = version->parse('0.0.5');
 my $CLDR_VERSION = version->parse('25');
 my $CLDR_PATH = 25;
 
@@ -391,7 +391,7 @@ sub process_class_any {
         my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
         open my $file, '>:utf8', "$lib_path.pm";
         print $file <<EOT;
-package $package;
+package $package v$VERSION;
 # This file auto generated
 #\ton $now GMT
 
