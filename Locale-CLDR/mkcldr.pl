@@ -26,9 +26,11 @@ $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
 
 use version;
-our $VERSION = version->parse('0.0.5');
-my $CLDR_VERSION = version->parse('25');
-my $CLDR_PATH = 25;
+my $API_VERSION = 0;
+my $CLDR_VERSION = 25;
+my $REVISION = 0;
+our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
+my $CLDR_PATH = $CLDR_VERSION;
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -177,7 +179,6 @@ process_valid_languages($file, $xml);
 process_valid_scripts($file, $xml);
 process_valid_territories($file, $xml);
 process_valid_variants($file, $xml);
-#process_valid_currencies($file, $xml);
 process_valid_keys($file, $base_directory);
 process_valid_language_aliases($file,$xml);
 process_valid_territory_aliases($file,$xml);
@@ -386,7 +387,6 @@ sub process_class_any {
         $lib_path = File::Spec->catfile($lib_path, $path);
 
         next unless $path eq 'Any';
-        next if -e "$lib_path.pm";
 
         my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
         open my $file, '>:utf8', "$lib_path.pm";
@@ -528,28 +528,6 @@ has 'valid_variants' => (
 \tinit_arg\t=> undef,
 \tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @variants \t)]},
-);
-
-EOT
-}
-
-sub process_valid_currencies {
-    my ($file, $xpath) = @_;
-
-    say "Processing Valid Currencies"
-        if $verbose;
-
-    my $currencies = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$currency"]');
-
-    my @currencies = map {"$_\n" } split /\s+/,  $currencies->get_node->string_value;
-
-    print $file <<EOT
-has 'valid_currencies' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef',
-\tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
-\tdefault\t=> sub {[qw( @currencies \t)]},
 );
 
 EOT
@@ -773,6 +751,32 @@ print $file <<EOT;
 \t}},
 );
 
+has '_default_numbering_system' => ( 
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'Str',
+\tinit_arg\t=> undef,
+\tdefault\t=> '',
+\ttraits\t=> ['String'],
+\thandles\t=> {
+\t\t_set_default_nu\t\t=> 'append',
+\t\t_clear_default_nu\t=> 'clear',
+\t\t_test_default_nu\t=> 'length',
+\t},
+);
+
+sub default_numbering_system {
+	my \$self = shift;
+	
+	if(\$self->_test_default_nu) {
+		return \$self->_default_numbering_system;
+	}
+	else {
+		my \$numbering_system = \$self->_find_bundle('default_numbering_system')->default_numbering_system;
+		\$self->_set_default_nu(\$numbering_system);
+		return \$numbering_system
+	}
+}
+
 EOT
 }
 
@@ -965,14 +969,32 @@ EOT
 \t}},
 );
 
+has '_default_calendar' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t=> sub { { } },
+\ttraits\t=> ['Hash'],
+\thandles\t=> {
+\t\t_set_default_ca  => 'set',
+\t\t_get_default_ca  => 'get',
+\t\t_test_default_ca => 'exists',
+\t},
+);
+
 sub default_calendar {
 \tmy (\$self, \$territory) = \@_;
 
 \t\$territory //= \$self->territory_id();
+\tif (\$self->_test_default_ca(\$territory)) {
+\t\treturn \$self->_get_default_ca(\$territory);
+\t}
 
 \tmy \$preferences = \$self->calendar_preferences();
 
 \tmy \$default = \$preferences->{\$territory}[0] // 'gregorian';
+
+\t\$self->_set_default_ca(\$territory => \$default);
 
 \treturn \$default;
 }
@@ -4165,9 +4187,8 @@ sub get_formatted_number {
 	my @digits = $self->get_digits;
 	my @number_symbols_bundles = reverse $self->_find_bundle('number_symbols');
 	my %symbols = map { %{$_->number_symbols} } @number_symbols_bundles;
-	my $symbols_type_bundle = $self->_find_bundle('default_numbering_system');
+	my $symbols_type = $self->default_numbering_system;
 	
-	my $symbols_type = $symbols_type_bundle->default_numbering_system;
 	$symbols_type = $symbols{$symbols_type}{alias} if exists $symbols{$symbols_type}{alias};
 	
 	my $type = $number < 0 ? 'negative' : 'positive';
@@ -4237,9 +4258,7 @@ sub get_formatted_number {
 sub get_digits {
 	my $self = shift;
 	
-	my $bundle = $self->_find_bundle('default_numbering_system');
-	
-	my $numbering_system = $bundle->default_numbering_system();
+	my $numbering_system = $self->default_numbering_system();
 	
 	$numbering_system = 'latn' unless  $self->numbering_system->{$numbering_system}{type} eq 'numeric'; # Fall back to latn if the numbering system is not numeric
 	

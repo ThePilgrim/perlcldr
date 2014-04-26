@@ -1,4 +1,4 @@
-package Locale::CLDR v0.0.5;
+package Locale::CLDR v0.25.0;
 
 =encoding utf8
 
@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.0.4
+Version 0.25.0
 
 =head1 SYNOPSIS
 
@@ -22,6 +22,12 @@ The localisation data comes from the Unicode Common Locale Data Repository.
 or
 
  my $locale = Locale::CLDR->new(language_id => 'en', territory_id => 'gb');
+ 
+A full locale identifier is
+ 
+C<language>_C<script>_C<territory>_C<variant>_u_C<extension name>_C<extension value>
+ 
+You can have multiple extensions.
 
 =cut
 
@@ -117,8 +123,361 @@ has 'variant_id' => (
 
 =item extensions 
 
-A Hashref of extension names and values. This is currently ignored but future releases
-will use it to override various assumptions such as calendar type and number type
+A Hashref of extension names and values. You can use this to override
+the locales number formatting and calendar by passing in the Unicode
+extension names or aliases as keys and the extension value as the hash 
+value.
+
+Currently supported extensions are
+
+=over 8
+
+=item nu
+
+=item numbers
+
+The number type can be one of
+
+=over 12
+
+=item arab
+
+Arabic-Indic Digits
+
+=item arabext
+
+Extended Arabic-Indic Digits
+
+=item armn
+
+Armenian Numerals
+
+=item armnlow
+
+Armenian Lowercase Numerals
+
+=item bali
+
+Balinese Digits
+
+=item beng
+
+Bengali Digits
+
+=item brah
+
+Brahmi Digits
+
+=item cakm
+
+Chakma Digits
+
+=item cham
+
+Cham Digits
+
+=item deva
+
+Devanagari Digits
+
+=item ethi
+
+Ethiopic Numerals
+
+=item finance
+
+Financial Numerals
+
+=item fullwide
+
+Full Width Digits
+
+=item geor
+
+Georgian Numerals
+
+=item grek
+
+Greek Numerals
+
+=item greklow
+
+Greek Lowercase Numerals
+
+=item gujr
+
+Gujarati Digits
+
+=item guru
+
+Gurmukhi Digits
+
+=item hanidays
+
+Chinese Calendar Day-of-Month Numerals
+
+=item hanidec
+
+Chinese Decimal Numerals
+
+=item hans
+
+Simplified Chinese Numerals
+
+=item hansfin
+
+Simplified Chinese Financial Numerals
+
+=item hant
+
+Traditional Chinese Numerals
+
+=item hantfin
+
+Traditional Chinese Financial Numerals
+
+=item hebr
+
+Hebrew Numerals
+
+=item java
+
+Javanese Digits
+
+=item jpan
+
+Japanese Numerals
+
+=item jpanfin
+
+Japanese Financial Numerals
+
+=item kali
+
+Kayah Li Digits
+
+=item khmr
+
+Khmer Digits
+
+=item knda
+
+Kannada Digits
+
+=item lana
+
+Tai Tham Hora Digits
+
+=item lanatham
+
+Tai Tham Tham Digits
+
+=item laoo
+
+Lao Digits
+
+=item latn
+
+Western Digits
+
+=item lepc
+
+Lepcha Digits
+
+=item limb
+
+Limbu Digits
+
+=item mlym
+
+Malayalam Digits
+
+=item mong
+
+Mongolian Digits
+
+=item mtei
+
+Meetei Mayek Digits
+
+=item mymr
+
+Myanmar Digits
+
+=item mymrshan
+
+Myanmar Shan Digits
+
+=item native
+
+Native Digits
+
+=item nkoo
+
+N'Ko Digits
+
+=item olck
+
+Ol Chiki Digits
+
+=item orya
+
+Oriya Digits
+
+=item osma
+
+Osmanya Digits
+
+=item roman
+
+Roman Numerals
+
+=item romanlow
+
+Roman Lowercase Numerals
+
+=item saur
+
+Saurashtra Digits
+
+=item shrd
+
+Sharada Digits
+
+=item sora
+
+Sora Sompeng Digits
+
+=item sund
+
+Sundanese Digits
+
+=item takr
+
+Takri Digits
+
+=item talu
+
+New Tai Lue Digits
+
+=item taml
+
+Traditional Tamil Numerals
+
+=item tamldec
+
+Tamil Digits
+
+=item telu
+
+Telugu Digits
+
+=item thai
+
+Thai Digits
+
+=item tibt
+
+Tibetan Digits
+
+=item traditional
+
+Traditional Numerals
+
+=item vaii
+
+Vai Digits
+
+=back
+
+Note that the code currently only handles digits ie locales with 
+characters corresponding to 0 - 9, if you use a numerical number
+type it will fall back to C<latn>. Later versions are planned to 
+handle numerals correctly.
+
+=item ca
+
+=item calendar
+
+You can use this to override a locales default calendar. Valid values are
+
+=over 12
+
+=item buddhist
+
+Buddhist Calendar
+
+=item chinese
+
+Chinese Calendar
+
+=item coptic
+
+Coptic Calendar
+
+=item dangi
+
+Dangi Calendar
+
+=item ethiopic
+
+Ethiopic Calendar
+
+=item ethiopic-amete-alem
+
+Ethiopic Amete Alem Calendar
+
+=item gregorian
+
+Gregorian Calendar
+
+=item hebrew
+
+Hebrew Calendar
+
+=item indian
+
+Indian National Calendar
+
+=item islamic
+
+Islamic Calendar
+
+=item islamic-civil
+
+Islamic Calendar (tabular, civil epoch)
+
+=item islamic-rgsa
+
+Islamic Calendar (Saudi Arabia, sighting)
+
+=item islamic-tbla
+
+Islamic Calendar (tabular, astronomical epoch)
+
+=item islamic-umalqura
+
+Islamic Calendar (Umm al-Qura)
+
+=item iso8601
+
+ISO-8601 Calendar
+
+=item japanese
+
+Japanese Calendar
+
+=item persian
+
+Persian Calendar
+
+=item roc
+
+Minguo Calendar
+
+=back
+
+=back
 
 =cut
 
@@ -829,7 +1188,7 @@ sub BUILD {
 	
 	if ($args->{extensions}) {
 		my %valid_keys = $self->valid_keys;
-		my %key_aliases = $self->key_aliases;
+		my %key_aliases = $self->key_names;
 		my @keys = keys %{$args->{extensions}};
 
 		foreach my $key ( @keys ) {
@@ -889,13 +1248,25 @@ after 'BUILD' => sub {
 			$likely_subtag = $likely_subtags->{join '_', 'und', $script_id};
 		}
 	}
-		
+	
+	my ($likely_language_id, $likely_script_id, $likely_territory_id);
 	if ($likely_subtag) {
-		my ($likely_language_id, $likely_script_id, $likely_territory_id) = split /_/, $likely_subtag;
+		($likely_language_id, $likely_script_id, $likely_territory_id) = split /_/, $likely_subtag;
 		$likely_language_id		= $language_id 	unless $language_id eq 'und';
 		$likely_script_id		= $script_id	if length $script_id;
 		$likely_territory_id	= $territory_id	if length $territory_id;
 		$self->_set_likely_subtag(__PACKAGE__->new(join '_',$likely_language_id, $likely_script_id, $likely_territory_id));
+	}
+	
+	# Fix up extension overrides
+	my $extensions = $self->extensions;
+	if (exists $extensions->{ca}) {
+		$self->_set_default_ca(($territory_id // $likely_territory_id) => $extensions->{ca});
+	}
+
+	if (exists $extensions->{nu}) {
+		$self->_clear_default_nu;
+		$self->_set_default_nu($extensions->{nu});
 	}
 };
 
@@ -925,7 +1296,7 @@ sub _build_id {
 			my $value = $self->extensions->{$key};
 			$string .= "_${key}_$value";
 		}
-		chop $string;
+		$string =~ s/_u$//;
 	}
 
 	return $string;
@@ -2828,8 +3199,8 @@ sub _build_any_time_format {
 	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $time_formats = $bundle->time_formats;
-			if (exists $time_formats->{alias}) {
-				$default_calendar = $time_formats->{alias};
+			if (exists $time_formats->{$default_calendar}{alias}) {
+				$default_calendar = $time_formats->{$default_calendar}{alias};
 				redo BUNDLES;
 			}
 			
@@ -2877,8 +3248,8 @@ sub _build_any_datetime_format {
 	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $datetime_formats = $bundle->datetime_formats;
-			if (exists $datetime_formats->{alias}) {
-				$default_calendar = $datetime_formats->{alias};
+			if (exists $datetime_formats->{$default_calendar}{alias}) {
+				$default_calendar = $datetime_formats->{$default_calendar}{alias};
 				redo BUNDLES;
 			}
 			

@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use feature 'unicode_strings';
 
-use Test::More tests => 16;
+use Test::More tests => 18;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -47,6 +47,10 @@ is($locale->id, 'en_1994', 'Set Language and variant implicitly');
 $locale = Locale::CLDR->new('en_latn_gb_1994');
 is($locale->id, 'en_Latn_GB_1994', 'Set Language, Territory, Script and variant implicitly');
 
+$locale = Locale::CLDR->new('ar_Arab_EG_u_ca_coptic');
+is($locale->id, 'ar_Arab_EG_u_ca_coptic', 'Set Language, Territory, Script and extension implicitly');
+
 throws_ok { $locale = Locale::CLDR->new('wibble') } qr/Invalid language/, "Caught invalid language";
 throws_ok { $locale = Locale::CLDR->new('en_wi') } qr/Invalid territory/, "Caught invalid territory";
 throws_ok { $locale = Locale::CLDR->new('en_wibb') } qr/Invalid script/, "Caught invalid script";
+throws_ok { $locale = Locale::CLDR->new('en_wibble') } qr/Invalid variant/, "Caught invalid variant";

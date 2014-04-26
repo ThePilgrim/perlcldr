@@ -14,3 +14,13 @@ All dates are in ISO 8601 Format
 	- Fix bug causing some of the data files not to be correctly generated
 	- Fixed count attributes for currency fall back
 	- Fixed test scripts to match new corrected data
+	
+0.0.5 2014-04-19
+	- Added Documentation for undocumented public functions
+
+0.25.0 2014-04-26
+	- Changed revision format to be API.CLDR Revision.Release
+	- Added Unicode extensions to the locale codes for numbers
+		and calendars
+	- Added tests for the extension code
+	- Added documentation for the extension code
