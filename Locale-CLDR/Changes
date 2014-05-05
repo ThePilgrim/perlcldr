@@ -24,3 +24,10 @@ All dates are in ISO 8601 Format
 		and calendars
 	- Added tests for the extension code
 	- Added documentation for the extension code
+	
+0.25.1
+	- Updates and fixes to documentation
+	- Change week data code so we no longer return a hash of all the data but
+		now take a territory id and return the data specifically for that territory
+	- Fixed up week data and calendar preferences to use territory containment 
+	- Added tests for the above changes

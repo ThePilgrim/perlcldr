@@ -28,7 +28,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 25;
-my $REVISION = 0;
+my $REVISION = 1;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -790,9 +790,11 @@ sub process_era_boundries {
         q(/supplementalData/calendarData/calendar));
     
     print $file <<EOT;
-has 'era_boundry' => (
+has '_era_boundry' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'CodeRef',
+\ttraits\t\t=> ['Code'],
+\thandles\t\t=> { era_boundry => 'execute_method' },
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { sub {
 \t\tmy (\$self, \$type, \$date) = \@_;
@@ -849,7 +851,7 @@ sub process_week_data {
         q(/supplementalData/weekData/minDays));
     
     print $file <<EOT;
-has 'week_data_min_days' => (
+has '_week_data_min_days' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
@@ -873,7 +875,7 @@ EOT
         q(/supplementalData/weekData/firstDay));
 
     print $file <<EOT;
-has 'week_data_first_day' => (
+has '_week_data_first_day' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
@@ -897,7 +899,7 @@ EOT
         q(/supplementalData/weekData/weekendStart));
 
     print $file <<EOT;
-has 'week_data_weekend_start' => (
+has '_week_data_weekend_start' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
@@ -921,7 +923,7 @@ EOT
         q(/supplementalData/weekData/weekendEnd));
 
     print $file <<EOT;
-has 'week_data_weekend_end' => (
+has '_week_data_weekend_end' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
@@ -962,7 +964,7 @@ EOT
         my @territories = split / /,$node->getAttribute('territories');
         my @ordering = split / /, $node->getAttribute('ordering');
         foreach my $territory (@territories) {
-            say $file "\t\t$territory => ['", join("','", @ordering), "'],";
+            say $file "\t\t'$territory' => ['", join("','", @ordering), "'],";
         }
     }
     print $file <<EOT;
@@ -985,14 +987,26 @@ has '_default_calendar' => (
 sub default_calendar {
 \tmy (\$self, \$territory) = \@_;
 
-\t\$territory //= \$self->territory_id();
+\t\$territory //= ( \$self->territory_id() || \$self->likely_subtag->territory_id );
 \tif (\$self->_test_default_ca(\$territory)) {
 \t\treturn \$self->_get_default_ca(\$territory);
 \t}
 
-\tmy \$preferences = \$self->calendar_preferences();
+\tmy \$calendar_preferences = \$self->calendar_preferences();
 
-\tmy \$default = \$preferences->{\$territory}[0] // 'gregorian';
+\tmy \$default;
+
+\tmy \$current_territory = \$territory;
+
+\twhile (! \$default) {
+\t\t\$default = \$calendar_preferences->{\$current_territory};
+\t\tif (\$default) {
+\t\t\t\$default = \$default->[0];
+\t\t}
+\t\telse {
+\t\t\t\$current_territory = \$self->territory_contained_by()->{\$current_territory}
+\t\t}
+\t}
 
 \t\$self->_set_default_ca(\$territory => \$default);
 

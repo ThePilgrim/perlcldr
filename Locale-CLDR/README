@@ -5,6 +5,9 @@ Please note that this code requires Perl 5.18 and above
 The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
 modules that can be loaded from the main Local::CLDR when needed to do what ever localisation is required.
 
+Note that the API is not yet fixed. I'll try and keep things that have tests stable but any thing else 
+is at your own risk.
+
 INSTALLATION
 
 To install this module, run the following commands:

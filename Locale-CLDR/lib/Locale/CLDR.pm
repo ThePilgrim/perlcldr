@@ -1,4 +1,4 @@
-package Locale::CLDR v0.25.0;
+package Locale::CLDR v0.25.1;
 
 =encoding utf8
 
@@ -27,8 +27,12 @@ A full locale identifier is
  
 C<language>_C<script>_C<territory>_C<variant>_u_C<extension name>_C<extension value>
  
-You can have multiple extensions.
-
+ my $locale = Locale::CLDR->new('en_latn_GB_SCOUSE_u_nu_traditional');
+ 
+or
+ 
+ my $locale = Locale::CLDR->new(language_id => 'en', script_id => 'latn', territory_id => 'gb', variant => 'SCOUSE', extensions => { nu => 'traditional' } );
+ 
 =cut
 
 use v5.18;
@@ -680,7 +684,7 @@ has 'break_sentence' => (
 
 The following methods return, in English, the names if the various 
 id's passed into the locales constructor. I.e. if you passed 
-C<language => 'fr'> to the constructor you would get back C<French>
+C<language =E<gt> 'fr'> to the constructor you would get back C<French>
 for the language.
 
 =over 4
@@ -713,7 +717,7 @@ The name of the locales variant
 Like Meta Data above this provides the names of the various id's 
 passed into the locales constructor. However in this case the
 names are formatted to match the locale. I.e. if you passed 
-C<language => 'fr'> to the constructor you would get back 
+C<language =E<gt> 'fr'> to the constructor you would get back 
 C<français> for the language.
 
 =over 4
@@ -767,7 +771,11 @@ foreach my $property (qw( name language script territory variant)) {
 
 The Calendar data is built to hook into L<DateTime::Locale> so that 
 all Locale::CLDR objects can be used as replacements for DateTime::Locale's 
-locale data
+locale data. To use, say, the French data do
+
+ my $french_locale = Locale::CLDR->new('fr_FR');
+ my $french_dt = DateTime->now(locale => $french_locale);
+ say "French month : ", $french_dt->month_name; # prints out the current month in French
 
 =over 4
 
@@ -3412,10 +3420,8 @@ sub _build_prefers_24_hour_time {
 
 		my $territory_id = $self->territory_id || '001';
 
-		my $first_day_hash = $self->week_data_first_day;
-		my $first_day = $first_day_hash->{$territory_id}
-			|| $first_day_hash->{'001'};
-
+		my $first_day = $self->week_data_first_day;
+		
 		return $days_2_number{$first_day};
 	}
 }
@@ -3560,15 +3566,15 @@ This method returns a hash that maps valid key aliases to their valid keys
 This method returns a hash of valid keys and the valid type codes you 
 can have with each key
 
-=language_aliases()
+=item language_aliases()
 
 This method returns a hash that maps valid language codes to their valid aliases
 
-=territory_aliases
+=item territory_aliases()
 
 This method returns a hash that maps valid territory codes to their valid aliases
 
-=variant_aliases()
+=item variant_aliases()
 
 This method returns a hash that maps valid variant codes to their valid aliases
 
@@ -3576,31 +3582,83 @@ This method returns a hash that maps valid variant codes to their valid aliases
 
 =head2 Information about weeks
 
-Each of these methods returns a hash ref keyed on territory code. If the territory 
-you are looking for is not in the hash use the territory_contained_by() method
-to work your way up the territory tree until you find a territory in the hash
+=cut
+
+sub _week_data {
+	my ($self, $territory_id, $week_data_hash) = @_;
+	
+	$territory_id //= ( $self->territory_id || $self->likely_subtag->territory_id );
+	
+	return $week_data_hash->{$territory_id} if exists $week_data_hash->{$territory_id};
+	
+	while (1) {
+		$territory_id = $self->territory_contained_by()->{$territory_id};
+		return unless defined $territory_id;
+		return $week_data_hash->{$territory_id} if exists $week_data_hash->{$territory_id};
+	}
+}
 
 =over 4
 
-=item week_data_min_days()
+=item week_data_min_days($territory_id)
 
-This method returns a hash ref keyed on territory id the value of which is the minimum 
-number of days a week must have to count as the starting week of the new year
+This method takes an optional territory id and returns a the minimum number of days
+a week must have to count as the starting week of the new year. It uses the current
+locales territory if no territory id is passed in.
 
-=item week_data_first_day()
+=cut
 
-This method returns a hash ref keyed on territory id the value of which is the three
-letter code of the first day of the week for that territory.
+sub week_data_min_days {
+	my ($self, $territory_id) = @_;
+	
+	my $week_data_hash = $self->_week_data_min_days();
+	return _week_data($self, $territory_id, $week_data_hash);
+}
+
+=item week_data_first_day($territory_id)
+
+This method takes an optional territory id and returns the three letter code of the 
+first day of the week for that territory. If no territory id is passed in then it
+uses the current locales territory.
+
+=cut
+
+sub week_data_first_day {
+	my ($self, $territory_id) = @_;
+	
+	my $week_data_hash = $self->_week_data_first_day();
+	return _week_data($self, $territory_id, $week_data_hash);
+}
 
 =item week_data_weekend_start()
 
-This method returns a hash ref keyed on territory id the value of which is the three
-letter code of the first day of the weekend for that territory.
+This method takes an optional territory id and returns the three letter code of the 
+first day of the week end for that territory. If no territory id is passed in then it
+uses the current locales territory.
+
+=cut
+
+sub week_data_weekend_start {
+	my ($self, $territory_id) = @_;
+	my $week_data_hash = $self->_week_data_weekend_start();
+	
+	return _week_data($self, $territory_id, $week_data_hash);
+}
 
 =item week_data_weekend_end()
 
-This method returns a hash ref keyed on territory id the value of which is the three
-letter code of the last day of the weekend for that territory.
+This method takes an optional territory id and returns the three letter code of the 
+first day of the week end for that territory. If no territory id is passed in then it
+uses the current locales territory.
+
+=cut
+
+sub week_data_weekend_end {
+	my ($self, $territory_id) = @_;
+	my $week_data_hash = $self->_week_data_weekend_end();
+	
+	return _week_data($self, $territory_id, $week_data_hash);
+}
 
 =back
 
