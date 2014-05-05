@@ -2245,7 +2245,7 @@ EOT
 \t} },
 );
 
-has 'default_currency' => (
+has '_default_currency' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
@@ -4064,9 +4064,14 @@ sub format_number {
 	
 	# Check if we need a currency and have not been given one.
 	# In that case we look up the default currency for the locale
-	if ($format =~ tr/¤/¤/ && ! defined $currency) {
-		my $default_currency_bundle = $self->_find_bundle('default_currency');
-		$currency = $default_currency_bundle->default_currency()->{$self->territory};
+	if ($format =~ tr/¤/¤/) {
+		
+		$currency = $self->default_currency()
+			if ! defined $currency;
+		
+		$currency = $self->currency_symbol($currency);
+	
+		$format =~ s/¤/$currency/;
 	}
 	
 	$format = $self->parse_number_format($format);

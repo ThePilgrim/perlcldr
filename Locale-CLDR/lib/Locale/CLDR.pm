@@ -42,7 +42,8 @@ use Moose;
 use MooseX::ClassAttribute;
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
 	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
-	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::TerritoryContainment', 'Locale::CLDR::CalendarPreferences';
+	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::TerritoryContainment', 'Locale::CLDR::CalendarPreferences',
+	'Locale::CLDR::Currencies';
 	
 use Class::Load;
 use namespace::autoclean;
@@ -3798,9 +3799,49 @@ The cash rounding increment, in units of 10^-cashdigits.
 
 =back
 
-=item default_currency()
+=item default_currency($territory_id)
 
-This method returns a hash ref keyed on territory. The value being the default currency id for that territory.
+This method returns the default currency id for the territory id.
+If no territory id is given then the current locales is used
+
+=cut
+
+sub default_currency {
+	my ($self, $territory_id) = @_;
+	
+	$territory_id //= ($self->territory_id || $self->likely_subtag->territory_id);
+	
+	my $default_currencies = $self->_default_currency;
+	
+	return $default_currencies->{$territory_id} if exists $default_currencies->{$territory_id};
+	
+	while (1) {
+		$territory_id = $self->territory_contained_by($territory_id);
+		last unless $territory_id;
+		return $default_currencies->{$territory_id} if exists $default_currencies->{$territory_id};
+	}
+}
+
+=item currency_symbol($currency_id)
+
+This method returns the currency symbol for the given currency id in the current locale.
+If no currency id is given it uses the locales default currency
+
+=cut
+
+sub currency_symbol {
+	my ($self, $currency_id) = @_;
+	
+	$currency_id //= $self->default_currency;
+	
+	my @bundles = reverse $self->_find_bundle('curriencies');
+	foreach my $bundle (@bundles) {
+		my $symbol = $bundle->curriencies()->{$currency_id}{symbol};
+		return $symbol if $symbol;
+	}
+	
+	return '';
+}
 
 =back
 

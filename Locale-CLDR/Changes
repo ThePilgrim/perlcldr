@@ -30,4 +30,5 @@ All dates are in ISO 8601 Format
 	- Change week data code so we no longer return a hash of all the data but
 		now take a territory id and return the data specifically for that territory
 	- Fixed up week data and calendar preferences to use territory containment 
+	- Added currency data to the number formatting code
 	- Added tests for the above changes
