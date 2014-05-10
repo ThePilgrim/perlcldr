@@ -3699,28 +3699,40 @@ then data is the name of the algorithm used to display numbers in that format.
 
 =over 4
 
-=item format_number($number, $format, $currency)
+=item format_number($number, $format, $currency, $for_cash)
 
 This method formats the number $number using the format $format. If the format contains
 the currency symbol C<¤> then the currency symbol for the currency code in $currency
 will be used. If $currency is undef() then the default currency code for the locale 
-will be used.
+will be used. 
 
-=item parse_number_format($format)
+$for_cash is only used during currency formatting. If true then cash rounding
+will be used otherwise financial rounding will be used. 
+
+=item add_currency_symbol($format, $symbol)
+
+This method returns the format with the currency symbol correctly inserted
+
+=item parse_number_format($format, $currency, $currency_data, $for_cash)
 
 This method parses a CLDR format string into a hash ref containing data used to 
-format a number. This should probably be a private function.
+format a number. If a currency is being formatted then $currency contains the
+currency code, $currency_data is a hashref containing the currency rounding
+information and $for_cash is a flag to signal cash or financial rounding. 
 
-=item round($number)
+This should probably be a private function.
 
-This method returns $number rounded to an integer with values of .5 or more rounded up 
-and less than .5 rounded down. It's here so that people who need a more sophisticated
-rounding mechanism can easily override it.
+=item round($number, $increment, $decimal_digits)
 
-=item get_formatted_number($number, $format_hash)
+This method returns $number rounded to the nearest $increment with $decimal_digits
+digits after the decimal point
 
-This method takes the $format_hash produced by parse_number_format() and uses it to
-parse $number. It returns a string containing the parsed number.
+=item get_formatted_number($number, $format, $currency_data, $for_cash)
+
+This method takes the $format produced by parse_number_format() and uses it to
+parse $number. It returns a string containing the parsed number. If a currency
+is being formatted then $currency_data is a hashref containing the currency 
+rounding information and $for_cash is a flag to signal cash or financial rounding. 
 
 =item get_digits()
 

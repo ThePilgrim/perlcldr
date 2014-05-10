@@ -2226,7 +2226,7 @@ sub process_currency_data {
 	}
 	
 	say $file <<EOT;
-has 'currency_fractions' => (
+has '_currency_fractions' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
@@ -2241,9 +2241,24 @@ EOT
 		say $file "\t\t},";
 	}
 	
-	say $file <<EOT;
+	say $file <<'EOT';
 \t} },
 );
+
+sub currency_fractions {
+	my ($self, $currency) = @_;
+	
+	my $currency_data = $self->_currency_fractions()->{$currency};
+	
+	$currency_data = {
+		digits 			=> 2,
+		cashdigits 		=> 2,
+		rounding 		=> 0,
+		cashrounding	=> 0,
+	} unless $currency_data;
+	
+	return $currency_data;
+}
 
 has '_default_currency' => (
 \tis\t\t\t=> 'ro',
@@ -4058,36 +4073,76 @@ use Moose::Role;
 
 # This method assumes a numeric numbering system. It will have to be re written to handle algorithmic systems later 
 sub format_number {
-	my ($self, $number, $format, $currency) = @_;
+	my ($self, $number, $format, $currency, $for_cash) = @_;
 	
 	$format //= '0';
+	
+	my $currency_data;
 	
 	# Check if we need a currency and have not been given one.
 	# In that case we look up the default currency for the locale
 	if ($format =~ tr/¤/¤/) {
+	
+		$for_cash //=0;
 		
 		$currency = $self->default_currency()
 			if ! defined $currency;
 		
+		$currency_data = $self->_get_currency_data($currency);
+		
 		$currency = $self->currency_symbol($currency);
-	
-		$format =~ s/¤/$currency/;
 	}
 	
-	$format = $self->parse_number_format($format);
+	$format = $self->parse_number_format($format, $currency, $currency_data, $for_cash);
 	
-	$number = $self->get_formatted_number($number, $format);
+	$number = $self->get_formatted_number($number, $format, $currency_data, $for_cash);
 	
 	return $number;
 }
 
+sub add_currency_symbol {
+	my ($self, $format, $symbol) = @_;
+	
+	return $format =~ s/¤/$symbol/r;
+}
+
+sub _get_currency_data {
+	my ($self, $currency) = @_;
+	
+	my $currency_data = $self->currency_fractions($currency);
+	
+	return $currency_data;
+}
+
+sub _get_currency_rounding {
+
+	my ($self, $currency_data, $for_cash) = @_;
+	
+	my $rounder = $for_cash ? 'cashrounding' : 'rounding' ;
+	
+	return $currency_data->{$rounder};
+}
+
+sub _get_currency_digits {
+	my ($self, $currency_data, $for_cash) = @_;
+	
+	my $digits = $for_cash ? 'cashdigits' : 'digits' ;
+	
+	return $currency_data->{$digits};
+}
+
+
 sub parse_number_format {
-	my ($self, $format) = @_;
+	my ($self, $format, $currency, $currency_data, $for_cash) = @_;
 
 	use feature 'state';
 	
 	state %cache;
+	
 	return $cache{$format} if exists $cache{$format};
+	
+	$format = $self->add_currency_symbol($format, $currency)
+		if defined $currency;
 	
 	my ($positive, $negative) = $format =~ /^((?:'[^']*')++ | [^';]+)+ (?:;(.+))?$/x;
 	
@@ -4139,6 +4194,9 @@ sub parse_number_format {
 		
 		my $rounding = $to_parse =~ /([1-9][0-9]*(?:\.[0-9]+)?)/;
 		$rounding ||= 0;
+		
+		$rounding = $self->_get_currency_rounding($currency_data, $for_cash)
+			if defined $currency;
 		
 		my ($integer, $decimal) = split /\./, $to_parse;
 		
@@ -4195,13 +4253,36 @@ sub parse_number_format {
 	return $cache{$format};
 }
 
-# Crappy rounding function
+# Rounding function
 sub round {
-	return int ($_[1] + .5 );
+	my ($self, $number, $increment, $decimal_digits) = @_;
+
+	if ($increment ) {
+		$number /= $increment;
+		$number = int ($number + .5 );
+		$number *= $increment;
+	}
+	
+	if ( $decimal_digits ) {
+		$number *= 10 ** $decimal_digits;
+		$number = int $number;
+		$number /= 10 ** $decimal_digits;
+		
+		my ($decimal) = $number =~ /(\..*)/; 
+		$decimal //= '.'; # No fraction so add a decimal point
+		
+		$number = int ($number) . $decimal . ('0' x ( $decimal_digits - length( $decimal ) +1 ));
+	}
+	else {
+		# No decimal digits wanted
+		$number = int $number;
+	}
+	
+	return $number;
 }
 
 sub get_formatted_number {
-	my ($self, $number, $format) = @_;
+	my ($self, $number, $format, $currency_data, $for_cash) = @_;
 	
 	my @digits = $self->get_digits;
 	my @number_symbols_bundles = reverse $self->_find_bundle('number_symbols');
@@ -4214,8 +4295,14 @@ sub get_formatted_number {
 	
 	$number *= $format->{$type}{multiplier};
 	
-	if ($format->{rounding}) {
-		$number = $format->{$type}{rounding} * $self->round( ($number / $format->{$type}{rounding}) );
+	if ($format->{rounding} || defined $for_cash) {
+		my $decimal_digits = 0;
+		
+		if (defined $for_cash) {
+			$decimal_digits = $self->_get_currency_digits($currency_data, $for_cash)
+		}
+		
+		$number = $self->round($number, $format->{$type}{rounding}, $decimal_digits);
 	}
 	
 	my $pad_zero = $format->{$type}{minimum_digits} - length "$number";
