@@ -1,10 +1,10 @@
 #!/usr/bin/perl
 # Do not normalise this test file. It has deliberately unnormalised characters in it.
-use v5.18;
+use v5.10;
 use strict;
 use warnings;
 use utf8;
-use feature 'unicode_strings';
+use if $^V ge v5.12.0, feature => 'unicode_strings';
 
 use Test::More tests => 64;
 use Test::Exception;

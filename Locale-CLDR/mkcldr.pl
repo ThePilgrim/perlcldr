@@ -391,12 +391,18 @@ sub process_class_any {
         my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
         open my $file, '>:utf8', "$lib_path.pm";
         print $file <<EOT;
-package $package v$VERSION;
+package $package;
+
 # This file auto generated
 #\ton $now GMT
 
-use v5.18;
+use version;
+
+our \$VERSION = version->declare('v$VERSION');
+
+use v5.10;
 use mro 'c3';
+use if \$^V ge v5.12.0, feature => 'unicode_strings';
 
 use Moose;
 
@@ -425,14 +431,19 @@ sub process_header {
     $xml_generated=~s/^\$Date: (.*) \$$/$1/;
 
 	my $header = <<EOT;
-package $class v$VERSION;
+package $class;
 # This file auto generated from $xml_name
 #\ton $now GMT
 # XML file generated $xml_generated
 
-use v5.18;
+use version;
+
+our \$VERSION = version->declare('v$VERSION');
+
+use v5.10;
 use mro 'c3';
 use utf8;
+use if \$^V ge v5.12.0, feature => 'unicode_strings';
 
 use Moose$isRole;
 
@@ -1507,19 +1518,25 @@ has 'characters' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
-\tdefault\t\t=> sub {
+\tdefault\t\t=> \$^V ge v5.18.0
+\t? eval <<'EOT'
+\tsub {
 \t\tno warnings 'experimental::regex_sets';
 \t\treturn {
 EOT
     foreach my $type (sort keys %data) {
         say $file "\t\t\t$type => $data{$type}";
     }
-    print $file <<EOT;
+    print $file <<EOFILE;
 \t\t};
 \t},
+EOT
+: sub {
+	return { index => $data{index} };
+},
 );
 
-EOT
+EOFILE
 }
 
 sub process_ellipsis {
@@ -2242,7 +2259,7 @@ EOT
 	}
 	
 	say $file <<'EOT';
-\t} },
+	} },
 );
 
 sub currency_fractions {
@@ -2261,10 +2278,10 @@ sub currency_fractions {
 }
 
 has '_default_currency' => (
-\tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
-\tinit_arg\t=> undef,
-\tdefault\t\t=> sub { {
+	is			=> 'ro',
+	isa			=> 'HashRef',
+	init_arg	=> undef,
+	default		=> sub { {
 EOT
 	
 	foreach my $territory (sort keys %default_currency) {
@@ -4058,16 +4075,23 @@ sub write_out_number_formatter {
 	# write out the code for the CLDR::NumberFormater module
 	my $file = shift;
 	
-	say $file "package Locale::CLDR::NumberFormatter v$VERSION;";
+	say $file <<EOT;
+package Locale::CLDR::NumberFormatter;
+
+use version;
+
+our \$VERSION = version->declare('v$VERSION');
+EOT
 	binmode DATA, ':utf8';
 	print $file $_ while <DATA>;
 }
 
 __DATA__
 
-use v5.18;
+use v5.10;
 use mro 'c3';
 use utf8;
+use if $^V ge v5.12.0, feature => 'unicode_strings';
 
 use Moose::Role;
 
@@ -4103,7 +4127,9 @@ sub format_number {
 sub add_currency_symbol {
 	my ($self, $format, $symbol) = @_;
 	
-	return $format =~ s/¤/$symbol/r;
+	$format =~ s/¤/$symbol/;
+	
+	return $format;
 }
 
 sub _get_currency_data {

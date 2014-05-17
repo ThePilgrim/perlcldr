@@ -1175,5 +1175,6 @@ t/15-Calendars.t
 t/16-Names.t
 t/17-DateTime.t
 t/18-Overrides.t
+t/19-Currency.t
 t/pod-coverage.t
 t/pod.t

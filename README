@@ -1,6 +1,6 @@
 Locale-CLDR
 
-Please note that this code requires Perl 5.18 and above
+This code requires Perl 5.10 or above. There are some features that require Perl 5.18 or above.
 
 The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
 modules that can be loaded from the main Local::CLDR when needed to do what ever localisation is required.
