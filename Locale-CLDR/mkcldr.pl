@@ -1532,7 +1532,15 @@ EOT
 \t},
 EOT
 : sub {
-	return { index => $data{index} };
+EOFILE
+if ($data{index}) {
+	say $file "\t\treturn { index => $data{index} };"
+}
+else {
+	say $file "\t\treturn {};";
+}
+
+say $file <<EOFILE
 },
 );
 
@@ -3671,6 +3679,11 @@ sub process_transform_data {
 
     # Print out transforms
     print $file <<EOT;
+BEGIN {
+\tdie "Transliteration requires Perl 5.18 or above"
+\t\tunless \$^V ge v5.18.0;
+}
+
 no warnings 'experimental::regex_sets';
 has 'transforms' => (
 \tis => 'ro',

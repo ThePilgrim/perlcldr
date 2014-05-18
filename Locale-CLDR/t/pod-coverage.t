@@ -15,6 +15,6 @@ eval "use Pod::Coverage $min_pc";
 plan skip_all => "Pod::Coverage $min_pc required for testing POD coverage"
     if $@;
 
-pod_coverage_ok('Locale::CLDR' => {also_private => [qr/^BUILD(?:ARGS)?$/]});
+pod_coverage_ok('Locale::CLDR' => {also_private => [qr/^BUILD(?:ARGS)?$/, 'fc']});
 
 done_testing();

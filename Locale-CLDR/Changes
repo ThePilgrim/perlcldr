@@ -25,11 +25,12 @@ All dates are in ISO 8601 Format
 	- Added tests for the extension code
 	- Added documentation for the extension code
 	
-0.25.1 
+0.25.1 2014-05-18
 	- Updates and fixes to documentation
 	- Change week data code so we no longer return a hash of all the data but
 		now take a territory id and return the data specifically for that territory
 	- Fixed up week data and calendar preferences to use territory containment 
 	- Added currency data to the number formatting code
 	- Added tests for the above changes
-	- Allow for use with Perl v5.10 and above
+	- Allow for use with Perl 5.10 and above
+	- Fixed tests to handle Perl 5.10 and above

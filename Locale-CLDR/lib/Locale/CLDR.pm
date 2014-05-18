@@ -2558,6 +2558,8 @@ empty string. The C<variant> is optional.
 =cut
 
 sub transform {
+	_new_perl();
+	
 	my ($self, %params) = @_;
 	
 	my $from 	= $params{from} // $self;
