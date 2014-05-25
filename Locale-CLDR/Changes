@@ -34,3 +34,5 @@ All dates are in ISO 8601 Format
 	- Added tests for the above changes
 	- Allow for use with Perl 5.10 and above
 	- Fixed tests to handle Perl 5.10 and above
+	
+0.25.2

@@ -28,7 +28,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 25;
-my $REVISION = 1;
+my $REVISION = 2;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -4359,7 +4359,7 @@ sub get_formatted_number {
 		@parts = ($minor);
 		while (1) {
 			my ($major) = $integer =~ /($major_group)$/;
-			if (length $major) {
+			if (defined $major && length $major) {
 				$integer =~ s/$major_group$//;
 				unshift @parts, $major;
 			}
