@@ -50,7 +50,7 @@ use MooseX::ClassAttribute;
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
 	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
 	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::TerritoryContainment', 'Locale::CLDR::CalendarPreferences',
-	'Locale::CLDR::Currencies';
+	'Locale::CLDR::Currencies', 'Locale::CLDR::Plurals';
 	
 use Class::Load;
 use namespace::autoclean;
@@ -2755,12 +2755,6 @@ the plural state of the number
 
 =cut
 
-# Stub until I get onto numbers
-sub plural {
-	return 'one' if $_[1] =~ /1$/;
-	return 'other';
-}
-
 sub _clear_calendar_data {
 	my $self = shift;
 
@@ -3894,7 +3888,12 @@ If no territory id is given then the current locales is used
 sub default_currency {
 	my ($self, $territory_id) = @_;
 	
-	$territory_id //= ($self->territory_id || $self->likely_subtag->territory_id);
+	$territory_id //= $self->territory_id;
+	
+	if (! $territory_id) {
+		 $territory_id = $self->likely_subtag->territory_id;
+		 warn "Locale::CLDR::default_currency:- No territory given using $territory_id at ";
+	}
 	
 	my $default_currencies = $self->_default_currency;
 	
