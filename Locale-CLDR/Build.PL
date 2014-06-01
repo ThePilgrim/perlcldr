@@ -12,7 +12,7 @@ my $builder = Module::Build->new(
         'MooseX::ClassAttribute'    => '0.26',
         'XML::Parser'               => '2.41',
         'XML::XPath'                => '1.13',
-        'perl'                      => '5.10',
+        'perl'                      => '5.10.0',
     },
     dist_author         => q{John Imrie <john.imrie1@gmail.com>},
     dist_version_from   => 'lib/Locale/CLDR.pm',
