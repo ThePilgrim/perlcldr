@@ -87,6 +87,7 @@ BEGIN {
 		};
 	}
 }
+
 =head1 ATTRIBUTES
 
 These can be passed into the constructor and all are optional.
@@ -2752,6 +2753,12 @@ This method takes a number and uses the locales pluralisation
 rules to calculate the type of pluralisation required for
 units, currencies and other data that changes depending on
 the plural state of the number
+
+=item plural_range($start, $end)
+
+This method returns the plural type for the range $start to $end
+$start and $end can either be numbers or one of the plural types
+C<zero one two few many other>
 
 =cut
 

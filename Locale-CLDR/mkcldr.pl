@@ -178,6 +178,16 @@ say "Processing file $file_name" if $verbose;
 # Note: The order of these calls is important
 process_header($file, 'Locale::CLDR::Plurals', $CLDR_VERSION, $xml, $file_name, 1);
 process_plurals($file, $plural_xml, $ordanal_xml);
+
+$file_name = File::Spec->catfile($base_directory,
+    'supplemental',
+    'pluralRanges.xml'
+);
+
+my $plural_ranges_xml = XML::XPath->new(
+    File::Spec->catfile($file_name));
+
+process_plural_ranges($file, $plural_ranges_xml);
 process_footer($file, 1);
 close $file;
 
@@ -3600,6 +3610,57 @@ sub plural {
 		return $count if $_plurals{$type}{$language_id}{$count}->($number);
 	}
 	return 'other';
+}
+
+EOT
+}
+
+sub process_plural_ranges {
+	my ($file, $xml) = @_;
+	
+	my %range;
+	my $plurals = findnodes($xml,
+		q(/supplementalData/plurals/pluralRanges)
+	);
+
+	foreach my $plural_node ($plurals->get_nodelist) {
+		my $locales = $plural_node->getAttribute('locales');
+		my @locales = split /\s+/, $locales;
+		my $range_nodes = findnodes($xml,
+			qq(/supplementalData/plurals/pluralRanges[\@locales='$locales']/pluralRange)
+		);
+	
+		foreach my $range_node ($range_nodes->get_nodelist) {
+			my ($start, $end, $result) = ($range_node->getAttribute('start'), $range_node->getAttribute('end'), $range_node->getAttribute('result'));
+			foreach my $locale (@locales) {
+				$range{$locale}{$start}{$end} = $result;
+			}
+		}
+	}
+	
+	say $file "my %_plural_ranges = (";
+	foreach my $locale (sort keys %range) {
+		say $file "\t$locale => {";
+		foreach my $start (sort keys %{$range{$locale}}) {
+			say $file "\t\t$start => {";
+			foreach my $end (sort keys %{$range{$locale}{$start}}) {
+				say $file "\t\t\t$end => '$range{$locale}{$start}{$end}',";
+			}
+			say $file "\t\t},";
+		}
+		say $file "\t},";
+	}
+	say $file <<'EOT';
+);
+	
+sub plural_range {
+	my ($self, $start, $end) = @_;
+	my $language_id = $self->language_id || $self->likely_subtag->language_id;
+	
+	$start = $self->plural($start) if $start =~ /^-?(?:[0-9]+\.)?[0-9]+$/;
+	$end   = $self->plural($end)   if $end   =~ /^-?(?:[0-9]+\.)?[0-9]+$/;
+	
+	return $_plural_ranges{$language_id}{$start}{$end} // 'other';
 }
 
 EOT

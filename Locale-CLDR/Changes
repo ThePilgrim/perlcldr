@@ -38,4 +38,5 @@ All dates are in ISO 8601 Format
 0.25.2
 	- Added Pluralisation rules
 	- Added warning when falling back to the likely territory when getting a default currency.
+	- Added plural range code
     - Added tests for above
