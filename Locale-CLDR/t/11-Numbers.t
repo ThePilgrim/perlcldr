@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 10;
+use Test::More tests => 17;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -61,3 +61,14 @@ is($locale_en->format_number(12345.6, '###,#00%'), '1,234,560%', 'Format a perce
 is($locale_en->format_number(12345.6, '###,#00‰'), '12,345,600‰', 'Format a per thousand' );
 is($locale_en->format_number(12345678, '#,####,00%'), '1234,5678,00%', 'Format percent with different grouping');
 is($locale_ks->format_number(12345678.9, '#,####,00'), "۱۲٬۳۴۵۶٬۷۸٫۹", 'Format with different grouping and different digits');
+
+# RBNF
+is($locale_en->format_number(0, 'spellout-numbering-year'), 'zero', 'RBNF: Spell out year 0');
+is($locale_en->format_number('-0.0', 'spellout-numbering'), 'minus zero point zero', 'RBNF: Spell out -0.0');
+is($locale_en->format_number(123456, 'roman-lower'), '123,456', 'Number grater than max value');
+is($locale_en->format_number(1234, 'roman-lower'), 'mccxxxiv', 'Roman Number');
+
+my $locale_ar = Locale::CLDR->new('ar_u_nu_armn');
+is($locale_ar->format_number(1234),'ՌՄԼԴ','Format Armenian number');
+is($locale_ar->format_number(1230),'ՌՄԼ','Format Armenian number with no units');
+is($locale_ar->format_number(1204),'ՌՄԴ','Format Armenian number with no tens');
