@@ -29,7 +29,7 @@ my $builder = Module::Build->new(
     add_to_cleanup      => [ 'Locale-CLDR-*' ],
 	configure_requires => { 'Module::Build' => '0.40' },
     create_makefile_pl => 'traditional',
-	release_status => 'unstable',
+	release_status => 'stable',
 );
 
 $builder->create_build_script();

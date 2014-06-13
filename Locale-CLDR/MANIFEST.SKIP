@@ -48,6 +48,8 @@
 \B\.DS_Store
 # Mac OSX SMB mount metadata files
 \B\._
+# Windows desktop.ini
+\bdesktop\.ini$
 
 # Avoid Devel::Cover and Devel::CoverX::Covered files.
 \bcover_db\b
