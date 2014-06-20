@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 17;
+use Test::More tests => 18;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -72,3 +72,6 @@ my $locale_ar = Locale::CLDR->new('ar_u_nu_armn');
 is($locale_ar->format_number(1234),'ՌՄԼԴ','Format Armenian number');
 is($locale_ar->format_number(1230),'ՌՄԼ','Format Armenian number with no units');
 is($locale_ar->format_number(1204),'ՌՄԴ','Format Armenian number with no tens');
+
+my $locale_en_jp = Locale::CLDR->new('en_u_nu_jpanfin');
+is($locale_en_jp->format_number(1234), '壱千弐百参拾四', 'English locale with Japanese financial numbering'); 

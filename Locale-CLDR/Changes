@@ -43,3 +43,6 @@ All dates are in ISO 8601 Format
 
 0.25.3 2014-06-12
 	- Rule Based Number Formatting
+
+0.25.4 2014-06-20
+	- Fixes to bugs found in the rule base number formatting

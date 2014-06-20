@@ -28,7 +28,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 25;
-my $REVISION = 3;
+my $REVISION = 4;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -303,6 +303,17 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 	$xml = XML::XPath->new($full_file_name);
     process_transforms($transformations_directory, $xml, $full_file_name);
 }
+
+#Collation
+# First move the base collation file into directory in the package file space
+say "Copying base collation file" if $verbose;
+open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'));
+open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'allkeys_CLDR.txt'));
+print $Allkeys_out $_ while (<$Allkeys_in>);
+close $Allkeys_in;
+close $Allkeys_out;
+
+
 
 # Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
@@ -4281,6 +4292,8 @@ sub convert {
 sub process_rbnf {
 	my ($file, $xml) = @_;
 	
+	use bignum;
+	
 	# valid_algorithmic_formats
 	my @valid_formats;
 	my %types = ();
@@ -4308,7 +4321,8 @@ sub process_rbnf {
 				$rule =~ s/;.*$//;
 				
 				my @base_value = ($base =~ /[^0-9]/ ? () : ( base_value => $base ));
-				my @divisor = ($divisor ? (divisor => $divisor) : ());
+				# We add .5 to $base below to offset rounding errors
+				my @divisor = ( divisor => ($divisor || ($base_value[1] ? (10 ** ($base ? int( log( $base+ .5 ) / log(10) ) : 0) ) :1 )));
 				$types{$ruleset}{$access || 'public'}{$base} = {
 					rule => $rule,
 					@divisor,
@@ -4336,7 +4350,9 @@ has 'algorithmic_number_format_data' => (
 	is => 'ro',
 	isa => 'HashRef',
 	init_arg => undef,
-	default => sub { {
+	default => sub { 
+		use bignum;
+		return {
 EOT
 	foreach my $ruleset (sort keys %types) {
 		say $file "\t\t'$ruleset' => {";
@@ -4404,6 +4420,12 @@ sub format_number {
 		else {
 			$format = '0';
 		}
+	}
+
+	# Some of these algorithmic formats are in locale/type/name format
+	if (my ($locale_id, $type, $format) = $format =~ m(^(.*?)/(.*?)/(.*?)$)) {
+		my $locale = Locale::CLDR->new($locale_id);
+		return $locale->format_number($number, $format);
 	}
 	
 	# First check to see if this is an algorithmic format
@@ -4751,7 +4773,7 @@ sub _process_algorithmic_number_data {
 	my $format = $self->_get_algorithmic_number_format($number, $format_data);
 	
 	my $format_rule = $format->{rule};
-	my $divisor = $format->{divisor} // 10;
+	my $divisor = $format->{divisor};
 	my $base_value = $format->{base_value} // '';
 	
 	# Negative numbers
@@ -4854,7 +4876,7 @@ sub _process_algorithmic_number_data {
 				$format_rule =~ s/\[.*\]//;
 			}
 			# Not fractional rule set      Number is a multiple of $divisor and the multiple is even
-			elsif (! $in_fraction_rule_set && ! ($number % $base_value) ) {
+			elsif (! $in_fraction_rule_set && ! ($number % $divisor) ) {
 				$format_rule =~ s/\[.*\]//;
 			}
 			else {
@@ -4894,14 +4916,14 @@ sub _process_algorithmic_number_data {
 					}
 					my $format_data = $self->_get_algorithmic_number_format_data_by_name($rule_name, $type);
 					if ($format_data) {
-						$format_rule =~ s/→(.+)→/$self->_process_algorithmic_number_data($number % $base_value, $format_data)/e;
+						$format_rule =~ s/→(.+)→/$self->_process_algorithmic_number_data($number % $divisor, $format_data)/e;
 					}
 					else {
-						$format_rule =~ s/→(.*)→/$self->format_number($number % $base_value, $1)/e;
+						$format_rule =~ s/→(.*)→/$self->format_number($number % $divisor, $1)/e;
 					}
 				}
 				else {
-					$format_rule =~ s/→→/$self->_process_algorithmic_number_data($number % $base_value, $format_data)/e;
+					$format_rule =~ s/→→/$self->_process_algorithmic_number_data($number % $divisor, $format_data)/e;
 				}
 			}
 			
@@ -4955,6 +4977,7 @@ sub _process_algorithmic_number_data_fractions {
 sub _get_algorithmic_number_format {
 	my ($self, $number, $format_data) = @_;
 	
+	use bignum;
 	return $format_data->{'-x'} if $number =~ /^-/ && exists $format_data->{'-x'};
 	return $format_data->{'x.x'} if $number =~ /\./ && exists $format_data->{'x.x'};
 	return $format_data->{0} if $number == 0 || $number =~ /^-/;
