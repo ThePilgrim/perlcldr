@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.25.1
+Version 0.25.5
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.25.3');
+our $VERSION = version->declare('v0.25.5');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -58,6 +58,8 @@ use List::Util qw(first);
 use Class::MOP;
 use DateTime::Locale;
 use Unicode::Normalize();
+use Unicode::Collate();
+use File::Spec();
 
 # Backwards compatibility
 BEGIN {
@@ -3951,6 +3953,61 @@ This method returns the default calendar id for the given territory. If no terri
 used the territory of the current locale.
 
 =back
+
+=head2 Collation
+
+=over 4
+
+=item collation()
+
+This method returns a Unicode::Collation object tailored to the current locale
+
+=back
+
+=cut
+
+sub collation {
+	my ($self, $type) = @_;
+	
+	$type //= $self->_default_collation;
+	
+	my $file = __FILE__;
+	$file =~ s/\.pm$//;
+	
+	my $key_file = File::Spec->catfile($file, 'allkeys_CLDR.txt');
+	
+	# Monkey patching Unicode::Collate::read_table so we can give it a full path 
+	{
+		no warnings 'redefine';
+		local *Unicode::Collate::read_table = sub {
+			my $self = shift;
+
+			my($f, $fh);
+			
+			$f = $self->{table};
+			open($fh, $f);
+			
+			while (my $line = <$fh>) {
+				next if $line =~ /^\s*#/;
+
+				if ($line =~ s/^\s*\@//) {
+					$self->parseAtmark($line);
+				} else {
+					$self->parseEntry($line);
+				}
+			}
+			close $fh;
+		};
+			
+		return Unicode::Collate->new(
+			table => $key_file,
+		);
+	}
+}
+
+sub _default_collation {
+	return 'standard';
+}
 
 =head1 AUTHOR
 

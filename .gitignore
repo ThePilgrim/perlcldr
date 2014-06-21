@@ -172,3 +172,4 @@ Makefile.PL
 META.*
 MYMETA.*
 Locale-CLDR-v*
+Locale-CLDR/blib/lib/Locale/CLDR.pm
