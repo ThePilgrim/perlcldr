@@ -4000,7 +4000,12 @@ sub collation {
 		};
 			
 		return Unicode::Collate->new(
+			backwards	=> [],
+			level => 3,
+			maxVariable => 'punct',
+			normalization => undef,
 			table => $key_file,
+			variable => 'non-ignorable',			
 		);
 	}
 }
