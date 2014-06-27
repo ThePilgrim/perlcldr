@@ -58,7 +58,7 @@ use List::Util qw(first);
 use Class::MOP;
 use DateTime::Locale;
 use Unicode::Normalize();
-use Unicode::Collate();
+use Locale::CLDR::Collator();
 use File::Spec();
 
 # Backwards compatibility
@@ -433,11 +433,6 @@ Vai Digits
 
 =back
 
-Note that the code currently only handles digits ie locales with 
-characters corresponding to 0 - 9, if you use a numerical number
-type it will fall back to C<latn>. Later versions are planned to 
-handle numerals correctly.
-
 =item ca
 
 =item calendar
@@ -548,7 +543,7 @@ stringify a locale object.
 
 Given a locale with no language passed in or with the explicit language
 code of C<und>, this method attempts to use the script and territory
-data to guess the locales language.
+data to guess the locale's language.
 
 =cut
 
@@ -573,7 +568,7 @@ sub _build_likely_language {
 =item likely_script()
 
 Given a locale with no script passed in this method attempts to use the
-language and territory data to guess the locales script.
+language and territory data to guess the locale's script.
 
 =cut
 
@@ -598,7 +593,7 @@ sub _build_likely_script {
 =item likely_territory()
 
 Given a locale with no territory passed in this method attempts to use the
-language and script data to guess the locales territory.
+language and script data to guess the locale's territory.
 
 =back
 
@@ -730,31 +725,31 @@ for the language.
 
 =item name
 
-The locales name. This is usually built up out of the language, 
+The locale's name. This is usually built up out of the language, 
 script, territory and variant of the locale
 
 =item language
 
-The name of the locales language
+The name of the locale's language
 
 =item script
 
-The name of the locales script
+The name of the locale's script
 
 =item territory
 
-The name of the locales territory
+The name of the locale's territory
 
 =item variant
 
-The name of the locales variant
+The name of the locale's variant
 
 =back
 
 =head2 Native Meta Data
 
 Like Meta Data above this provides the names of the various id's 
-passed into the locales constructor. However in this case the
+passed into the locale's constructor. However in this case the
 names are formatted to match the locale. I.e. if you passed 
 C<language =E<gt> 'fr'> to the constructor you would get back 
 C<français> for the language.
@@ -763,25 +758,25 @@ C<français> for the language.
 
 =item native_name
 
-The locales name. This is usually built up out of the language, 
-script, territory and variant of the locale. Returned in the locales
+The locale's name. This is usually built up out of the language, 
+script, territory and variant of the locale. Returned in the locale's
 language and script
 
 =item native_language
 
-The name of the locales language in the locales language and script.
+The name of the locale's language in the locale's language and script.
 
 =item native_script
 
-The name of the locales script in the locales language and script.
+The name of the locale's script in the locale's language and script.
 
 =item native_territory
 
-The name of the locales territory in the locales language and script.
+The name of the locale's territory in the locale's language and script.
 
 =item native_variant
 
-The name of the locales variant in the locales language and script.
+The name of the locale's variant in the locale's language and script.
 
 =back
 
@@ -1061,6 +1056,17 @@ has 'prefers_24_hour_time' => (
 
 Returns the numeric representation of the first day of the week
 With 0 = Saturday
+
+=item get_day_period($time)
+
+This method will calculate the correct
+period for a given time and return the period name in
+the locale's language and script
+
+=item format_for($date_time_format)
+
+This method takes a CLDR datetime format and returns
+the localised version of the format.
 
 =cut
 
@@ -1461,7 +1467,7 @@ If you don't pass in a locale then it will use $self.
 
 =item locale_name($name)
 
-Returns the given locale name in the current locales format. The name can be
+Returns the given locale name in the current locale's format. The name can be
 a locale id or a locale object or non existent. If a name is not passed in
 then the name of the current locale is returned.
 
@@ -1501,7 +1507,7 @@ sub locale_name {
 
 =item language_name($language)
 
-Returns the language name in the current locales format. The name can be
+Returns the language name in the current locale's format. The name can be
 a locale language id or a locale object or non existent. If a name is not
 passed in then the language name of the current locale is returned.
 
@@ -1567,7 +1573,7 @@ sub all_languages {
 
 =item script_name($script)
 
-Returns the script name in the current locales format. The script can be
+Returns the script name in the current locale's format. The script can be
 a locale script id or a locale object or non existent. If a script is not
 passed in then the script name of the current locale is returned.
 
@@ -1635,7 +1641,7 @@ sub all_scripts {
 
 =item territory_name($territory)
 
-Returns the territory name in the current locales format. The territory can be
+Returns the territory name in the current locale's format. The territory can be
 a locale territory id or a locale object or non existent. If a territory is not
 passed in then the territory name of the current locale is returned.
 
@@ -1679,7 +1685,7 @@ sub territory_name {
 =item all_territories
 
 Returns a hash ref keyed on territory id of all the territory the system 
-knows about. The values are the territory names for the corresponding id's 
+knows about. The values are the territory names for the corresponding ids 
 
 =cut
 
@@ -1703,7 +1709,7 @@ sub all_territories {
 
 =item variant_name($variant)
 
-Returns the variant name in the current locales format. The variant can be
+Returns the variant name in the current locale's format. The variant can be
 a locale variant id or a locale object or non existent. If a variant is not
 passed in then the variant name of the current locale is returned.
 
@@ -1734,7 +1740,7 @@ sub variant_name {
 
 =item key_name($key)
 
-Returns the key name in the current locales format. The key must be
+Returns the key name in the current locale's format. The key must be
 a locale key id as a string
 
 =cut
@@ -1766,7 +1772,7 @@ sub key_name {
 
 =item type_name($key, $type)
 
-Returns the type name in the current locales format. The key and type must be
+Returns the type name in the current locale's format. The key and type must be
 a locale key id and type id as a string
 
 =cut
@@ -1799,7 +1805,7 @@ sub type_name {
 	
 =item measurement_system_name($measurement_system)
 
-Returns the measurement system name in the current locales format. The measurement system must be
+Returns the measurement system name in the current locale's format. The measurement system must be
 a measurement system id as a string
 
 =cut
@@ -1822,7 +1828,7 @@ sub measurement_system_name {
 
 =item transform_name($name)
 
-Returns the transform (transliteration) name in the current locales format. The transform must be
+Returns the transform (transliteration) name in the current locale's format. The transform must be
 a transform id as a string
 
 =cut
@@ -1843,8 +1849,8 @@ sub transform_name {
 
 =item code_pattern($type, $locale)
 
-This method formats a language, script or territory name, given as $type
-from $locale in a way expected by the current locale. If $locale is
+This method formats a language, script or territory name, given as C<$type>
+from C<$locale> in a way expected by the current locale. If $locale is
 not passed in or is undef() the method uses the current locale.
 
 =cut
@@ -1932,7 +1938,7 @@ Note you need Perl 5.18 or above for this
 
 =item split_grapheme_clusters($string)
 
-Splits a string on grapheme clusters using the locals segmentation rules.
+Splits a string on grapheme clusters using the locale's segmentation rules.
 Returns a list of grapheme clusters.
 
 =cut
@@ -1955,7 +1961,7 @@ sub split_grapheme_clusters {
 
 =item split_words($string)
 
-Splits a string on word boundaries using the locals segmentation rules.
+Splits a string on word boundaries using the locale's segmentation rules.
 Returns a list of words.
 
 =cut
@@ -1974,7 +1980,7 @@ sub split_words {
 =item split_sentences($string)
 
 Splits a string on on all points where a sentence could
-end using the locals segmentation rules. Returns a list
+end using the locale's segmentation rules. Returns a list
 the end of each list element is the point where a sentence
 could end.
 
@@ -1994,7 +2000,7 @@ sub split_sentences {
 =item split_lines($string)
 
 Splits a string on on all points where a line could
-end using the locals segmentation rules. Returns a list
+end using the locale's segmentation rules. Returns a list
 the end of each list element is the point where a line
 could end.
 
@@ -2072,7 +2078,7 @@ sub _split {
 =item is_exemplar_character($character)
 
 Tests if the given character is used in the locale. There are 
-three possible types; c<main>, C<auxiliary> and c<punctuation>.
+three possible types; C<main>, C<auxiliary> and C<punctuation>.
 If no type is given C<main> is assumed. Unless the C<index> type
 is given you will have to have a Perl version of 5.18 or above
 to use this method
@@ -2098,7 +2104,7 @@ sub is_exemplar_character {
 =item index_characters()
 
 Returns an array ref of characters normally used when creating 
-an index.
+an index and ordered appropriatly.
 
 =cut
 
@@ -2219,7 +2225,7 @@ sub truncated_word_end {
 
 =item quote($string)
 
-Adds the locales primary quotation marks to the ends of the string.
+Adds the locale's primary quotation marks to the ends of the string.
 Also scans the string for paired primary and auxiliary quotation
 marks and flips them.
 
@@ -2383,7 +2389,7 @@ sub all_units {
 
 Returns the localised string for the given number and unit formatted for the 
 required width. The number must not be the localized version of the number.
-The returned string will be in the locales format, including the number.
+The returned string will be in the locale's format, including the number.
 
 =cut
 
@@ -2515,9 +2521,9 @@ sub duration_unit {
 
 =item is_yes($string)
 
-Returns true if the passed in string matches the locales 
+Returns true if the passed in string matches the locale's 
 idea of a string designating yes. Note that under POSIX
-rules unless the locales word for yes starts with C<Y>
+rules unless the locale's word for yes starts with C<Y>
 (U+0079) then a single 'y' will also be accepted as yes.
 The string will be matched case insensitive.
 
@@ -2532,9 +2538,9 @@ sub is_yes {
 
 =item is_no($string)
 
-Returns true if the passed in string matches the locales 
+Returns true if the passed in string matches the locale's 
 idea of a string designating no. Note that under POSIX
-rules unless the locales word for yes starts with C<n>
+rules unless the locale's word for no starts with C<n>
 (U+006E) then a single 'n' will also be accepted as no
 The string will be matched case insensitive.
 
@@ -2558,8 +2564,8 @@ This method requires Perl version 5.18 or above to use
 =item transform(from => $from, to => $to, variant => $variant, text => $text)
 
 This method returns the transliterated string of C<text> from script C<from>
-to script C<to> using variant C<variant>. If c<from> is not given then the 
-current locales script is used. If C<text> is not given then it defaults to an
+to script C<to> using variant C<variant>. If C<from> is not given then the 
+current locale's script is used. If C<text> is not given then it defaults to an
 empty string. The C<variant> is optional.
 
 =cut
@@ -2749,9 +2755,15 @@ sub list {
 	return $pattern;
 }
 
+=back
+
+=head2 Pluralisation
+
+=over 4
+
 =item plural($number)
 
-This method takes a number and uses the locales pluralisation
+This method takes a number and uses the locale's pluralisation
 rules to calculate the type of pluralisation required for
 units, currencies and other data that changes depending on
 the plural state of the number
@@ -2995,14 +3007,6 @@ sub _build_quarter_stand_alone_narrow {
 
 	return $self->_build_any_quarter($type, $width);
 }
-
-=item get_day_period($time)
-
-This method will calculate the correct
-period for a given time and return the period name in
-the Locales language and script
-
-=cut
 
 sub get_day_period {
 	# Time in hhmm
@@ -3409,12 +3413,6 @@ sub _build_format_data {
 	return {};
 }
 
-=item format_for
-
-TODO fix this 
-
-=cut
-
 sub format_for {
 	my ($self, $format) = @_;
 
@@ -3652,6 +3650,41 @@ This method returns a hash that maps valid variant codes to their valid aliases
 
 =head2 Information about weeks
 
+There are no standard codes for the days of the weeks so CLDR uses the following
+three tetter codes to represent unlocalised days
+
+=over 4
+
+=item sun
+
+Sunday
+
+=item mon
+
+Monday
+
+=item tue
+
+Tuesday
+
+=item wed
+
+Wednesday
+
+=item thu
+
+Thursday
+
+=item fri
+
+Friday
+
+=item sat
+
+Saturday
+
+=back
+
 =cut
 
 sub _week_data {
@@ -3674,7 +3707,7 @@ sub _week_data {
 
 This method takes an optional territory id and returns a the minimum number of days
 a week must have to count as the starting week of the new year. It uses the current
-locales territory if no territory id is passed in.
+locale's territory if no territory id is passed in.
 
 =cut
 
@@ -3689,7 +3722,7 @@ sub week_data_min_days {
 
 This method takes an optional territory id and returns the three letter code of the 
 first day of the week for that territory. If no territory id is passed in then it
-uses the current locales territory.
+uses the current locale's territory.
 
 =cut
 
@@ -3704,7 +3737,7 @@ sub week_data_first_day {
 
 This method takes an optional territory id and returns the three letter code of the 
 first day of the week end for that territory. If no territory id is passed in then it
-uses the current locales territory.
+uses the current locale's territory.
 
 =cut
 
@@ -3719,7 +3752,7 @@ sub week_data_weekend_start {
 
 This method takes an optional territory id and returns the three letter code of the 
 first day of the week end for that territory. If no territory id is passed in then it
-uses the current locales territory.
+uses the current locale's territory.
 
 =cut
 
@@ -3738,7 +3771,7 @@ sub week_data_weekend_end {
 
 =item territory_contains()
 
-This method returns a hash ref keyed on territory id. The value is an array ref
+This method returns a hash ref keyed on territory id. The value is an array ref.
 Each element of the array ref is a territory id of a territory immediately 
 contained in the territory used as the key
 
@@ -3784,6 +3817,10 @@ releases.
 $for_cash is only used during currency formatting. If true then cash rounding
 will be used otherwise financial rounding will be used. 
 
+This function also handles rule based number formatting. If $format is string equivilant
+to one of the current locale's public rule based number formats then $number will be 
+formatted according to that rule. 
+
 =item add_currency_symbol($format, $symbol)
 
 This method returns the format with the currency symbol $symbol correctly inserted
@@ -3791,7 +3828,7 @@ into the format
 
 =item parse_number_format($format, $currency, $currency_data, $for_cash)
 
-This method parses a CLDR format string into a hash ref containing data used to 
+This method parses a CLDR numeric format string into a hash ref containing data used to 
 format a number. If a currency is being formatted then $currency contains the
 currency code, $currency_data is a hashref containing the currency rounding
 information and $for_cash is a flag to signal cash or financial rounding. 
@@ -3890,7 +3927,7 @@ The cash rounding increment, in units of 10^-cashdigits.
 =item default_currency($territory_id)
 
 This method returns the default currency id for the territory id.
-If no territory id is given then the current locales is used
+If no territory id is given then the current locale's is used
 
 =cut
 
@@ -3918,7 +3955,7 @@ sub default_currency {
 =item currency_symbol($currency_id)
 
 This method returns the currency symbol for the given currency id in the current locale.
-If no currency id is given it uses the locales default currency
+If no currency id is given it uses the locale's default currency
 
 =cut
 
@@ -3960,7 +3997,8 @@ used the territory of the current locale.
 
 =item collation()
 
-This method returns a Unicode::Collation object tailored to the current locale
+This method returns a Locale::CLDR::Collator object. This is still in development. Future releases will
+try and match the API from L<Unicode::Collate> as much as possible and add tayloring for locales.
 
 =back
 
@@ -3971,43 +4009,7 @@ sub collation {
 	
 	$type //= $self->_default_collation;
 	
-	my $file = __FILE__;
-	$file =~ s/\.pm$//;
-	
-	my $key_file = File::Spec->catfile($file, 'allkeys_CLDR.txt');
-	
-	# Monkey patching Unicode::Collate::read_table so we can give it a full path 
-	{
-		no warnings 'redefine';
-		local *Unicode::Collate::read_table = sub {
-			my $self = shift;
-
-			my($f, $fh);
-			
-			$f = $self->{table};
-			open($fh, $f);
-			
-			while (my $line = <$fh>) {
-				next if $line =~ /^\s*#/;
-
-				if ($line =~ s/^\s*\@//) {
-					$self->parseAtmark($line);
-				} else {
-					$self->parseEntry($line);
-				}
-			}
-			close $fh;
-		};
-			
-		return Unicode::Collate->new(
-			backwards	=> [],
-			level => 3,
-			maxVariable => 'punct',
-			normalization => undef,
-			table => $key_file,
-			variable => 'non-ignorable',			
-		);
-	}
+	return Locale::CLDR::Collator->new();
 }
 
 sub _default_collation {
