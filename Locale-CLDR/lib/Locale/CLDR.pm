@@ -4009,7 +4009,7 @@ sub collation {
 	
 	$type //= $self->_default_collation;
 	
-	return Locale::CLDR::Collator->new();
+	return Locale::CLDR::Collator->new(type => $type);
 }
 
 sub _default_collation {
