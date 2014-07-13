@@ -5095,6 +5095,12 @@ no Moose::Role;
 # vim: tabstop=4
 
 __DATA__
+package Locale::CLDR::Collator;
+
+use version;
+
+our $VERSION = version->declare('v0.25.5');
+
 use v5.10;
 use mro 'c3';
 use utf8;
@@ -5109,13 +5115,19 @@ with 'Locale::CLDR::CollatorBase';
 has 'type' => (
 	is => 'ro',
 	isa => 'Str',
-	required => 1,
+	default => 'standard',
 );
 
 has 'locale' => (
 	is => 'ro',
 	isa => 'Locale::CLDR',
 	required => 1,
+);
+
+has 'strength' => (
+	is => 'ro',
+	isa => 'Int',
+	default => 3,
 );
 
 # Set up the locale overrides
@@ -5127,7 +5139,7 @@ sub BUILD {
 	foreach my $override (@$overrides) {
 		$self->_set_ce(@$override);
 	}
-};
+}
 
 # Converts $string into a string of Collation Elements
 sub getSortKey {
@@ -5139,7 +5151,7 @@ sub getSortKey {
 		
 	my $ce_length = length($ce) / 4;
 	
-	my $max_level = 4;
+	my $max_level = $self->strength;
 	my $key = '';
 	
 	my @lvl_re = (
@@ -5234,14 +5246,14 @@ sub ge {
 
 # Get Human readable sort key
 sub viewSortKey {
-	my ($self, $a) = @_;
+	my ($self, $sort_key) = @_;
 	
-	my $sort_key = $self->getSortKey($a);
+#	my $sort_key = $self->getSortKey($a);
 	
 	my @levels = split/\x0/, $sort_key;
 	
 	foreach my $level (@levels) {
-		$level = join ' ',  map { sprintf '%0.4X', $_ } split //, $level;
+		$level = join ' ',  map { sprintf '%0.4X', ord } split //, $level;
 	}
 	
 	return '[ ' . join (' | ', @levels) . ' ]';
