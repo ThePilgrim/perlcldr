@@ -527,11 +527,15 @@ sub process_collation_base {
 
 	print $Allkeys_out <<EOT;
 has 'collation_base' => (
-	is => 'ro',
-	isa => 'HashRef',
-	init_arg => undef,
-	init_arg => undef,
-	default => sub {
+	is			=> 'ro',
+	isa			=> 'HashRef',
+	init_arg	=> undef,
+	traits 		=> ['Hash'],
+	handles		=> {
+		_set_ce	=> 'set',
+		get_collation_element	=> 'get',
+	},
+	default		=> sub {
 		{
 EOT
 	
@@ -5091,7 +5095,6 @@ no Moose::Role;
 # vim: tabstop=4
 
 __DATA__
-
 use v5.10;
 use mro 'c3';
 use utf8;
@@ -5103,14 +5106,37 @@ use Moose;
 
 with 'Locale::CLDR::CollatorBase';
 
-# Converts $string into a string of Collation Ellements
+has 'type' => (
+	is => 'ro',
+	isa => 'Str',
+	required => 1,
+);
+
+has 'locale' => (
+	is => 'ro',
+	isa => 'Locale::CLDR',
+	required => 1,
+);
+
+# Set up the locale overrides
+sub BUILD {
+	my $self = shift;
+	
+	my $overrides = $self->locale->collation_overrides($self->type);
+	
+	foreach my $override (@$overrides) {
+		$self->_set_ce(@$override);
+	}
+};
+
+# Converts $string into a string of Collation Elements
 sub getSortKey {
 	my ($self, $string) = @_;
 	
 	$string = NFD($string);
 	
-	(my $ce = $string) =~ s/(.)/ $self->collation_base()->{$1} /eg;
-	
+	(my $ce = $string) =~ s/(.)/ $self->get_collation_element($1) || do { my $ce = $self->generate_ce($1); $self->_set_ce($1, $ce); $ce } /eg;
+		
 	my $ce_length = length($ce) / 4;
 	
 	my $max_level = 4;
@@ -5132,6 +5158,29 @@ sub getSortKey {
 	return $key;
 }
 
+sub generate_ce {
+	my ($character) = @_;
+	
+	my $base;
+	
+	if ($character =~ /\p{Unified_Ideograph}/) {
+		if ($character =~ /\p{Block=CJK_Unified_Ideograph}/ || $character =~ /\p{Block=CJK_Compatibility_Ideographs}/) {
+			$base = 0xFB40;
+		}
+		else {
+			$base = 0xFB80;
+		}
+	}
+	else {
+		$base = 0xFBC0;
+	}
+	
+	my $aaaa = $base + unpack( 'L', (pack ('L', ord($character)) >> 15));
+	my $bbbb = unpack('L', (pack('L', ord($character)) & 0x7FFF) | 0x8000);
+	
+	return join '', map {chr($_)} $aaaa, 0x0020, 0x0002,0, $bbbb,0,0,0;
+}
+
 # sorts a list according to the locales collation rules
 sub sort {
 	my $self = shift;
@@ -5149,36 +5198,36 @@ sub cmp {
 }
 
 sub eq {
-	my ($self $a, $b) = @_;
+	my ($self, $a, $b) = @_;
 	
 	return $self->getSortKey($a) eq $self->getSortKey($b);
 }
 
 sub ne {
-	my ($self $a, $b) = @_;
+	my ($self, $a, $b) = @_;
 	
 	return $self->getSortKey($a) ne $self->getSortKey($b);
 }
 
 sub lt {
-	my ($self $a, $b) = @_;
+	my ($self, $a, $b) = @_;
 	
 	return $self->getSortKey($a) lt $self->getSortKey($b);
 }
 
 sub le {
-	my ($self $a, $b) = @_;
+	my ($self, $a, $b) = @_;
 	
 	return $self->getSortKey($a) le $self->getSortKey($b);
 }
 sub gt {
-	my ($self $a, $b) = @_;
+	my ($self, $a, $b) = @_;
 	
 	return $self->getSortKey($a) lt $self->getSortKey($b);
 }
 
 sub ge {
-	my ($self $a, $b) = @_;
+	my ($self, $a, $b) = @_;
 	
 	return $self->getSortKey($a) le $self->getSortKey($b);
 }

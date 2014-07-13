@@ -3998,22 +3998,46 @@ used the territory of the current locale.
 =item collation()
 
 This method returns a Locale::CLDR::Collator object. This is still in development. Future releases will
-try and match the API from L<Unicode::Collate> as much as possible and add tayloring for locales.
+try and match the API from L<Unicode::Collate> as much as possible and add tailoring for locales.
 
 =back
 
 =cut
 
 sub collation {
-	my ($self, $type) = @_;
+	my ($self, %params) = @_;
 	
-	$type //= $self->_default_collation;
+	$params{type} //= $self->_default_collation;
+	$params{strength} //= $self->_default_collation_strength;
 	
-	return Locale::CLDR::Collator->new(type => $type);
+	return Locale::CLDR::Collator->new(locale => $self, %params);
 }
 
+sub collation_overrides {
+	my ($self, $type) = @_;
+	
+	my @bundles = reverse $self->_find_bundle('collation');
+	
+	my $override = '';
+	foreach my $bundle (@bundles) {
+		last if $override = $bundle->collation()->{$type};
+	}
+	
+	if ($type ne 'standard' && ! $override) {
+		foreach my $bundle (@bundles) {
+			last if $override = $bundle->collation()->{standard};
+		}
+	}
+	
+	return $override || [];
+}
+	
 sub _default_collation {
 	return 'standard';
+}
+
+sub _default_collation_strength {
+	return 3;
 }
 
 =head1 AUTHOR
