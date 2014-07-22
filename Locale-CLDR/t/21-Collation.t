@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 9;
+use Test::More tests => 10;
 
 use ok 'Locale::CLDR';
 
@@ -31,4 +31,7 @@ foreach my $level ( 1 .. 4) {
 	my $collation = $locale->collation(strength => $level);
 	is_deeply([$collation->sort('á e', 'ae', 'Áe', 'a e', 'A e', 'áe', 'Ae', 'Á e')], $sorted[$level], "Sorted at level $level");
 }
-	
+
+# Canonical Equivalence
+#   ANGSTROM SIGN, LATIN CAPITAL LETTER A WITH RING ABOVE, LATIN CAPITAL LETTER A + COMBINING RING ABOVE
+is_deeply([$collation->sort(qw(a Å b Å c Å d))], [qw( a Å Å Å b c d )], "Canonical equivalence");

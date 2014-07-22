@@ -17,6 +17,7 @@ use DateTime;
 use XML::Parser;
 use Text::ParseWords;
 use List::MoreUtils qw( any );
+use Unicode::UCD qw(charinfo);
 no warnings "experimental::regex_sets";
 
 my $start_time = time();
@@ -548,7 +549,14 @@ EOT
 		next unless my ($character, $ce_list, $name) = /^([^;]+?)\s+;([^#]+?)\s+# (.*)/;
 		$character = join '', map { chr hex } split / /, $character;
 		
-		push @character_sequences, $character if length $character > 1;
+		if (length $character > 1) {
+			# Make sure that when adding digraphs combining characters are 
+			# handled correctly. This means adding a+acute you have to do 
+			# a(?!\p{ccc: 230}|\p{ccc: 0})*´
+			$character =~ s#(\P{ccc: 0})#'(?:(?!\\p{ccc: ' . (charinfo('U+' . sprintf('%X', unpack('U', $1)))->{combining} // 0) . "}|\\p{ccc: 0}).)*?$1"#eg;
+			push @character_sequences, $character;
+		}
+		
 		my @ce_list = $ce_list =~ /\[([^]]+)\]/g;
 		
 		# Variable weightings
@@ -570,6 +578,12 @@ EOT
 		say $Allkeys_out "'$character' => '$ce_list',"
 	}
 	
+	my $character_sequences = join "','", 
+		map {$_->[0]} 
+		sort {$b->[1] <=> $a->[1]}
+		map {[$_ => length $_]}
+		@character_sequences;
+	
 	print $Allkeys_out <<EOT;
 		}
 	}
@@ -587,6 +601,15 @@ has max_variable => (
 	isa => 'Str',
 	init_arg => undef,
 	default => '$max_variable'
+);
+
+has '_sort_digraphs' => (
+	is => 'ro',
+	isa => 'ArrayRef',
+	init_arg => undef,
+	default => sub {['$character_sequences']},
+	writer => '_set_sort_digraphs',
+	reader => '_get_sort_digraphs',
 );
 
 EOT
@@ -5141,13 +5164,25 @@ sub BUILD {
 	}
 }
 
+sub _get_sort_digraphs_rx {
+	my $self = shift;
+	
+	my $digraphs = $self->_get_sort_digraphs();
+	
+	my $rx = join '|', @$digraphs, '.';
+	
+	return qr/$rx/;
+}
+
 # Converts $string into a string of Collation Elements
 sub getSortKey {
 	my ($self, $string) = @_;
 	
 	$string = NFD($string);
 	
-	(my $ce = $string) =~ s/(.)/ $self->get_collation_element($1) || do { my $ce = $self->generate_ce($1); $self->_set_ce($1, $ce); $ce } /eg;
+	my $entity_rx = $self->_get_sort_digraphs_rx();
+	
+	(my $ce = $string) =~ s/($entity_rx)/ $self->get_collation_element($1) || do { my $ce = $self->generate_ce($1); $self->_set_ce($1, $ce); $ce } /eg;
 		
 	my $ce_length = length($ce) / 4;
 	
