@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.25.5
+Version 0.26.0
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.25.5');
+our $VERSION = version->declare('v0.26.0');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -58,7 +58,7 @@ use List::Util qw(first);
 use Class::MOP;
 use DateTime::Locale;
 use Unicode::Normalize();
-use Locale::CLDR::Collator();
+#use Locale::CLDR::Collator();
 use File::Spec();
 
 # Backwards compatibility
@@ -3991,6 +3991,8 @@ used the territory of the current locale.
 
 =back
 
+=for comment
+
 =head2 Collation
 
 =over 4
@@ -4002,7 +4004,11 @@ try and match the API from L<Unicode::Collate> as much as possible and add tailo
 
 =back
 
+=end
+
 =cut
+
+=for comment
 
 sub collation {
 	my ($self, %params) = @_;
@@ -4039,6 +4045,8 @@ sub _default_collation {
 sub _default_collation_strength {
 	return 3;
 }
+
+=end
 
 =head1 AUTHOR
 

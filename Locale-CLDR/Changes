@@ -47,5 +47,5 @@ All dates are in ISO 8601 Format
 0.25.4 2014-06-20
 	- Fixes to bugs found in the rule base number formatting
 
-0.25.5
-	- Collation
+0.26.0
+	- CLDR version 26 release.

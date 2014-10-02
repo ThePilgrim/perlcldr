@@ -28,8 +28,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0;
-my $CLDR_VERSION = 25;
-my $REVISION = 5;
+my $CLDR_VERSION = 26;
+my $REVISION = 0;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -126,9 +126,16 @@ write_out_number_formatter($file);
 close $file;
 
 # Collator
+
+=for comment
+
 open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
 write_out_collator($file);
 close $file;
+
+=end
+
+=cut
 
 # Likely sub-tags
 open $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
@@ -217,7 +224,6 @@ say "Processing file $file_name" if $verbose;
 
 # Note: The order of these calls is important
 process_header($file, 'Locale::CLDR::ValidCodes', $CLDR_VERSION, $xml, $file_name, 1);
-process_cp($xml);
 process_valid_languages($file, $xml);
 process_valid_scripts($file, $xml);
 process_valid_territories($file, $xml);
@@ -310,16 +316,22 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_transforms($transformations_directory, $xml, $full_file_name);
 }
 
+=for comment
+
 #Collation
 # First convert the base collation file into a moose role
 say "Copying base collation file" if $verbose;
-open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'));
+open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA.txt'));
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
 process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'), 1);
 process_collation_base($Allkeys_in, $Allkeys_out);
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
 close $Allkeys_out;
+
+=end
+
+=cut
 
 # Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
@@ -380,7 +392,6 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_header($file, "Locale::CLDR::$package", $CLDR_VERSION, $xml, $full_file_name);
     process_segments($file, $segment_xml) if $segment_xml;
 	process_rbnf($file, $rbnf_xml) if $rbnf_xml;
-    process_cp($xml);
     process_display_pattern($file, $xml);
     process_display_language($file, $xml);
     process_display_script($file, $xml);
@@ -523,6 +534,8 @@ EOT
 	}
 }
 
+=for comment
+
 sub process_collation_base {
 	my ($Allkeys_in, $Allkeys_out) = @_;
 
@@ -541,43 +554,56 @@ has 'collation_base' => (
 EOT
 	
 	my @character_sequences;
-	
-	my $max_variable = chr 0;
-	my $min_variable = chr 0xFFFF;
+	my %top_bytes = ();
+	my %ce = ();
+	my ($max_variable, $min_variable);
 	
 	while (<$Allkeys_in>) {
-		next unless my ($character, $ce_list, $name) = /^([^;]+?)\s+;([^#]+?)\s+# (.*)/;
-		$character = join '', map { chr hex } split / /, $character;
+		next if /^#/;
+		next if /^$/;
 		
-		if (length $character > 1) {
-			# Make sure that when adding digraphs combining characters are 
-			# handled correctly. This means adding a+acute you have to do 
-			# a(?!\p{ccc: 230}|\p{ccc: 0})*´
-			$character =~ s#(\P{ccc: 0})#'(?:(?!\\p{ccc: ' . (charinfo('U+' . sprintf('%X', unpack('U', $1)))->{combining} // 0) . "}|\\p{ccc: 0}).)*?$1"#eg;
-			push @character_sequences, $character;
+		#Top Byte
+		if (my ($top_byte, $category) = /^\[top_byte\t(\p{AHex}{2})\t([A-Za-z ]+)(?:\tCOMPRESS)? \]) {
+			my @category = split / /, $category;
+			@top_byte{@category} = (hex $top_byte) x @category;
+		}
+		# CE
+		elsif (my ($character, $primary, $secondary, $tertiary) = /^((?:\p{AHex}{4,6}[| ]?)+; \[([^U+,]*),([^,]*),(.*?)\]/) {
+			foreach ($primary, $secondary, $tertiary) {
+				s/\s+//;
+				my @bytes = map {chr hex} /(..)/g;
+				$_ = join '', @bytes;
+			}
+			
+			@character = split /[| ]+/, $character;
+			$character = join '', map {chr hex} @character;
+			
+			push @character_sequences, $character if @character > 1;
+			
+			$primary .= "\0" x 3 - length $primary;
+			$secondary .= "\0" x 2 - length $secondary;
+			$tertiary .= "\0" x 2 - length $tertiary;
+			$ce{$character} = [$primary, $secondary, $tertiary];
+		}
+		elsif (my ($character, $primary, $secondary, $tertiary) = /^((?:\p{AHex}{4,6}[| ]?)+; \[U+(\p{AHex}+)(,[^,]+)?(,(.*?)\]/) {
+			my $same = $ce{chr hex $primary};
+			foreach ($secondary, $tertiary) {
+				next unless defined;
+				s/\s+//;
+				my @bytes = map {chr hex} /(..)/g;
+				$_ = join '', @bytes;
+			}
+			
+			if (defined $tertiary) {
+				$same=~s/^(...)..../$1$secondary$tertiary/;
+			}
+			elsif (defined $secondary) {
+				$same=~s/^(.....)../$1$secondary/;
+			}
+			
+			$ce{$character} = $same;
 		}
 		
-		my @ce_list = $ce_list =~ /\[([^]]+)\]/g;
-		
-		# Variable weightings
-		if ( my ($weight) = $ce_list[0] =~ /^\*([0-9]{4})\./ ) {
-			$weight = chr hex $weight;
-			$max_variable = $weight if $weight gt $max_variable;
-			$min_variable = $weight if $weight lt $min_variable;
-		}
-		
-		$ce_list = join '', map { map { chr hex } grep {length} split /\./ } @ce_list;
-		$ce_list =~ s/^\*//;
-		
-		# escape for output
-		foreach ( $character, $ce_list, $max_variable, $min_variable ) {
-			s/\\/\\\\/g;
-			s/'/\\'/g;
-		}
-		
-		say $Allkeys_out "'$character' => '$ce_list',"
-	}
-	
 	my $character_sequences = join "','", 
 		map {$_->[0]} 
 		sort {$b->[1] <=> $a->[1]}
@@ -614,6 +640,10 @@ has '_sort_digraphs' => (
 
 EOT
 }
+
+=end
+
+=cut
 
 sub process_valid_languages {
     my ($file, $xpath) = @_;
@@ -989,6 +1019,7 @@ EOT
                 $m //= '0';
                 $d //= '0';
                 $start = sprintf('%d%0.2d%0.2d',$y,$m,$d);
+				$start =~ s/^0+//;
                 say $file "\t\t\t\t\$return = $type if \$date >= $start;";
             }
             if (length $end) {
@@ -996,6 +1027,7 @@ EOT
                 $m //= '0';
                 $d //= '0';
                 $end = sprintf('%d%0.2d%0.2d',$y,$m,$d);
+				$end =~ s/^0+//;
                 say $file "\t\t\t\t\$return = $type if \$date <= $end;";
             }
         }
@@ -1208,33 +1240,6 @@ EOT
 );
 EOT
 
-}
-
-# CP elements are used to encode characters outside the character range 
-# allowable in XML
-sub process_cp {
-    my ($xpath) = @_;
-
-    say "Processing Cp"
-        if $verbose;
-
-    foreach my $character ( $xpath->findnodes('//cp')) {
-        my $parent = $character->getParentNode;
-        my @siblings = $parent->getChildNodes;
-        my $text = '';
-        foreach my $sibling (@siblings) {
-            if ($sibling->isTextNode) {
-                $text.=$sibling->getNodeValue;
-            }
-            else {
-                my $hex = $character->getAttribute('hex');
-                my $chr = chr(hex $hex);
-                $text .= $chr;
-            }
-            $parent->removeChild($sibling);
-        }
-        $parent->appendChild(XML::XPath::Node::Text->new($text));
-    }
 }
 
 sub process_display_pattern {
@@ -4503,6 +4508,8 @@ EOT
 	}
 }
 
+=for comment
+
 sub write_out_collator {
 	# In order to keep git out of the CLDR directory we need to 
 	# write out the code for the CLDR::Collator module
@@ -4517,6 +4524,10 @@ our \$VERSION = version->declare('v$VERSION');
 EOT
 	print $file $_ while (<DATA>);
 }
+
+=end
+
+=cut
 
 __DATA__
 
