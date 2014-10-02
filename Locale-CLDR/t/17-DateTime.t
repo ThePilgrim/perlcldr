@@ -50,6 +50,6 @@ my $dt_fr_ca = DateTime->new(
 	time_zone  => 'Europe/London',
 );
 
-is ($dt_en_gb->format_cldr($en_gb->datetime_format_full), 'Tuesday, 25 October 1966 07:15:47 Europe/London', 'Date Time Format Full British English ');
+is ($dt_en_gb->format_cldr($en_gb->datetime_format_full), 'Tuesday, 25 October 1966 at 07:15:47 Europe/London', 'Date Time Format Full British English ');
 is ($dt_en_us->format_cldr($en_us->datetime_format_full), 'Tuesday, October 25, 1966 at 7:15:47 am Europe/London', 'Date Time Format Full US English ');
-is ($dt_fr_ca->format_cldr($fr_ca->datetime_format_full), 'mardi 25 octobre 1966 07 h 15 min 47 s Europe/London', 'Date Time Format Full French Canadian');
+is ($dt_fr_ca->format_cldr($fr_ca->datetime_format_full), 'mardi 25 octobre 1966 à 07 h 15 min 47 s Europe/London', 'Date Time Format Full French Canadian');
