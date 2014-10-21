@@ -79,8 +79,8 @@ lib/Locale/CLDR/Bg.pm
 lib/Locale/CLDR/Bg/Any.pm
 lib/Locale/CLDR/Bg/Any/Bg.pm
 lib/Locale/CLDR/Bm.pm
-lib/Locale/CLDR/Bm/Any.pm
-lib/Locale/CLDR/Bm/Any/Ml.pm
+lib/Locale/CLDR/Bm/Latn.pm
+lib/Locale/CLDR/Bm/Latn/Ml.pm
 lib/Locale/CLDR/Bn.pm
 lib/Locale/CLDR/Bn/Any.pm
 lib/Locale/CLDR/Bn/Any/Bd.pm
@@ -100,9 +100,6 @@ lib/Locale/CLDR/Bs/Cyrl.pm
 lib/Locale/CLDR/Bs/Cyrl/Ba.pm
 lib/Locale/CLDR/Bs/Latn.pm
 lib/Locale/CLDR/Bs/Latn/Ba.pm
-lib/Locale/CLDR/Byn.pm
-lib/Locale/CLDR/Byn/Any.pm
-lib/Locale/CLDR/Byn/Any/Er.pm
 lib/Locale/CLDR/Ca.pm
 lib/Locale/CLDR/Ca/Any.pm
 lib/Locale/CLDR/Ca/Any/Ad.pm
@@ -117,7 +114,6 @@ lib/Locale/CLDR/Cgg/Any/Ug.pm
 lib/Locale/CLDR/Chr.pm
 lib/Locale/CLDR/Chr/Any.pm
 lib/Locale/CLDR/Chr/Any/Us.pm
-lib/Locale/CLDR/Collator.pm
 lib/Locale/CLDR/CollatorBase.pm
 lib/Locale/CLDR/Cs.pm
 lib/Locale/CLDR/Cs/Any.pm
@@ -144,6 +140,9 @@ lib/Locale/CLDR/De/Any/Lu.pm
 lib/Locale/CLDR/Dje.pm
 lib/Locale/CLDR/Dje/Any.pm
 lib/Locale/CLDR/Dje/Any/Ne.pm
+lib/Locale/CLDR/Dsb.pm
+lib/Locale/CLDR/Dsb/Any.pm
+lib/Locale/CLDR/Dsb/Any/De.pm
 lib/Locale/CLDR/Dua.pm
 lib/Locale/CLDR/Dua/Any.pm
 lib/Locale/CLDR/Dua/Any/Cm.pm
@@ -219,6 +218,7 @@ lib/Locale/CLDR/En/Any/Ms.pm
 lib/Locale/CLDR/En/Any/Mt.pm
 lib/Locale/CLDR/En/Any/Mu.pm
 lib/Locale/CLDR/En/Any/Mw.pm
+lib/Locale/CLDR/En/Any/My.pm
 lib/Locale/CLDR/En/Any/Na.pm
 lib/Locale/CLDR/En/Any/Nf.pm
 lib/Locale/CLDR/En/Any/Ng.pm
@@ -385,6 +385,7 @@ lib/Locale/CLDR/Gl/Any/Es.pm
 lib/Locale/CLDR/Gsw.pm
 lib/Locale/CLDR/Gsw/Any.pm
 lib/Locale/CLDR/Gsw/Any/Ch.pm
+lib/Locale/CLDR/Gsw/Any/Fr.pm
 lib/Locale/CLDR/Gsw/Any/Li.pm
 lib/Locale/CLDR/Gu.pm
 lib/Locale/CLDR/Gu/Any.pm
@@ -413,6 +414,9 @@ lib/Locale/CLDR/Hr.pm
 lib/Locale/CLDR/Hr/Any.pm
 lib/Locale/CLDR/Hr/Any/Ba.pm
 lib/Locale/CLDR/Hr/Any/Hr.pm
+lib/Locale/CLDR/Hsb.pm
+lib/Locale/CLDR/Hsb/Any.pm
+lib/Locale/CLDR/Hsb/Any/De.pm
 lib/Locale/CLDR/Hu.pm
 lib/Locale/CLDR/Hu/Any.pm
 lib/Locale/CLDR/Hu/Any/Hu.pm
@@ -515,6 +519,9 @@ lib/Locale/CLDR/Ky/Cyrl/Kg.pm
 lib/Locale/CLDR/Lag.pm
 lib/Locale/CLDR/Lag/Any.pm
 lib/Locale/CLDR/Lag/Any/Tz.pm
+lib/Locale/CLDR/Lb.pm
+lib/Locale/CLDR/Lb/Any.pm
+lib/Locale/CLDR/Lb/Any/Lu.pm
 lib/Locale/CLDR/Lg.pm
 lib/Locale/CLDR/Lg/Any.pm
 lib/Locale/CLDR/Lg/Any/Ug.pm
@@ -672,6 +679,11 @@ lib/Locale/CLDR/Pt/Any/Mz.pm
 lib/Locale/CLDR/Pt/Any/Pt.pm
 lib/Locale/CLDR/Pt/Any/St.pm
 lib/Locale/CLDR/Pt/Any/Tl.pm
+lib/Locale/CLDR/Qu.pm
+lib/Locale/CLDR/Qu/Any.pm
+lib/Locale/CLDR/Qu/Any/Bo.pm
+lib/Locale/CLDR/Qu/Any/Ec.pm
+lib/Locale/CLDR/Qu/Any/Pe.pm
 lib/Locale/CLDR/Rm.pm
 lib/Locale/CLDR/Rm/Any.pm
 lib/Locale/CLDR/Rm/Any/Ch.pm
@@ -713,6 +725,7 @@ lib/Locale/CLDR/Se.pm
 lib/Locale/CLDR/Se/Any.pm
 lib/Locale/CLDR/Se/Any/Fi.pm
 lib/Locale/CLDR/Se/Any/No.pm
+lib/Locale/CLDR/Se/Any/Se.pm
 lib/Locale/CLDR/Seh.pm
 lib/Locale/CLDR/Seh/Any.pm
 lib/Locale/CLDR/Seh/Any/Mz.pm
@@ -736,6 +749,9 @@ lib/Locale/CLDR/Sk/Any/Sk.pm
 lib/Locale/CLDR/Sl.pm
 lib/Locale/CLDR/Sl/Any.pm
 lib/Locale/CLDR/Sl/Any/Si.pm
+lib/Locale/CLDR/Smn.pm
+lib/Locale/CLDR/Smn/Any.pm
+lib/Locale/CLDR/Smn/Any/Fi.pm
 lib/Locale/CLDR/Sn.pm
 lib/Locale/CLDR/Sn/Any.pm
 lib/Locale/CLDR/Sn/Any/Zw.pm
@@ -768,10 +784,6 @@ lib/Locale/CLDR/Ss/Any/Za.pm
 lib/Locale/CLDR/Ssy.pm
 lib/Locale/CLDR/Ssy/Any.pm
 lib/Locale/CLDR/Ssy/Any/Er.pm
-lib/Locale/CLDR/St.pm
-lib/Locale/CLDR/St/Any.pm
-lib/Locale/CLDR/St/Any/Ls.pm
-lib/Locale/CLDR/St/Any/Za.pm
 lib/Locale/CLDR/Sv.pm
 lib/Locale/CLDR/Sv/Any.pm
 lib/Locale/CLDR/Sv/Any/Ax.pm
@@ -799,9 +811,6 @@ lib/Locale/CLDR/Teo/Any.pm
 lib/Locale/CLDR/Teo/Any/Ke.pm
 lib/Locale/CLDR/Teo/Any/Ug.pm
 lib/Locale/CLDR/TerritoryContainment.pm
-lib/Locale/CLDR/Tg.pm
-lib/Locale/CLDR/Tg/Cyrl.pm
-lib/Locale/CLDR/Tg/Cyrl/Tj.pm
 lib/Locale/CLDR/Th.pm
 lib/Locale/CLDR/Th/Any.pm
 lib/Locale/CLDR/Th/Any/Th.pm
@@ -809,9 +818,6 @@ lib/Locale/CLDR/Ti.pm
 lib/Locale/CLDR/Ti/Any.pm
 lib/Locale/CLDR/Ti/Any/Er.pm
 lib/Locale/CLDR/Ti/Any/Et.pm
-lib/Locale/CLDR/Tig.pm
-lib/Locale/CLDR/Tig/Any.pm
-lib/Locale/CLDR/Tig/Any/Er.pm
 lib/Locale/CLDR/Tn.pm
 lib/Locale/CLDR/Tn/Any.pm
 lib/Locale/CLDR/Tn/Any/Bw.pm
@@ -966,7 +972,6 @@ lib/Locale/CLDR/Transformations/Any/Latin/Telugu.pm
 lib/Locale/CLDR/Transformations/Any/Latin/Thaana.pm
 lib/Locale/CLDR/Transformations/Any/Latin/Thai.pm
 lib/Locale/CLDR/Transformations/Any/Latin/Thailogical.pm
-lib/Locale/CLDR/Transformations/Any/Latin/Ug.pm
 lib/Locale/CLDR/Transformations/Any/Lt/Lower.pm
 lib/Locale/CLDR/Transformations/Any/Lt/Title.pm
 lib/Locale/CLDR/Transformations/Any/Lt/Upper.pm
@@ -1041,7 +1046,6 @@ lib/Locale/CLDR/Transformations/Any/Tr/Lower.pm
 lib/Locale/CLDR/Transformations/Any/Tr/Title.pm
 lib/Locale/CLDR/Transformations/Any/Tr/Upper.pm
 lib/Locale/CLDR/Transformations/Any/Traditional/Simplified.pm
-lib/Locale/CLDR/Transformations/Any/Ug/Latin.pm
 lib/Locale/CLDR/Transformations/Any/Uz_cyrl/Uz_latn.pm
 lib/Locale/CLDR/Transformations/Any/Uz_latn/Uz_cyrl.pm
 lib/Locale/CLDR/Transformations/Any/Xsampa/Ipa.pm
@@ -1120,19 +1124,16 @@ lib/Locale/CLDR/Vun/Any/Tz.pm
 lib/Locale/CLDR/Wae.pm
 lib/Locale/CLDR/Wae/Any.pm
 lib/Locale/CLDR/Wae/Any/Ch.pm
-lib/Locale/CLDR/Wal.pm
-lib/Locale/CLDR/Wal/Any.pm
-lib/Locale/CLDR/Wal/Any/Et.pm
 lib/Locale/CLDR/WeekData.pm
-lib/Locale/CLDR/Xh.pm
-lib/Locale/CLDR/Xh/Any.pm
-lib/Locale/CLDR/Xh/Any/Za.pm
 lib/Locale/CLDR/Xog.pm
 lib/Locale/CLDR/Xog/Any.pm
 lib/Locale/CLDR/Xog/Any/Ug.pm
 lib/Locale/CLDR/Yav.pm
 lib/Locale/CLDR/Yav/Any.pm
 lib/Locale/CLDR/Yav/Any/Cm.pm
+lib/Locale/CLDR/Yi.pm
+lib/Locale/CLDR/Yi/Any.pm
+lib/Locale/CLDR/Yi/Any/001.pm
 lib/Locale/CLDR/Yo.pm
 lib/Locale/CLDR/Yo/Any.pm
 lib/Locale/CLDR/Yo/Any/Bj.pm
@@ -1154,7 +1155,7 @@ lib/Locale/CLDR/Zu.pm
 lib/Locale/CLDR/Zu/Any.pm
 lib/Locale/CLDR/Zu/Any/Za.pm
 Makefile.PL
-MANIFEST
+MANIFEST			This list of files
 META.json
 META.yml
 mkcldr.pl
@@ -1180,6 +1181,5 @@ t/17-DateTime.t
 t/18-Overrides.t
 t/19-Currency.t
 t/20-Plurals.t
-t/21-Collation.t
 t/pod-coverage.t
 t/pod.t

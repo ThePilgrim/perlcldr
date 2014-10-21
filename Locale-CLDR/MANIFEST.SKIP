@@ -78,3 +78,6 @@
 \bData
 
 ^ignore\.txt$
+
+# Not doing collation
+t/21-Collation.t

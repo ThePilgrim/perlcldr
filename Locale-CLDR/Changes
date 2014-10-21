@@ -48,4 +48,12 @@ All dates are in ISO 8601 Format
 	- Fixes to bugs found in the rule base number formatting
 
 0.26.0
+	- Broken release
+
+0.26.1
+	- Broken release
+
+0.26.2 2014-10-xx
 	- CLDR version 26 release.
+	- Break data into bundles so you don't have to download all the data
+	- Fix some spelling mistakes in the documentation

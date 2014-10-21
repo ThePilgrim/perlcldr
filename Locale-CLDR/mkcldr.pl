@@ -4,7 +4,6 @@ use v5.18;
 use strict;
 use warnings 'FATAL';
 use open ':encoding(utf8)', ':std';
-use autodie;
 
 use FindBin;
 use File::Spec;
@@ -29,7 +28,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 26;
-my $REVISION = 0;
+my $REVISION = 2;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -157,7 +156,7 @@ $file_name = File::Spec->catfile($base_directory,
 $xml = XML::XPath->new(
     File::Spec->catfile($file_name));
 
-open my $file, '>', File::Spec->catfile($lib_directory, 'NumberingSystems.pm');
+open $file, '>', File::Spec->catfile($lib_directory, 'NumberingSystems.pm');
 
 say "Processing file $file_name" if $verbose;
 
@@ -184,7 +183,7 @@ $file_name = File::Spec->catfile($base_directory,
 my $ordanal_xml = XML::XPath->new(
     File::Spec->catfile($file_name));
 
-open my $file, '>', File::Spec->catfile($lib_directory, 'Plurals.pm');
+open $file, '>', File::Spec->catfile($lib_directory, 'Plurals.pm');
 
 say "Processing file $file_name" if $verbose;
 
@@ -245,7 +244,7 @@ $xml = XML::XPath->new(
 
 open $file, '>', File::Spec->catfile($lib_directory, 'EraBoundries.pm');
 
-my $file_name = File::Spec->catfile($base_directory,
+$file_name = File::Spec->catfile($base_directory,
     'supplemental',
     'supplementalData.xml'
 );
@@ -307,6 +306,7 @@ opendir (my $dir, $transform_directory);
 my $num_files = grep { -f File::Spec->catfile($transform_directory,$_)} readdir $dir;
 my $count_files = 0;
 rewinddir $dir;
+my @transformation_list;
 
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $percent = ++$count_files / $num_files * 100;
@@ -335,7 +335,7 @@ close $Allkeys_out;
 
 # Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
-opendir ( my $dir, $main_directory);
+opendir ( $dir, $main_directory);
 
 # Count the number of files
 $num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
@@ -344,6 +344,8 @@ rewinddir $dir;
 
 my $segmentation_directory = File::Spec->catdir($base_directory, 'segments');
 my $rbnf_directory = File::Spec->catdir($base_directory, 'rbnf');
+
+my %territory_to_package;
 # Sort files ASCIIbetically
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     if (@ARGV) {
@@ -371,6 +373,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $current_locale = lc $output_file_parts[0];
 
     my $package = join '::', @output_file_parts;
+	
     $output_file_parts[-1] .= '.pm';
 
     my $out_directory = File::Spec->catdir(
@@ -380,6 +383,11 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 
     make_path($out_directory) unless -d $out_directory;
 
+	if (defined( my $t = $output_file_parts[2])) {
+		$t =~ s/\.pm$//;
+		push @{$territory_to_package{lc $t}}, join('::','Locale::CLDR',@output_file_parts[0,1],$t);
+	}
+	
     open $file, '>', File::Spec->catfile($lib_directory, @output_file_parts);
 
     my $full_file_name = File::Spec->catfile($base_directory, 'main', $file_name);
@@ -419,7 +427,113 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     close $file;
 }
 
-say "Duration: ", time() -$start_time if $verbose;
+# Build Bundles and Distributions
+require lib;
+lib::import(undef,File::Spec->catdir($FindBin::Bin, 'lib'));
+require Locale::CLDR;
+my $en = Locale::CLDR->new('en');
+
+my $out_directory = File::Spec->catdir($lib_directory, '..', '..', 'Bundle', 'Locale','CLDR');
+make_path($out_directory) unless -d $out_directory;
+
+# Territory bundles
+my $territory_contains = $en->territory_contains();
+my $territory_names = $en->all_territories();
+
+foreach my $territory (keys %$territory_names) {
+	$territory_names->{$territory} = ucfirst( lc $territory ) . '.pm' unless exists $territory_contains->{$territory};
+}
+
+foreach my $territory (sort keys %$territory_contains) {
+	my $name = lc $territory_names->{$territory};
+	$name=~tr/a-z0-9//cs;
+	build_bundle($out_directory, $territory_contains->{$territory}, $name, $territory_names);
+}
+
+# Language bundles
+my $language_names = $en->all_languages;
+foreach my $language (sort keys %$language_names) {
+	next if $language =~ /[_@]/;
+	my @files = get_language_bundle_data(ucfirst lc $language);
+	next unless @files;
+	push @files, get_language_bundle_data(ucfirst lc "${language}.pm");
+	my @packages = convert_files_to_packages(\@files);
+	build_bundle($out_directory, \@packages, $language );
+}
+
+sub convert_files_to_packages {
+	my $files = shift;
+	my @packages;
+	
+	foreach my $file_name (@$files) {
+		open my $file, $file_name or die "Bang $file_name: $!";
+		my ($package) = (<$file> =~ /^package (.+);$/);
+		close $file;
+		push @packages, $package;
+	}
+
+	return @packages;
+}
+
+sub get_language_bundle_data {
+	my ($language, $directory_name) = @_;
+	
+	$directory_name //= $lib_directory;
+	
+	my @packages;
+	if ( -d (my $new_dir = File::Spec->catdir($directory_name, $language)) ) {
+		opendir $dir, $new_dir;
+		my @files = grep { ! /^\./ } readdir $dir;
+		foreach my $file (@files) {
+			push @packages, get_language_bundle_data($file, $new_dir);
+		}
+	}
+	else {
+		push @packages, File::Spec->catfile($directory_name, $language)
+			if -f File::Spec->catfile($directory_name, $language);
+	}
+	return @packages;
+}
+
+# Transformation bundle
+build_bundle($out_directory, \@transformation_list, 'Transformations');
+
+# Base bundle
+my @base_bundle = (
+	'Locale::CLDR',
+	'Locale::CLDR::CalendarPreferences',
+	'Locale::CLDR::Currencies',
+	'Locale::CLDR::EraBoundries',
+	'Locale::CLDR::LikelySubtags',
+	'Locale::CLDR::MeasurementSystem',
+	'Locale::CLDR::NumberFormatter',
+	'Locale::CLDR::NumberingSystems',
+	'Locale::CLDR::Plurals',
+	'Locale::CLDR::TerritoryContainment',
+	'Locale::CLDR::ValidCodes',
+	'Locale::CLDR::WeekData',
+	'Locale::CLDR::En',
+	'Locale::CLDR::Root',
+);
+
+build_bundle($out_directory, \@base_bundle, 'Base');
+
+# All Bundle
+my @all_bundle = (
+	'Locale::CLDR::World',
+	'Locale::CLDR::Transformations',
+);
+
+build_bundle($out_directory, \@all_bundle, 'Everything');
+
+my $duration = time() - $start_time;
+my @duration;
+$duration[2] = $duration % 60;
+$duration = int($duration/60);
+$duration[1] = $duration % 60;
+$duration[0] = int($duration/60);
+
+say "Duration: ", sprintf "%02i:%02i:%02i", @duration if $verbose;
 
 # This sub looks for nodes along an xpath.
 sub findnodes {
@@ -1016,8 +1130,10 @@ EOT
             );
             if (length $start) {
                 my ($y, $m, $d) = split /-/, $start;
-                $m //= '0';
-                $d //= '0';
+				die $start unless length "$y$m$d";
+                $m //= 0;
+                $d //= 0;
+				$y //= 0;
                 $start = sprintf('%d%0.2d%0.2d',$y,$m,$d);
 				$start =~ s/^0+//;
                 say $file "\t\t\t\t\$return = $type if \$date >= $start;";
@@ -1886,7 +2002,7 @@ sub process_units {
 			$unit_type_name =~ s/^[^\-]+-//;
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
-				my $count = $unit_pattern->getAttribute('count');
+				my $count = $unit_pattern->getAttribute('count') // 1;
 				my $pattern = $unit_pattern->getChildNode(1)->getValue;
 				$units{$length}{$unit_type_name}{$count} = $pattern;
 			}
@@ -2025,6 +2141,7 @@ has 'listPatterns' => (
 \tdefault\t\t=> sub { {
 EOT
 	my %sort_lookup = (start => 0, middle => 1, end => 2, 2 => 3, 3 => 4);
+	no warnings;
 	foreach my $type ( sort { 
 		(($a + 0) <=> ($b + 0)) 
 		|| ( $sort_lookup{$a} <=> $sort_lookup{$b}) 
@@ -2091,7 +2208,6 @@ sub process_numbers {
 				$symbols{$type}{alias} = $alias;
 			}
 			else {
-				$symbols{$type}{$symbol} = '';
 				my $nodes = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/text()));
 				next unless $nodes->size;
 				$symbols{$type}{$symbol} = ($nodes->get_nodelist)[0]->getValue;
@@ -2163,7 +2279,7 @@ sub process_numbers {
 				my $length_nodes = findnodes($xpath, qq(/ldml/numbers/currencyFormats[\@numberSystem="$number_system"]/currencyFormatLength));
 				foreach my $length_node ($length_nodes->get_nodelist) {
 					my $length_node_type = $length_node->getAttribute('type') // '';
-					my $length_node_type_text = qq([type="$length_node_type"]) if $length_node_type;
+					my $length_node_type_text = $length_node_type ? qq([type="$length_node_type"]) : '';
 
 					foreach my $currency_type (qw( standard accounting )) {
 						# Check for aliases
@@ -2592,7 +2708,7 @@ EOT
 
                     say $file join ",\n\t\t\t\t\t\t\t",
                         map {
-                            my $month = $_;
+                            my $month = $_ // '';
                             $month =~ s/'/\\'/;
                             $month = "'$month'";
                         } @{$calendars{months}{$type}{$context}{$width}{leap}};
@@ -3049,7 +3165,7 @@ sub process_months {
 				);
 				
 				if ($width_alias_nodes->size) {
-                    my $path = my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                    my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
                     my ($new_width_context) = $path =~ /monthContext\[\@type='([^']+)'\]/;
                     $new_width_context //= $context_type;
                     my ($new_width_type) = $path =~ /monthWidth\[\@type='([^']+)'\]/;
@@ -3104,7 +3220,7 @@ sub process_days {
 				);
 				
 				if ($width_alias_nodes->size) {
-                    my $path = my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                    my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
                     my ($new_width_context) = $path =~ /dayContext\[\@type='([^']+)'\]/;
                     $new_width_context //= $context_type;
                     my ($new_width_type) = $path =~ /dayWidth\[\@type='([^']+)'\]/;
@@ -3160,7 +3276,7 @@ sub process_quarters {
 				);
 			
 				if ($width_alias_nodes->size) {
-                    my $path = my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                    my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
                     my ($new_width_context) = $path =~ /quarterContext\[\@type='([^']+)'\]/;
                     $new_width_context //= $context_type;
                     my ($new_width_type) = $path =~ /quarterWidth\[\@type='([^']+)'\]/;
@@ -3282,7 +3398,7 @@ sub process_day_periods {
 				);
 			
 				if ($width_alias_nodes->size) {
-                    my $path = my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                    my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
                     my ($new_width_type) = $path =~ /dayPeriodWidth\[\@type='([^']+)'\]/;
 					$dayPeriods{$context_type}{$width_type}{alias} = $new_width_type;
 					next;
@@ -3911,6 +4027,7 @@ sub process_transforms {
             }
 
             my $package = "Locale::CLDR::Transformations::${variant}::${source}::$target";
+			push @transformation_list, $package;
             my $dir_name = File::Spec->catdir($dir, $variant, $source);
          
             make_path($dir_name) unless -d $dir_name;
@@ -3942,7 +4059,7 @@ sub process_transform_data {
 		next unless $node->getChildNode(1);
         my $rule = $node->getChildNode(1)->getValue;
 		
-		my @terms = grep { /\S/ } parse_line(qr/\s+|[{};\x{2190}\x{2192}\x{2194}=\[\]]/, 'delimiters', $rule);
+		my @terms = grep { defined && /\S/ } parse_line(qr/\s+|[{};\x{2190}\x{2192}\x{2194}=\[\]]/, 'delimiters', $rule);
 		
 		# Escape transformation meta characters inside a set
 		my $brackets = 0;
@@ -4465,6 +4582,7 @@ EOT
 		foreach my $access (sort keys %{$types{$ruleset}}) {
 			say $file "\t\t\t'$access' => {";
 			my $max = 0;
+			no warnings;
 			foreach my $type (sort { $a <=> $b || $a cmp $b } keys %{$types{$ruleset}{$access}}) {
 				$max = $type;
 				say $file "\t\t\t\t'$type' => {";
@@ -4528,6 +4646,108 @@ EOT
 =end
 
 =cut
+
+sub build_bundle {
+	my ($directory, $territories, $name, $territory_names) = @_;
+
+	say "Building Bundle ", ucfirst lc $name if $verbose;
+	
+	$name =~ s/[^a-zA-Z0-9]//g;
+	$name = ucfirst lc $name;
+
+	my $packages = defined $territory_names
+		?expand_territories($territories, $territory_names)
+		:$territories;
+	
+	my $filename = File::Spec->catfile($directory, "${name}.pm");
+
+	open my $file, '>', $filename;
+	
+	print $file <<EOT;
+package Bundle::Locale::CLDR::$name;
+
+use version;
+
+our \$VERSION = version->declare('v$VERSION');
+
+=head1 NAME Bundle::Locale::CLDR::$name
+
+=head1 CONTENTS
+
+EOT
+
+	foreach my $package (@$packages) {
+		# Only put En and Root in the base bundle
+		next if $name ne 'Base' && $package eq 'Locale::CLDR::Root';
+		next if $name ne 'Base' && $package eq 'Locale::CLDR::En';
+		say $file "$package $VERSION" ;
+	}
+
+	# Don't put Base in the Base bundle
+	say $file "Bundle::Locale::CLDR::Base $VERSION" unless $name eq 'Base';
+
+	print $file <<EOT;
+
+=cut
+
+1;
+
+EOT
+
+}
+
+sub expand_territories {
+	my ($territories, $names) = @_;
+	
+	my %packages;
+	foreach my $territory (@$territories) {
+		my $packages = $territory_to_package{lc $territory};
+		$packages //= [ 'Bundle::Locale::CLDR::' . ucfirst lc (($names->{$territory} // $territory) =~ s/[^a-zA-Z0-9]//gr) ];
+		foreach my $package (@$packages) {
+			eval "require $package";
+			my @packages = grep /Locale::CLDR/, $package->can('meta')
+				? $package->meta->linearized_isa
+				: $package;
+			@packages{@packages} = ();
+		}
+	}
+	
+	return [sort { length $a <=> length $b || $a cmp $b } keys %packages];
+}
+
+sub build_base {
+	my $filename = File::Spec->catfile($lib_directory, "Base.pm");
+
+	open my $file, '>', $filename;
+	print $file <<EOT;
+package Bundle::Locale::CLDR::Base;
+
+use version;
+
+our \$VERSION = version->declare('v$VERSION');
+
+=head1 NAME Bundle::Locale::CLDR::Base;
+
+=head1 CONTENTS
+
+Locale::CLDR::CalendarPreferences $VERSION
+Locale::CLDR::Currencies $VERSION
+Locale::CLDR::EraBoundries $VERSION
+Locale::CLDR::LikelySubtags $VERSION
+Locale::CLDR::MeasurementSystem $VERSION
+Locale::CLDR::NumberFormatter $VERSION
+Locale::CLDR::NumberingSystems $VERSION
+Locale::CLDR::Plurals $VERSION
+Locale::CLDR::TerritoryContainment $VERSION
+Locale::CLDR::ValidCodes $VERSION
+Locale::CLDR::WeekData $VERSION
+
+=cut
+
+1;
+
+EOT
+}
 
 __DATA__
 
