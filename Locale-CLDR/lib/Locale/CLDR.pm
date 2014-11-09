@@ -632,14 +632,14 @@ sub _build_module {
 	# Note the order we push these onto the stack is important
 	@path = join '::', @likely_path;
 	push @path, join '::', $likely_path[0], 'Any', $likely_path[2];
-	push @path, join '::', @likely_path[0 .. 1], 'Any';
-	push @path, join '::', $likely_path[0], 'Any', 'Any';
+	push @path, join '::', @likely_path[0 .. 1];
+	push @path, join '::', $likely_path[0];
 	
 	# Now we go through the path loading each module
 	# And calling new on it. 
 	my $module;
 	foreach my $module_name (@path) {
-		$module_name = "Locale::CLDR::$module_name";
+		$module_name = "Locale::CLDR::Locales::$module_name";
 		eval { Class::Load::load_class($module_name); };
 		next if $@;
 		$module = $module_name->new;
@@ -649,9 +649,10 @@ sub _build_module {
 	# If we only have the root module then we have a problem as
 	# none of the language specific data is in the root. So we
 	# fall back to the en module
-	if (! $module || ref $module eq 'Locale::CLDR::Root') {
-		Class::Load::load_class('Locale::CLDR::En');
-		$module = Locale::CLDR::En->new
+
+	if ( ref $module eq 'Locale::CLDR::Locales::Root') {
+		Class::Load::load_class('Locale::CLDR::Locales::En');
+		$module = Locale::CLDR::Locales::En->new
 	}
 
 	return $module;
@@ -1470,7 +1471,7 @@ sub locale_name {
 		return $display_name if defined $display_name;
 	}
 
-	# $name can be a string or a Locale::CLDR::*
+	# $name can be a string or a Locale::CLDR::Locales::*
 	if (! ref $name) {
 		$name = Locale::CLDR->new($name);
 	}
@@ -2444,8 +2445,8 @@ sub _unit_compound {
 	my @bundles = $self->_find_bundle('units');
 	my $format;
 	foreach my $bundle (@bundles) {
-		if (exists $bundle->units()->{$type}{per}{''}) {
-			$format = $bundle->units()->{$type}{per}{''};
+		if (exists $bundle->units()->{$type}{per}{1}) {
+			$format = $bundle->units()->{$type}{per}{1};
 			last;
 		}
 	}
@@ -2457,8 +2458,8 @@ sub _unit_compound {
 		foreach my $alias (@aliases) {
 			$type = $alias->unit_alias()->{$original_type};
 			foreach my $bundle (@bundles) {
-				if (exists $bundle->units()->{$type}{per}{''}) {
-					$format = $bundle->units()->{$type}{per}{''};
+				if (exists $bundle->units()->{$type}{per}{1}) {
+					$format = $bundle->units()->{$type}{per}{1};
 					last;
 				}
 			}

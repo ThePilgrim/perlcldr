@@ -8,6 +8,7 @@ use open ':encoding(utf8)', ':std';
 use FindBin;
 use File::Spec;
 use File::Path qw(make_path);
+use File::Copy qw(copy);
 use XML::XPath; 
 use XML::XPath::Node::Text;
 use LWP::UserAgent;
@@ -38,7 +39,9 @@ my $core_filename             = File::Spec->catfile($data_directory, 'core.zip')
 my $base_directory            = File::Spec->catdir($data_directory, 'common'); 
 my $transform_directory       = File::Spec->catdir($base_directory, 'transforms');
 my $lib_directory             = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale', 'CLDR');
+my $locales_directory         = File::Spec->catdir($lib_directory, 'Locales');
 my $transformations_directory = File::Spec->catdir($lib_directory, 'Transformations');
+my $distributions_directory   = File::Spec->catdir($FindBin::Bin, 'Distributions');
 
 # Check if we have a Data directory
 if (! -d $data_directory ) {
@@ -347,7 +350,9 @@ my $rbnf_directory = File::Spec->catdir($base_directory, 'rbnf');
 
 my %territory_to_package;
 # Sort files ASCIIbetically
-foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
+my $en;
+my $languages;
+foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, readdir($dir) ) {
     if (@ARGV) {
         next unless grep {$file_name eq $_} @ARGV;
     }
@@ -377,7 +382,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     $output_file_parts[-1] .= '.pm';
 
     my $out_directory = File::Spec->catdir(
-        $lib_directory, 
+        $locales_directory, 
         @output_file_parts[0 .. $#output_file_parts - 1]
     );
 
@@ -388,16 +393,25 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 		push @{$territory_to_package{lc $t}}, join('::','Locale::CLDR',@output_file_parts[0,1],$t);
 	}
 	
-    open $file, '>', File::Spec->catfile($lib_directory, @output_file_parts);
+	my $has_en = -e File::Spec->catfile($locales_directory, 'En', 'Any', 'Us.pm');
+	if ($has_en && ! $en) {
+		require lib;
+		lib::import(undef,File::Spec->catdir($FindBin::Bin, 'lib'));
+		require Locale::CLDR;
+		$en = Locale::CLDR->new('en');
+		$languages = $en->all_languages;
+	}
+
+    open $file, '>', File::Spec->catfile($locales_directory, @output_file_parts);
 
     my $full_file_name = File::Spec->catfile($base_directory, 'main', $file_name);
     my $percent = ++$count_files / $num_files * 100;
     say sprintf("Processing File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent) if $verbose;
 
     # Note: The order of these calls is important
-    process_class_any($lib_directory, @output_file_parts[0 .. $#output_file_parts -1]);
-
-    process_header($file, "Locale::CLDR::$package", $CLDR_VERSION, $xml, $full_file_name);
+    process_class_any($locales_directory, @output_file_parts[0 .. $#output_file_parts -1]);
+	
+    process_header($file, "Locale::CLDR::Locales::$package", $CLDR_VERSION, $xml, $full_file_name, 0, $languages->{$current_locale});
     process_segments($file, $segment_xml) if $segment_xml;
 	process_rbnf($file, $rbnf_xml) if $rbnf_xml;
     process_display_pattern($file, $xml);
@@ -428,10 +442,6 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 }
 
 # Build Bundles and Distributions
-require lib;
-lib::import(undef,File::Spec->catdir($FindBin::Bin, 'lib'));
-require Locale::CLDR;
-my $en = Locale::CLDR->new('en');
 
 my $out_directory = File::Spec->catdir($lib_directory, '..', '..', 'Bundle', 'Locale','CLDR');
 make_path($out_directory) unless -d $out_directory;
@@ -451,8 +461,7 @@ foreach my $territory (sort keys %$territory_contains) {
 }
 
 # Language bundles
-my $language_names = $en->all_languages;
-foreach my $language (sort keys %$language_names) {
+foreach my $language (sort keys %$languages) {
 	next if $language =~ /[_@]/;
 	my @files = get_language_bundle_data(ucfirst lc $language);
 	next unless @files;
@@ -478,7 +487,7 @@ sub convert_files_to_packages {
 sub get_language_bundle_data {
 	my ($language, $directory_name) = @_;
 	
-	$directory_name //= $lib_directory;
+	$directory_name //= $locales_directory;
 	
 	my @packages;
 	if ( -d (my $new_dir = File::Spec->catdir($directory_name, $language)) ) {
@@ -512,19 +521,25 @@ my @base_bundle = (
 	'Locale::CLDR::TerritoryContainment',
 	'Locale::CLDR::ValidCodes',
 	'Locale::CLDR::WeekData',
-	'Locale::CLDR::En',
-	'Locale::CLDR::Root',
+	'Locale::CLDR::Locales::En',
+	'Locale::CLDR::Locales::En::Any',
+	'Locale::CLDR::Locales::En::Any::Us',
+	'Locale::CLDR::Locales::Root',
 );
 
 build_bundle($out_directory, \@base_bundle, 'Base');
 
 # All Bundle
 my @all_bundle = (
-	'Locale::CLDR::World',
+	'Locale::CLDR::Locales::World',
 	'Locale::CLDR::Transformations',
 );
 
 build_bundle($out_directory, \@all_bundle, 'Everything');
+
+# Now split everything into distributions
+# here
+build_distributions();
 
 my $duration = time() - $start_time;
 my @duration;
@@ -567,10 +582,10 @@ sub output_file_name {
 sub process_class_any {
     my ($lib_path, @path_parts) = @_;
     
-    my $package = 'Locale::CLDR';
+    my $package = 'Locale::CLDR::Locales';
     foreach my $path (@path_parts) {
         my $parent = $package;
-        $parent = 'Locale::CLDR::Root' if $parent eq 'Locale::CLDR';
+        $parent = 'Locale::CLDR::Locales::Root' if $parent eq 'Locale::CLDR::Locales';
         $package .= "::$path";
         $lib_path = File::Spec->catfile($lib_path, $path);
 
@@ -605,7 +620,7 @@ EOT
 
 # Process the elements of the file note
 sub process_header {
-    my ($file, $class, $version, $xpath, $xml_name, $isRole) = @_;
+    my ($file, $class, $version, $xpath, $xml_name, $isRole, $language) = @_;
     say "Processing Header" if $verbose;
 
     $isRole = $isRole ? '::Role' : '';
@@ -621,7 +636,19 @@ sub process_header {
     $xml_generated=~s/^\$Date: (.*) \$$/$1/;
 	$xml_generated = "# XML file generated $xml_generated" if $xml_generated;
 
-	my $header = <<EOT;
+	my $header = '';
+	if ($language) {
+		print $file <<EOT;
+=head1
+
+$class - Package for language $language
+
+=cut
+
+EOT
+	}
+	
+	print $file <<EOT;
 package $class;
 # This file auto generated from $xml_name
 #\ton $now GMT
@@ -640,9 +667,9 @@ use Moose$isRole;
 
 EOT
     print $file $header;
-	if (!$isRole && $class =~ /^Locale::CLDR::...?(?:::|$)/) {
+	if (!$isRole && $class =~ /^Locale::CLDR::Locales::...?(?:::|$)/) {
 		my ($parent) = $class =~ /^(.+)::/;
-		$parent = 'Locale::CLDR::Root' if $parent eq 'Locale::CLDR';
+		$parent = 'Locale::CLDR::Locales::Root' if $parent eq 'Locale::CLDR::Locales';
 		
 		say $file "extends('$parent');" unless $isRole;
 	}
@@ -4678,13 +4705,10 @@ EOT
 
 	foreach my $package (@$packages) {
 		# Only put En and Root in the base bundle
-		next if $name ne 'Base' && $package eq 'Locale::CLDR::Root';
-		next if $name ne 'Base' && $package eq 'Locale::CLDR::En';
+		next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::Root';
+		next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En';
 		say $file "$package $VERSION" ;
 	}
-
-	# Don't put Base in the Base bundle
-	say $file "Bundle::Locale::CLDR::Base $VERSION" unless $name eq 'Base';
 
 	print $file <<EOT;
 
@@ -4715,38 +4739,42 @@ sub expand_territories {
 	return [sort { length $a <=> length $b || $a cmp $b } keys %packages];
 }
 
-sub build_base {
-	my $filename = File::Spec->catfile($lib_directory, "Base.pm");
+sub build_distributions {
+	make_path($distributions_directory) unless -d $distributions_directory;
 
-	open my $file, '>', $filename;
-	print $file <<EOT;
-package Bundle::Locale::CLDR::Base;
+	build_base_distribution();
+	build_transforms_distribution();
+	build_language_distributions();
+	build_territory_distribution();
+}
 
-use version;
+sub build_base_distribution {
 
-our \$VERSION = version->declare('v$VERSION');
+	my $distribution = File::Spec->catdir($distributions_directory, qw(Base lib Locale));
+	make_path($distribution)
+		unless -d $distribution;
 
-=head1 NAME Bundle::Locale::CLDR::Base;
+	my $base_directory = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale');
+	$base_directory =~ s/\\/\\\\/g;
+	$base_directory = qr/^$base_directory\\/;
+	foreach my $package (@base_bundle) {
+		my $path = File::Spec->catfile($INC{($package =~ s/::/\//gr) . '.pm'});
+		my $extended_path = $path;
+		$extended_path =~ s/$base_directory//;
+		make_path(File::Spec->catdir($distribution, $extended_path))
+			unless -d File::Spec->catdir($distribution, $extended_path);
+			
+		copy $path, File::Spec->catdir($distribution, $extended_path);
+	}
+}
 
-=head1 CONTENTS
+sub build_transforms_distribution {
+}
 
-Locale::CLDR::CalendarPreferences $VERSION
-Locale::CLDR::Currencies $VERSION
-Locale::CLDR::EraBoundries $VERSION
-Locale::CLDR::LikelySubtags $VERSION
-Locale::CLDR::MeasurementSystem $VERSION
-Locale::CLDR::NumberFormatter $VERSION
-Locale::CLDR::NumberingSystems $VERSION
-Locale::CLDR::Plurals $VERSION
-Locale::CLDR::TerritoryContainment $VERSION
-Locale::CLDR::ValidCodes $VERSION
-Locale::CLDR::WeekData $VERSION
+sub build_language_distributions {
+}
 
-=cut
-
-1;
-
-EOT
+sub build_territory_distribution{
 }
 
 __DATA__
