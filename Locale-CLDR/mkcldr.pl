@@ -32,6 +32,7 @@ my $CLDR_VERSION = 26;
 my $REVISION = 2;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
+my $RELEASE_STATUS = 'unstable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -42,6 +43,8 @@ my $lib_directory             = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale
 my $locales_directory         = File::Spec->catdir($lib_directory, 'Locales');
 my $transformations_directory = File::Spec->catdir($lib_directory, 'Transformations');
 my $distributions_directory   = File::Spec->catdir($FindBin::Bin, 'Distributions');
+my $tests_directory           = File::Spec->catdir($FindBin::Bin, 't');
+my $build_directory           = File::Spec->catdir($FindBin::Bin, 'lib');
 
 # Check if we have a Data directory
 if (! -d $data_directory ) {
@@ -476,7 +479,10 @@ sub convert_files_to_packages {
 	
 	foreach my $file_name (@$files) {
 		open my $file, $file_name or die "Bang $file_name: $!";
-		my ($package) = (<$file> =~ /^package (.+);$/);
+		my $package;
+		($package) = (<$file> =~ /^package (.+);$/)
+			until $package;
+
 		close $file;
 		push @packages, $package;
 	}
@@ -538,7 +544,7 @@ my @all_bundle = (
 build_bundle($out_directory, \@all_bundle, 'Everything');
 
 # Now split everything into distributions
-# here
+
 build_distributions();
 
 my $duration = time() - $start_time;
@@ -4748,30 +4754,211 @@ sub build_distributions {
 	build_territory_distribution();
 }
 
-sub build_base_distribution {
-
-	my $distribution = File::Spec->catdir($distributions_directory, qw(Base lib Locale));
-	make_path($distribution)
-		unless -d $distribution;
-
-	my $base_directory = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale');
-	$base_directory =~ s/\\/\\\\/g;
-	$base_directory = qr/^$base_directory\\/;
-	foreach my $package (@base_bundle) {
-		my $path = File::Spec->catfile($INC{($package =~ s/::/\//gr) . '.pm'});
-		my $extended_path = $path;
-		$extended_path =~ s/$base_directory//;
-		make_path(File::Spec->catdir($distribution, $extended_path))
-			unless -d File::Spec->catdir($distribution, $extended_path);
-			
-		copy $path, File::Spec->catdir($distribution, $extended_path);
+sub copy_tests {
+	my $distribution = shift;
+	
+	my $source_directory = File::Spec->catdir($tests_directory, $distribution);
+	my $destination_directory = File::Spec->catdir($distributions_directory, $distribution, 't');
+	make_path($destination_directory) unless -d $destination_directory;
+	
+	opendir my $dir, $source_directory;
+	while (my $file = readdir($dir)) {
+		next if $file =~/^\./;
+		copy(File::Spec->catfile($source_directory, $file), $destination_directory);
 	}
 }
 
+sub make_distribution {
+	my $path = shift;
+	chdir $path;
+	system( 'perl', 'Build.PL');
+	system( qw( perl Build manifest));
+	system( qw( perl Build dist));
+	chdir $FindBin::Bin;
+}
+
+sub build_base_distribution {
+
+	my $distribution = File::Spec->catdir($distributions_directory, qw(Base lib));
+	make_path($distribution)
+		unless -d $distribution;
+
+	copy_tests('Base');
+	
+	open my $build_file, '>', File::Spec->catfile($distributions_directory, 'Base','Build.PL');
+	print $build_file <<EOT;
+use strict;
+use warnings;
+use Module::Build;
+
+my \$builder = Module::Build->new(
+    module_name         => 'Locale::CLDR',
+    license             => 'perl',
+    requires        => {
+        'version'                   => '0.95',
+        'DateTime'                  => '0.72',
+        'Moose'                     => '2.0401',
+        'MooseX::ClassAttribute'    => '0.26',
+        'perl'                      => '5.10.0',
+    },
+    dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
+    dist_version_from   => 'lib/Locale/CLDR.pm',
+    build_requires => {
+        'ok'                => 0,
+        'Test::Exception'   => 0,
+        'Test::More'        => '0.98',
+    },
+    add_to_cleanup      => [ 'Locale-CLDR-*' ],
+	configure_requires => { 'Module::Build' => '0.40' },
+    create_makefile_pl => 'traditional',
+	release_status => '$RELEASE_STATUS',
+);
+
+\$builder->create_build_script();
+EOT
+
+	close $build_file;
+	
+	foreach my $file (@base_bundle) {
+		my @path = split /::/, $file;
+		$path[-1] .= '.pm';
+		my $source_name = File::Spec->catfile($build_directory, @path);
+		my $destination_name = File::Spec->catdir($distribution, @path[0 .. @path - 2]);
+		make_path($destination_name)
+			unless -d $destination_name;
+		copy($source_name, $destination_name);
+	}
+	
+	make_distribution(File::Spec->catdir($distributions_directory, 'Base'));
+}
+
+sub build_text {
+	my ($module, $version) = @_;
+	$file = $module;
+	if ($version) {
+		$version = "/$version";
+	}
+	else {
+		$version = '';
+		$file =~ s/::/\//g;
+	}
+	
+	my $build_text = <<EOT;
+use strict;
+use warnings;
+use Module::Build;
+
+my \$builder = Module::Build->new(
+    module_name         => 'Locale::CLDR::$module',
+    license             => 'perl',
+    requires        => {
+        'version'                   => '0.95',
+        'DateTime'                  => '0.72',
+        'Moose'                     => '2.0401',
+        'MooseX::ClassAttribute'    => '0.26',
+        'perl'                      => '5.10.0',
+		'Locale::CLDR'              => '$VERSION'
+    },
+    dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
+    dist_version_from   => 'lib/Locale/CLDR/$file$version',
+    build_requires => {
+        'ok'                => 0,
+        'Test::Exception'   => 0,
+        'Test::More'        => '0.98',
+    },
+    add_to_cleanup      => [ 'Locale-CLDR-$module-*' ],
+	configure_requires => { 'Module::Build' => '0.40' },
+    create_makefile_pl => 'traditional',
+	release_status => '$RELEASE_STATUS',
+	dist_abstract => 'Locale::CLDR - Data Package $module',
+);
+
+\$builder->create_build_script();
+EOT
+
+	return $build_text;
+}
+
+sub get_files_recursive {
+	my $dir_name = shift;
+	$dir_name = [$dir_name] unless ref $dir_name;
+	
+	my @files;
+	opendir my $dir, File::Spec->catdir(@$dir_name);
+	while (my $file = readdir($dir)) {
+		next if $file =~ /^\./;
+		if (-d File::Spec->catdir(@$dir_name, $file)) {
+			push @files, get_files_recursive([@$dir_name, $file]);
+		}
+		else {
+			push @files, [@$dir_name, $file];
+		}
+	}
+	
+	return @files;
+}
+
 sub build_transforms_distribution {
+	my $distribution = File::Spec->catdir($distributions_directory, qw(Transformations lib));
+	make_path($distribution)
+		unless -d $distribution;
+
+	copy_tests('Transformations');
+	
+	open my $build_file, '>', File::Spec->catfile($distributions_directory, 'Transformations','Build.PL');
+	print $build_file build_text('Transformations', 'Any/Any/Accents.pm');
+	close $build_file;
+	
+	my @files = get_files_recursive($transformations_directory);
+	
+	foreach my $file (@files) {
+		my $source_name = File::Spec->catfile(@$file);
+		my $destination_name = File::Spec->catdir($distribution, qw(Locale CLDR Transformations), @{$file}[1 .. @$file - 2]);
+		make_path($destination_name)
+			unless -d $destination_name;
+		copy($source_name, $destination_name);
+	}
+	
+	make_distribution(File::Spec->catdir($distributions_directory, 'Transformations'));
 }
 
 sub build_language_distributions {
+	opendir (my $dir, $locales_directory);
+	while (my $file = readdir($dir)) {
+		next unless -f File::Spec->catfile($locales_directory, $file);
+
+		my $language = $file;
+		$language =~ s/\.pm$//;
+		my $distribution = File::Spec->catdir($distributions_directory, $language, 'lib');
+		make_path($distribution)
+			unless -d $distribution;
+
+		copy_tests($language);
+	
+		open my $build_file, '>', File::Spec->catfile($distributions_directory, $language,'Build.PL');
+		print $build_file build_text("Locales::$file");
+		close $build_file;
+	
+		my $source_name = File::Spec->catfile($locales_directory, $file);
+		my $destination_name = File::Spec->catdir($distribution, qw(Locale CLDR Locales), $file);
+		make_path(File::Spec->catdir($distribution, qw(Locale CLDR Locales)))
+			unless -d File::Spec->catdir($distribution, qw(Locale CLDR Locales));
+		copy($source_name, $destination_name);
+		
+		my @files = (
+			get_files_recursive(File::Spec->catdir($locales_directory, $language))
+		);
+	
+		foreach my $file (@files) {
+			my $source_name = File::Spec->catfile(@$file);
+			my $destination_name = File::Spec->catdir($distribution, qw(Locale CLDR Locales), $language, @{$file}[1 .. @$file - 2]);
+			make_path($destination_name)
+				unless -d $destination_name;
+			copy($source_name, $destination_name);
+		}
+	
+		make_distribution(File::Spec->catdir($distributions_directory, $language));
+	}
 }
 
 sub build_territory_distribution{
