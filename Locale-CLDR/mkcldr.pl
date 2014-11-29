@@ -4829,6 +4829,9 @@ EOT
 		copy($source_name, $destination_name);
 	}
 	
+	# Get the readme and changes files
+	copy(File::Spec->catfile($FindBin::Bin, 'README'), File::Spec->catdir($distributions_directory, 'Base'));
+	copy(File::Spec->catfile($FindBin::Bin, 'CHANGES'), File::Spec->catdir($distributions_directory, 'Base'));
 	make_distribution(File::Spec->catdir($distributions_directory, 'Base'));
 }
 
@@ -4976,22 +4979,20 @@ use Moose::Role;
 sub format_number {
 	my ($self, $number, $format, $currency, $for_cash) = @_;
 	
-	# Check if we want to format a none numeric number type
-	if(!defined $format) {
-		my $numbering_system = $self->default_numbering_system();
-		if ($self->numbering_system->{$numbering_system}{type} eq 'algorithmic') {
-			$format = $self->numbering_system->{$numbering_system}{data};
-		}
-		else {
-			$format = '0';
-		}
+	# Check if the locales numbering system is algorithmic. If so ignore the format
+	my $numbering_system = $self->default_numbering_system();
+	if ($self->numbering_system->{$numbering_system}{type} eq 'algorithmic') {
+		$format = $self->numbering_system->{$numbering_system}{data};
+		return $self->_algorithmic_number_format($number, $format);
 	}
+	
+	$format //= '0';
+	
+	return $self->_format_number($number, $format, $currency, $for_cash);
+}
 
-	# Some of these algorithmic formats are in locale/type/name format
-	if (my ($locale_id, $type, $format) = $format =~ m(^(.*?)/(.*?)/(.*?)$)) {
-		my $locale = Locale::CLDR->new($locale_id);
-		return $locale->format_number($number, $format);
-	}
+sub _format_number {
+	my ($self, $number, $format, $currency, $for_cash) = @_;
 	
 	# First check to see if this is an algorithmic format
 	my @valid_formats = $self->_get_valid_algorithmic_formats();
@@ -4999,7 +5000,12 @@ sub format_number {
 	if (grep {$_ eq $format} @valid_formats) {
 		return $self->_algorithmic_number_format($number, $format);
 	}
-		
+	
+	# Some of these algorithmic formats are in locale/type/name format
+	if (my ($locale_id, $type, $format) = $format =~ m(^(.*?)/(.*?)/(.*?)$)) {
+		my $locale = Locale::CLDR->new($locale_id);
+		return $locale->format_number($number, $format);
+	}
 	
 	my $currency_data;
 	
@@ -5241,7 +5247,7 @@ sub get_formatted_number {
 	my ($separator, $decimal_point) = ($symbols{$symbols_type}{group}, $symbols{$symbols_type}{decimal});
 	my ($minor_group, $major_group) = ($format->{$type}{minor_group}, $format->{$type}{major_group});
 	
-	if (defined $minor_group) {
+	if (defined $minor_group && $separator) {
 		# Fast commify using unpack
 		my $pattern = "(A$minor_group)(A$major_group)*";
 		$number = reverse join $separator, grep {length} unpack $pattern, reverse $integer;
@@ -5361,7 +5367,7 @@ sub _process_algorithmic_number_data {
 			}
 			else {
 				# Assume a format
-				$format_rule =~ s/→(.+)→/$self->format_number($positive_number, $1)/e;
+				$format_rule =~ s/→(.+)→/$self->_format_number($positive_number, $1)/e;
 			}
 		}
 		elsif($format_rule =~ /=%%.*=/) {
@@ -5371,13 +5377,13 @@ sub _process_algorithmic_number_data {
 			$format_rule =~ s/=%(.*?)=/$self->_algorithmic_number_format($number, $1, 'public')/eg;
 		}
 		elsif($format_rule =~ /=.*=/) {
-			$format_rule =~ s/=(.*?)=/$self->format_number($number, $1)/eg;
+			$format_rule =~ s/=(.*?)=/$self->_format_number($number, $1)/eg;
 		}
 	}
 	# Fractions
 	elsif( $number =~ /\./ ) {
 		my $in_fraction_rule_set = 1;
-		my ($integer, $fraction) = $number =~ /^([^.])*\.(.*)$/;
+		my ($integer, $fraction) = $number =~ /^([^.]*)\.(.*)$/;
 		
 		if ($number >= 0 && $number < 1) {
 			$format_rule =~ s/\[.*\]//;
@@ -5399,7 +5405,7 @@ sub _process_algorithmic_number_data {
 				$format_rule =~ s/→(.*)→/$self->_process_algorithmic_number_data_fractions($fraction, $format_data)/e;
 			}
 			else {
-				$format_rule =~ s/→(.*)→/$self->format_number($fraction, $1)/e;
+				$format_rule =~ s/→(.*)→/$self->_format_number($fraction, $1)/e;
 			}
 		}
 		
@@ -5416,7 +5422,7 @@ sub _process_algorithmic_number_data {
 				$format_rule =~ s/←(.*)←/$self->_process_algorithmic_number_data($integer, $format_data, $in_fraction_rule_set)/e;
 			}
 			else {
-				$format_rule =~ s/←(.*)←/$self->format_number($integer, $1)/e;
+				$format_rule =~ s/←(.*)←/$self->_format_number($integer, $1)/e;
 			}
 		}
 		
@@ -5428,7 +5434,7 @@ sub _process_algorithmic_number_data {
 				$format_rule =~ s/=%(.*?)=/$self->_algorithmic_number_format($number, $1, 'public')/eg;
 			}
 			else {
-				$format_rule =~ s/=(.*?)=/$self->format_number($integer, $1)/eg;
+				$format_rule =~ s/=(.*?)=/$self->_format_number($integer, $1)/eg;
 			}
 		}
 	}
@@ -5461,7 +5467,7 @@ sub _process_algorithmic_number_data {
 						$format_rule =~ s/←(.*)←/$self->_process_algorithmic_number_data($number * $base_value, $format_data, $in_fraction_rule_set)/e;
 					}
 					else {
-						$format_rule =~ s/←(.*)←/$self->format_number($number * $base_value, $1)/e;
+						$format_rule =~ s/←(.*)←/$self->_format_number($number * $base_value, $1)/e;
 					}
 				}
 				else {
@@ -5469,7 +5475,7 @@ sub _process_algorithmic_number_data {
 				}
 			}
 			elsif($format_rule =~ /=.*=/) {
-				$format_rule =~ s/=(.*?)=/$self->format_number($number, $1)/eg;
+				$format_rule =~ s/=(.*?)=/$self->_format_number($number, $1)/eg;
 			}
 		}
 		else {
@@ -5484,7 +5490,7 @@ sub _process_algorithmic_number_data {
 						$format_rule =~ s/→(.+)→/$self->_process_algorithmic_number_data($number % $divisor, $format_data)/e;
 					}
 					else {
-						$format_rule =~ s/→(.*)→/$self->format_number($number % $divisor, $1)/e;
+						$format_rule =~ s/→(.*)→/$self->_format_number($number % $divisor, $1)/e;
 					}
 				}
 				else {
@@ -5503,7 +5509,7 @@ sub _process_algorithmic_number_data {
 						$format_rule =~ s|←(.*)←|$self->_process_algorithmic_number_data(int ($number / $divisor), $format_data)|e;
 					}
 					else {
-						$format_rule =~ s|←(.*)←|$self->format_number(int($number / $divisor), $1)|e;
+						$format_rule =~ s|←(.*)←|$self->_format_number(int($number / $divisor), $1)|e;
 					}
 				}
 				else {
@@ -5519,7 +5525,7 @@ sub _process_algorithmic_number_data {
 					$format_rule =~ s/=%(.*?)=/$self->_algorithmic_number_format($number, $1, 'public')/eg;
 				}
 				else {
-					$format_rule =~ s/=(.*?)=/$self->format_number($number, $1)/eg;
+					$format_rule =~ s/=(.*?)=/$self->_format_number($number, $1)/eg;
 				}
 			}
 		}
@@ -5562,7 +5568,6 @@ no Moose::Role;
 1;
 
 # vim: tabstop=4
-
 __DATA__
 package Locale::CLDR::Collator;
 

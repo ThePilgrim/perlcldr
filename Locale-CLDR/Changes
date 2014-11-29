@@ -53,7 +53,8 @@ All dates are in ISO 8601 Format
 0.26.1
 	- Broken release
 
-0.26.2 2014-10-xx
+0.26.2 2014-11-29
 	- CLDR version 26 release.
 	- Break data into bundles so you don't have to download all the data
 	- Fix some spelling mistakes in the documentation
+	- Fix bugs in the Rule based number formatting
