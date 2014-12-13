@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.26.2
+Version 0.26.4
 
 =head1 SYNOPSIS
 
@@ -19,27 +19,27 @@ few parts of the code that require version 5.18 or above.
 
 =head1 USAGE
 
- my $locale = Locale::CLDR->new('en_GB');
+ my $locale = Locale::CLDR->new('en_US');
 
 or
 
- my $locale = Locale::CLDR->new(language_id => 'en', territory_id => 'gb');
+ my $locale = Locale::CLDR->new(language_id => 'en', territory_id => 'us');
  
 A full locale identifier is
  
 C<language>_C<script>_C<territory>_C<variant>_u_C<extension name>_C<extension value>
  
- my $locale = Locale::CLDR->new('en_latn_GB_SCOUSE_u_nu_traditional');
+ my $locale = Locale::CLDR->new('en_latn_US_SCOUSE_u_nu_traditional');
  
 or
  
- my $locale = Locale::CLDR->new(language_id => 'en', script_id => 'latn', territory_id => 'gb', variant => 'SCOUSE', extensions => { nu => 'traditional' } );
+ my $locale = Locale::CLDR->new(language_id => 'en', script_id => 'latn', territory_id => 'US', variant => 'SCOUSE', extensions => { nu => 'traditional' } );
  
 =cut
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.26.2');
+our $VERSION = version->declare('v0.26.3');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -3139,7 +3139,8 @@ sub _build_any_era {
 						
 			my $result = $eras->{$default_calendar}{$width};
 			
-			my @result = map {$result->{$_}} sort { $a <=> $b } keys %$result;
+			my @result;
+			@result[keys %$result] = values %$result;
 			
 			return \@result if keys %$result;
 		}
@@ -4032,6 +4033,12 @@ sub _default_collation_strength {
 }
 
 =end comment
+
+=head1 Locales
+
+Other locales can be found on CPAN. You can install Language packs from the 
+Locale::CLDR::Locales::* packages. You can also install language packs for
+a given territory by looking for a Bundle::Locale::CLDR::* package
 
 =head1 AUTHOR
 

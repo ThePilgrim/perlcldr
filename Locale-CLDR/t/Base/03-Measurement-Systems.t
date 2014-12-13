@@ -6,12 +6,13 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 3;
+use Test::More tests => 4;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
 
 my $locale = Locale::CLDR->new('en');
 
+is ($locale->measurement_system_name('uk'), 'UK', 'Measurement system UK');
 is ($locale->measurement_system_name('us'), 'US', 'Measurement system US');
 is ($locale->measurement_system_name('metric'), 'Metric', 'Measurement system Metric');
