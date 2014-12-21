@@ -4751,7 +4751,7 @@ sub build_distributions {
 	build_base_distribution();
 	build_transforms_distribution();
 	build_language_distributions();
-	build_territory_distribution();
+	build_territory_distributions();
 }
 
 sub copy_tests {
@@ -4964,7 +4964,7 @@ sub build_language_distributions {
 	}
 }
 
-sub build_territory_distribution{
+sub build_territory_distributions{
 }
 
 __DATA__
@@ -5573,7 +5573,7 @@ package Locale::CLDR::Collator;
 
 use version;
 
-our $VERSION = version->declare('v0.25.5');
+our $VERSION = version->declare('v0.26.4');
 
 use v5.10;
 use mro 'c3';

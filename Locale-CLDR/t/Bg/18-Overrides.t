@@ -13,7 +13,7 @@ use ok 'Locale::CLDR';
 my $locale = Locale::CLDR->new('bg_u_ca_islamic');
 
 my $months = $locale->month_format_wide();
-is_deeply ($months, [ 'януари', 'февруари', 'март', 'април', ], 'Islamic Month format wide');
+is_deeply ($months, [ 'януари', 'февруари', 'март', 'април', 'май', 'юни', ], 'Islamic Month format wide');
 $months = $locale->month_format_abbreviated();
 is_deeply ($months, [ 'ян.', 'февр.', 'март', 'апр.', ], 'Islamic Month format abbreviated');
 $months = $locale->month_format_narrow();
