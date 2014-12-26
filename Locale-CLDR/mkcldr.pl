@@ -29,7 +29,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 26;
-my $REVISION = 4;
+my $REVISION = 5;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 my $RELEASE_STATUS = 'stable';
@@ -5033,7 +5033,8 @@ sub _format_number {
 sub add_currency_symbol {
 	my ($self, $format, $symbol) = @_;
 	
-	$format =~ s/¤/$symbol/;
+	
+	$format =~ s/¤/'$symbol'/;
 	
 	return $format;
 }
@@ -5075,7 +5076,7 @@ sub parse_number_format {
 	$format = $self->add_currency_symbol($format, $currency)
 		if defined $currency;
 	
-	my ($positive, $negative) = $format =~ /^((?:'[^']*')++ | [^';]+)+ (?:;(.+))?$/x;
+	my ($positive, $negative) = $format =~ /^((?:(?:'[^']*')*+[^';]+)+) (?:;(.+))?$/x;
 	
 	my $type = 'positive';
 	foreach my $to_parse ( $positive, $negative ) {
