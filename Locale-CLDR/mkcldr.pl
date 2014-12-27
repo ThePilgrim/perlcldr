@@ -29,10 +29,10 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 26;
-my $REVISION = 5;
+my $REVISION = 6;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
