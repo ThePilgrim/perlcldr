@@ -5317,6 +5317,16 @@ sub _algorithmic_number_format {
 
 sub _get_algorithmic_number_format_data_by_name {
 	my ($self, $format_name, $type) = @_;
+	
+	# Some of these algorithmic formats are in locale/type/name format
+	if (my ($locale_id, undef, $format) = $format_name =~ m(^(.*?)/(.*?)/(.*?)$)) {
+		my $locale = Locale::CLDR->new($locale_id);
+		return $locale->_get_algorithmic_number_format_data_by_name($format, $type)
+			if $locale;
+
+		return undef;
+	}
+	
 	$type //= 'public';
 	
 	my %data = ();

@@ -640,8 +640,12 @@ sub _build_module {
 	my $module;
 	foreach my $module_name (@path) {
 		$module_name = "Locale::CLDR::Locales::$module_name";
-		eval { Class::Load::load_class($module_name); };
-		next if $@;
+		if (Class::Load::try_load_class($module_name, { -version => $VERSION})) {
+			Class::Load::load_class($module_name, { -version => $VERSION});
+		}
+		else {
+			next;
+		}
 		$module = $module_name->new;
 		last;
 	}
