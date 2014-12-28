@@ -18,6 +18,11 @@ To install this module, run the following commands:
 	./Build test
 	./Build install
 
+Locale Data
+
+This package comes with the Locale data for en_US, other locale data can be found in the Locale::CLDR::Locales::*
+distributions
+
 Building from github
 
 The data is built with the mkcldr.pl script which I use to download the
