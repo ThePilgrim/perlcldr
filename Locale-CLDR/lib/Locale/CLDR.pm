@@ -4046,7 +4046,7 @@ a given territory by looking for a Bundle::Locale::CLDR::* package
 
 =head1 AUTHOR
 
-John Imrie, C<< <john dot imrie1 at gmail dot com> >>
+John Imrie, C<< <JGNI at cpan dot org> >>
 
 =head1 BUGS
 
@@ -4093,7 +4093,6 @@ regex engine.
 =head1 COPYRIGHT & LICENSE
 
 Copyright 2009-2014 John Imrie.
-Backwards compatible Case Folding Copyright Andrew Rodland  ARODLAND@cpan.org
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
