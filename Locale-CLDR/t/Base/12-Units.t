@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('en_GB');
+my $locale = Locale::CLDR->new('en_US');
 
 is($locale->unit(1, 'acre', 'narrow'), '1ac', 'English narrow 1 acre');
 is($locale->unit(2, 'acre', 'narrow'), '2ac', 'English narrow 2 acres');

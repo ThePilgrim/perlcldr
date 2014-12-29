@@ -11,9 +11,9 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('en_GB');
+my $locale = Locale::CLDR->new('en_US');
 
-is($locale->locale_name(), 'British English', 'Locale name from current locale');
+is($locale->locale_name(), 'American English', 'Locale name from current locale');
 is($locale->locale_name('fr_CA'), 'Canadian French', 'Locale name from string');
 is($locale->language_name(), 'English', 'Language name from current locale');
 is($locale->language_name('fr'), 'French', 'Language name from string');
@@ -815,7 +815,7 @@ my $all_scripts = {
 
 is_deeply($locale->all_scripts, $all_scripts, 'All scripts');
 
-is($locale->territory_name(), 'United Kingdom', 'Territory name from current locale');
+is($locale->territory_name(), 'United States', 'Territory name from current locale');
 is($locale->territory_name('fr'), 'France', 'Territory name from string');
 
 my $all_territories = {

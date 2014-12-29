@@ -29,9 +29,12 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 26;
-my $REVISION = 4;
+my $REVISION = 6;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
+
+# $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
+# full release or 'unstable' for a developer release
 my $RELEASE_STATUS = 'stable';
 
 chdir $FindBin::Bin;
@@ -5033,7 +5036,8 @@ sub _format_number {
 sub add_currency_symbol {
 	my ($self, $format, $symbol) = @_;
 	
-	$format =~ s/¤/$symbol/;
+	
+	$format =~ s/¤/'$symbol'/;
 	
 	return $format;
 }
@@ -5075,7 +5079,7 @@ sub parse_number_format {
 	$format = $self->add_currency_symbol($format, $currency)
 		if defined $currency;
 	
-	my ($positive, $negative) = $format =~ /^((?:'[^']*')++ | [^';]+)+ (?:;(.+))?$/x;
+	my ($positive, $negative) = $format =~ /^((?:(?:'[^']*')*+[^';]+)+) (?:;(.+))?$/x;
 	
 	my $type = 'positive';
 	foreach my $to_parse ( $positive, $negative ) {
@@ -5316,6 +5320,16 @@ sub _algorithmic_number_format {
 
 sub _get_algorithmic_number_format_data_by_name {
 	my ($self, $format_name, $type) = @_;
+	
+	# Some of these algorithmic formats are in locale/type/name format
+	if (my ($locale_id, undef, $format) = $format_name =~ m(^(.*?)/(.*?)/(.*?)$)) {
+		my $locale = Locale::CLDR->new($locale_id);
+		return $locale->_get_algorithmic_number_format_data_by_name($format, $type)
+			if $locale;
+
+		return undef;
+	}
+	
 	$type //= 'public';
 	
 	my %data = ();

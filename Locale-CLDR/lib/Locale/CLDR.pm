@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.26.4
+Version 0.26.6
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.26.4');
+our $VERSION = version->declare('v0.26.6');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -640,8 +640,12 @@ sub _build_module {
 	my $module;
 	foreach my $module_name (@path) {
 		$module_name = "Locale::CLDR::Locales::$module_name";
-		eval { Class::Load::load_class($module_name); };
-		next if $@;
+		if (Class::Load::try_load_class($module_name, { -version => $VERSION})) {
+			Class::Load::load_class($module_name, { -version => $VERSION});
+		}
+		else {
+			next;
+		}
 		$module = $module_name->new;
 		last;
 	}
@@ -4042,7 +4046,7 @@ a given territory by looking for a Bundle::Locale::CLDR::* package
 
 =head1 AUTHOR
 
-John Imrie, C<< <john dot imrie1 at gmail dot com> >>
+John Imrie, C<< <JGNI at cpan dot org> >>
 
 =head1 BUGS
 
@@ -4089,7 +4093,6 @@ regex engine.
 =head1 COPYRIGHT & LICENSE
 
 Copyright 2009-2014 John Imrie.
-Backwards compatible Case Folding Copyright Andrew Rodland  ARODLAND@cpan.org
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
