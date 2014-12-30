@@ -11,8 +11,9 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale_en = Locale::CLDR->new('en');
-is_deeply([$locale_en->get_digits], [0 .. 9], 'Get digits en');
+my $locale_en = Locale::CLDR->new('br_FR');
+is_deeply([$locale_en->get_digits], [0 .. 9], 'Get digits Breton');
+
 my $format_data = {
 	positive 	=> {
 		exponent_digits				=> 0,
@@ -54,20 +55,14 @@ $format_data->{negative}{pad_length} = 19;
 $format_data->{negative}{pad_location}	= 'after suffix';
 $format_data->{negative}{suffix} = " food ";
 is_deeply($locale_en->parse_number_format('###,##0.###;###,##0.### \'food\' *x'), $format_data, 'A more complex Number format');
-is($locale_en->format_number(12345.6, '###,##0.###'), '12,345.6', 'Format a number');
-is($locale_en->format_number(12345.6, '###,#00%'), '1,234,560%', 'Format a percent');
-is($locale_en->format_number(12345.6, '###,#00‰'), '12,345,600‰', 'Format a per thousand' );
-is($locale_en->format_number(12345678, '#,####,00%'), '1234,5678,00%', 'Format percent with different grouping');
+is($locale_en->format_number(12345.6, '###,##0.###'), '12 345,6', 'Format a number');
+is($locale_en->format_number(12345.6, '###,#00%'), '1 234 560%', 'Format a percent');
+is($locale_en->format_number(12345.6, '###,#00‰'), '12 345 600‰', 'Format a per thousand' );
+is($locale_en->format_number(12345678, '#,####,00%'), '1234 5678 00%', 'Format percent with different grouping');
 
 # RBNF
-is($locale_en->format_number(0, 'spellout-numbering-year'), 'zero', 'RBNF: Spell out year 0');
-is($locale_en->format_number('-0.0', 'spellout-numbering'), 'minus zero point zero', 'RBNF: Spell out -0.0');
-eval {
-	is($locale_en->format_number(123456, 'roman-lower'), '123,456', 'Roman Number grater than max value');
-};
-diag $@ if $@;
+is($locale_en->format_number(0, 'spellout-numbering-year'), '0', 'RBNF: Spell out year 0');
+is($locale_en->format_number('-0.0', 'spellout-numbering'), '−0', 'RBNF: Spell out -0.0');
+is($locale_en->format_number(123456, 'roman-lower'), '123 456', 'Roman Number grater than max value');
+is($locale_en->format_number(1234, 'roman-lower'), 'mccxxxiv', 'Roman Number');
 
-eval {
-	is($locale_en->format_number(1234, 'roman-lower'), 'mccxxxiv', 'Roman Number');
-};
-diag $@ if $@;

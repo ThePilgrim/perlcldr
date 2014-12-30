@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 64;
+use Test::More tests => 60;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -130,14 +130,6 @@ is($locale->era_boundry( gregorian => -12 ), 0, 'Gregorian era');
 is($locale->era_boundry( japanese => 9610217 ), 38, 'Japanese era');
 
 is($locale->week_data_min_days(), 4, 'Number of days a week must have in GB before it counts as the first week of a year');
-my $locale_fr = Locale::CLDR->new('fr');
-is($locale_fr->week_data_min_days(), 4, 'Number of days a week must have in FR before it counts as the first week of a year');
-
 is($locale->week_data_first_day(), 'sun', 'First day of the week in GB when displaying calendars');
-is($locale_fr->week_data_first_day(), 'mon', 'First day of the week in FR when displaying calendars');
-
 is($locale->week_data_weekend_start(), 'sat', 'First day of the week end in GB');
-is($locale_fr->week_data_weekend_start(), 'sat', 'First day of the week end in FR');
-
 is($locale->week_data_weekend_end(), 'sun', 'Last day of the week end in GB');
-is($locale_fr->week_data_weekend_end(), 'sun', 'Last day of the week end in FR');

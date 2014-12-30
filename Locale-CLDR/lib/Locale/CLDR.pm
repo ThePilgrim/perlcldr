@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.26.6
+Version 0.26.7
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.26.6');
+our $VERSION = version->declare('v0.26.7');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -2811,8 +2811,11 @@ sub _build_any_month {
 			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
 			return $result if defined $result;
 		}
+		if ($default_calendar ne 'gregorian') {
+			$default_calendar = 'gregorian';
+			redo BUNDLES;
+		}
 	}
-	
 	return [];
 }
 
@@ -2879,6 +2882,10 @@ sub _build_any_day {
 			}
 			my $result = $days->{$default_calendar}{$type}{$width};
 			return [ @{$result}{qw( mon tue wed thu fri sat sun )} ] if keys %$result;
+		}
+		if ($default_calendar ne 'gregorian') {
+			$default_calendar = 'gregorian';
+			redo BUNDLES;
 		}
 	}
 
@@ -2949,6 +2956,10 @@ sub _build_any_quarter {
 			
 			my $result = $quarters->{$default_calendar}{$type}{$width};
 			return [ @{$result}{qw( 0 1 2 3 )} ] if keys %$result;
+		}
+		if ($default_calendar ne 'gregorian') {
+			$default_calendar = 'gregorian';
+			redo BUNDLES;
 		}
 	}
 
@@ -3148,6 +3159,10 @@ sub _build_any_era {
 			
 			return \@result if keys %$result;
 		}
+		if ($default_calendar ne 'gregorian') {
+			$default_calendar = 'gregorian';
+			redo BUNDLES;
+		}
 	}
 
 	return [];
@@ -3224,7 +3239,12 @@ sub _build_any_date_format {
 			my $result = $date_formats->{$default_calendar}{$width};
 			return $result if $result;
 		}
+		if ($default_calendar ne 'gregorian') {
+			$default_calendar = 'gregorian';
+			redo BUNDLES;
+		}
 	}
+	
 	return '';
 }
 
@@ -3272,6 +3292,10 @@ sub _build_any_time_format {
 			
 			my $result = $time_formats->{$default_calendar}{$width};
 			return $result if $result;
+		}
+		if ($default_calendar ne 'gregorian') {
+			$default_calendar = 'gregorian';
+			redo BUNDLES;
 		}
 	}
 	return '';
@@ -3321,6 +3345,10 @@ sub _build_any_datetime_format {
 			
 			my $result = $datetime_formats->{$default_calendar}{$width};
 			return $result if $result;
+		}
+		if ($default_calendar ne 'gregorian') {
+			$default_calendar = 'gregorian';
+			redo BUNDLES;
 		}
 	}
 	

@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('bg');
+my $locale = Locale::CLDR->new('bg_BG');
 
 is($locale->format_number(12345678, '¤###,###'), 'лв.12 345 678,00', 'Format currency with default currency');
 is($locale->format_number(12345678.9, '¤###,###', 'USD'), 'US$12 345 678,90', 'Format currency with explicit currency');
