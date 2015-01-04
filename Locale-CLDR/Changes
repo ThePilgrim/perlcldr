@@ -58,3 +58,30 @@ All dates are in ISO 8601 Format
 	- Break data into bundles so you don't have to download all the data
 	- Fix some spelling mistakes in the documentation
 	- Fix bugs in the Rule based number formatting
+
+0.26.3
+	- Fixes for the En Distribution
+
+0.26.4 2014-12-21
+	- Test fixes in the BG Distribution
+	
+0.26.5 2014-12-26
+	- Fixed currency symbols with a . in them being confused with the decimal separator.
+	- Fixed overrides and currency tests for BG language
+
+0.26.6 2014-12-29
+	- Fixed tests in the base distribution to use en_US as the locale
+	
+0.26.7 2014-12-30
+	- Added tests for French distribution
+	- Fixed bug in calendars not falling back to Gregorian
+	- Given all currency tests a locale with a region identifier
+	- Added tests for the Breton language
+
+0.26.8
+	- Added tests for all units in base distribution
+	- Added compound units for different lengths
+	- Added precomputed divisors for compound units
+	- Fixed all_units method to return all the unit identifiers
+	- Added unit_name method to get the localised name of a unit
+	

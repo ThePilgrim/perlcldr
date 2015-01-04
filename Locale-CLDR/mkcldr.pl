@@ -29,7 +29,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 26;
-my $REVISION = 7;
+my $REVISION = 8;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -2038,7 +2038,9 @@ sub process_units {
 			$unit_type_name =~ s/^[^\-]+-//;
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
-				my $count = $unit_pattern->getAttribute('count') // 1;
+				my $count = $unit_pattern->getAttribute('count');
+				$count = 'name' if $unit_pattern->getLocalName eq 'displayName';
+				$count = 'per' if $unit_pattern->getLocalName eq 'perUnitPattern';
 				my $pattern = $unit_pattern->getChildNode(1)->getValue;
 				$units{$length}{$unit_type_name}{$count} = $pattern;
 			}

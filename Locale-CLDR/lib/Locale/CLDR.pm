@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.26.7
+Version 0.26.8
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.26.7');
+our $VERSION = version->declare('v0.26.8');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -2441,16 +2441,23 @@ sub _unit_compound {
 	$type //= 'long';
 	
 	my $dividend = $self->unit($number, $dividend_what, $type);
-	my $divisor = $self->unit(1, $divisor_what, $type);
+	my $divisor = $self->_unit_per($divisor_what, $type);
+	if ($divisor) {
+		my $format = $divisor;
+		$format =~ s/\{0\}/$dividend/;
+		return $format;
+	}
+	
+	$divisor = $self->unit(1, $divisor_what, $type);
 	
 	my $one = $self->format_number(1);
 	$divisor =~ s/\s*$one\s*//;
-
+	
 	my @bundles = $self->_find_bundle('units');
 	my $format;
 	foreach my $bundle (@bundles) {
-		if (exists $bundle->units()->{$type}{per}{1}) {
-			$format = $bundle->units()->{$type}{per}{1};
+		if (exists $bundle->units()->{$type}{per}{''}) {
+			$format = $bundle->units()->{$type}{per}{''};
 			last;
 		}
 	}
@@ -2474,6 +2481,65 @@ sub _unit_compound {
 	$format =~ s/\{1\}/$divisor/g;
 	
 	return $format;
+}
+
+=item unit_name($unit_identifier)
+
+This method returns the localised name of the unit
+
+=cut
+
+sub unit_name {
+    my ($self, $what) = @_;
+	
+	my @bundles = $self->_find_bundle('units');
+	my $name;
+	foreach my $bundle (@bundles) {
+		if (exists $bundle->units()->{long}{$what}{name}) {
+			return $bundle->units()->{long}{$what}{name};
+		}
+	}
+	
+	# Check for aliases
+	my $type = 'long';
+	my @aliases = $self->_find_bundle('unit_alias');
+	foreach my $alias (@aliases) {
+		$type = $alias->unit_alias()->{$type};
+		next unless $type;
+		foreach my $bundle (@bundles) {
+			if (exists $bundle->units()->{$type}{$what}{name}) {
+				return $bundle->units()->{$type}{$what}{name};
+			}
+		}
+	}
+	
+	return '';
+}
+
+sub _unit_per {
+    my ($self, $what, $type) = @_;
+	
+	my @bundles = $self->_find_bundle('units');
+	my $name;
+	foreach my $bundle (@bundles) {
+		if (exists $bundle->units()->{$type}{$what}{per}) {
+			return $bundle->units()->{$type}{$what}{per};
+		}
+	}
+	
+	# Check for aliases
+	my @aliases = $self->_find_bundle('unit_alias');
+	foreach my $alias (@aliases) {
+		$type = $alias->unit_alias()->{$type};
+		next unless $type;
+		foreach my $bundle (@bundles) {
+			if (exists $bundle->units()->{$type}{$what}{per}) {
+				return $bundle->units()->{$type}{$what}{per};
+			}
+		}
+	}
+	
+	return '';
 }
 
 =item duration_unit($format, @data)
