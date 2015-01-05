@@ -2542,6 +2542,24 @@ sub _unit_per {
 	return '';
 }
 
+sub _get_time_separator {
+	my $self = shift;
+
+	my @number_symbols_bundles = $self->_find_bundle('number_symbols');
+	my $symbols_type = $self->default_numbering_system;
+	
+	foreach my $bundle (@number_symbols_bundles) {	
+		if (exists $bundle->number_symbols()->{$symbols_type}{alias}) {
+			$symbols_type = $bundle->number_symbols()->{$symbols_type}{alias};
+			redo;
+		}
+		
+		return $bundle->number_symbols()->{$symbols_type}{timeSeparator}
+			if exists $bundle->number_symbols()->{$symbols_type}{timeSeparator};
+	}
+	return ':';
+}
+
 =item duration_unit($format, @data)
 
 This method formats a duration. The format must be one of
@@ -2562,6 +2580,10 @@ sub duration_unit {
 	foreach my $entry ( qr/(hh?)/, qr/(mm?)/, qr/(ss?)/) {
 		$num_format = '00' if $parsed =~ s/$entry/$self->format_number(shift(@data), $num_format)/e;
 	}
+	
+	my $time_separator = $self->_get_time_separator;
+	
+	$parsed =~ s/:/$time_separator/g;
 	
 	return $parsed;
 }
@@ -3357,7 +3379,11 @@ sub _build_any_time_format {
 			}
 			
 			my $result = $time_formats->{$default_calendar}{$width};
-			return $result if $result;
+			if ($result) {
+				my $time_separator = $self->_get_time_separator;
+				$result =~ s/:/$time_separator/g;
+				return $result;
+			}
 		}
 		if ($default_calendar ne 'gregorian') {
 			$default_calendar = 'gregorian';

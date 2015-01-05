@@ -348,6 +348,7 @@ opendir ( $dir, $main_directory);
 
 # Count the number of files
 $num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
+$num_files += 3; # We do root.xmn, en.xml and en_US.xml twice
 $count_files = 0;
 rewinddir $dir;
 
@@ -2233,12 +2234,19 @@ sub process_numbers {
 		$other_numbering_systems{finance} = ($nodes->get_nodelist)[0]->getValue;
 	}
 	
+	# minimum grouping digits
+	my $minimum_grouping_digits_nodes = findnodes($xpath, '/ldml/numbers/minimumGroupingDigits/text()');
+	my $minimum_grouping_digits = 0;
+	if ($minimum_grouping_digits_nodes->size) {
+		$minimum_grouping_digits = ($minimum_grouping_digits_nodes->get_nodelist)[0]->getValue;
+	}
+	
 	# Symbols
 	my %symbols;
 	my $symbols_nodes = findnodes($xpath, '/ldml/numbers/symbols');
 	foreach my $symbols ($symbols_nodes->get_nodelist) {
 		my $type = $symbols->getAttribute('numberSystem');
-		foreach my $symbol ( qw( alias decimal group list percentSign minusSign plusSign exponential superscriptingExponent perMille infinity nan ) ) {
+		foreach my $symbol ( qw( alias decimal group list percentSign minusSign plusSign exponential superscriptingExponent perMille infinity nan currencyDecimal currencyGroup timeSeparator) ) {
 			if ($symbol eq 'alias') {
 				my $nodes = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/\@path));
 				next unless $nodes->size;
@@ -2383,6 +2391,16 @@ EOT
 		}
 	}
 
+	# Minimum grouping digits
+	print $file <<EOT if $minimum_grouping_digits;
+has 'minimum_grouping_digits' => (
+\tis\t\t\t=>'ro',
+\tisa\t\t\t=> 'Int',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> $minimum_grouping_digits,
+);
+
+EOT
 	if (keys %symbols) {
 		print $file <<EOT;
 has 'number_symbols' => (
@@ -5250,13 +5268,23 @@ sub get_formatted_number {
 	# Handle grouping
 	my ($integer, $decimal) = split /\./, $number;
 
-	my ($separator, $decimal_point) = ($symbols{$symbols_type}{group}, $symbols{$symbols_type}{decimal});
-	my ($minor_group, $major_group) = ($format->{$type}{minor_group}, $format->{$type}{major_group});
+	my $minimum_grouping_digits = $self->_find_bundle('minimum_grouping_digits');
+	$minimum_grouping_digits = $minimum_grouping_digits
+		? $minimum_grouping_digits->minimum_grouping_digits()
+		: 0;
 	
-	if (defined $minor_group && $separator) {
-		# Fast commify using unpack
-		my $pattern = "(A$minor_group)(A$major_group)*";
-		$number = reverse join $separator, grep {length} unpack $pattern, reverse $integer;
+	my ($separator, $decimal_point) = ($symbols{$symbols_type}{group}, $symbols{$symbols_type}{decimal});
+	if (($minimum_grouping_digits && length $integer >= $minimum_grouping_digits) || ! $minimum_grouping_digits) {
+		my ($minor_group, $major_group) = ($format->{$type}{minor_group}, $format->{$type}{major_group});
+	
+		if (defined $minor_group && $separator) {
+			# Fast commify using unpack
+			my $pattern = "(A$minor_group)(A$major_group)*";
+			$number = reverse join $separator, grep {length} unpack $pattern, reverse $integer;
+		}
+	}
+	else {
+		$number = $integer;
 	}
 	
 	$number.= "$decimal_point$decimal" if defined $decimal;
@@ -5351,15 +5379,35 @@ sub _get_algorithmic_number_format_data_by_name {
 	
 	return keys %data ? \%data : undef;
 }
+
+sub _get_plural_form {
+	my ($self, $plural, $from) = @_;
 	
+	my ($result) = $from =~ /$plural\{(.+?)\}/;
+	($result) = $from =~ /other\{(.+?)\}/ unless defined $result;
+	
+	return $result;
+}
+
 sub _process_algorithmic_number_data {
-	my ($self, $number, $format_data, $in_fraction_rule_set) = @_;
+	my ($self, $number, $format_data, $plural, $in_fraction_rule_set) = @_;
 	
 	$in_fraction_rule_set //= 0;
 	
 	my $format = $self->_get_algorithmic_number_format($number, $format_data);
 	
 	my $format_rule = $format->{rule};
+	if (! $plural && $format_rule =~ /(cardinal|ordinal)/) {
+		my $type = $1;
+		$plural = $self->plural($number, $type);
+		$plural = [$type, $plural];
+	}
+	
+	# Sort out plural forms
+	if ($plural) {
+		$format_rule =~ s/\$\($plural->[0],(.+)\)\$/$self->_get_plural_form($plural->[1],$1)/eg;
+	}
+	
 	my $divisor = $format->{divisor};
 	my $base_value = $format->{base_value} // '';
 	
@@ -5369,7 +5417,7 @@ sub _process_algorithmic_number_data {
 		$positive_number =~ s/^-//;
 		
 		if ($format_rule =~ /→→/) {
-			$format_rule =~ s/→→/$self->_process_algorithmic_number_data($positive_number, $format_data)/e;
+			$format_rule =~ s/→→/$self->_process_algorithmic_number_data($positive_number, $format_data, $plural)/e;
 		}
 		elsif((my $rule_name) = $format_rule =~ /→(.+)→/) {
 			my $type = 'public';
@@ -5379,7 +5427,7 @@ sub _process_algorithmic_number_data {
 			my $format_data = $self->_get_algorithmic_number_format_data_by_name($rule_name, $type);
 			if($format_data) {
 				# was a valid name
-				$format_rule =~ s/→(.+)→/$self->_process_algorithmic_number_data($positive_number, $format_data)/e;
+				$format_rule =~ s/→(.+)→/$self->_process_algorithmic_number_data($positive_number, $format_data, $plural)/e;
 			}
 			else {
 				# Assume a format
@@ -5409,7 +5457,7 @@ sub _process_algorithmic_number_data {
 		}
 		
 		if ($format_rule =~ /→→/) {
-			$format_rule =~ s/→→/$self->_process_algorithmic_number_data_fractions($fraction, $format_data)/e;
+			$format_rule =~ s/→→/$self->_process_algorithmic_number_data_fractions($fraction, $format_data, $plural)/e;
 		}
 		elsif((my $rule_name) = $format_rule =~ /→(.*)→/) {
 			my $type = 'public';
@@ -5418,7 +5466,7 @@ sub _process_algorithmic_number_data {
 			}
 			my $format_data = $self->_get_algorithmic_number_format_data_by_name($rule_name, $type);
 			if ($format_data) {
-				$format_rule =~ s/→(.*)→/$self->_process_algorithmic_number_data_fractions($fraction, $format_data)/e;
+				$format_rule =~ s/→(.*)→/$self->_process_algorithmic_number_data_fractions($fraction, $format_data, $plural)/e;
 			}
 			else {
 				$format_rule =~ s/→(.*)→/$self->_format_number($fraction, $1)/e;
@@ -5426,7 +5474,7 @@ sub _process_algorithmic_number_data {
 		}
 		
 		if ($format_rule =~ /←←/) {
-			$format_rule =~ s/←←/$self->_process_algorithmic_number_data($integer, $format_data, $in_fraction_rule_set)/e;
+			$format_rule =~ s/←←/$self->_process_algorithmic_number_data($integer, $format_data, $plural, $in_fraction_rule_set)/e;
 		}
 		elsif((my $rule_name) = $format_rule =~ /←(.+)←/) {
 			my $type = 'public';
@@ -5435,7 +5483,7 @@ sub _process_algorithmic_number_data {
 			}
 			my $format_data = $self->_get_algorithmic_number_format_data_by_name($rule_name, $type);
 			if ($format_data) {
-				$format_rule =~ s/←(.*)←/$self->_process_algorithmic_number_data($integer, $format_data, $in_fraction_rule_set)/e;
+				$format_rule =~ s/←(.*)←/$self->_process_algorithmic_number_data($integer, $format_data, $plural, $in_fraction_rule_set)/e;
 			}
 			else {
 				$format_rule =~ s/←(.*)←/$self->_format_number($integer, $1)/e;
@@ -5480,14 +5528,14 @@ sub _process_algorithmic_number_data {
 					}
 					my $format_data = $self->_get_algorithmic_number_format_data_by_name($rule_name, $type);
 					if ($format_data) {
-						$format_rule =~ s/←(.*)←/$self->_process_algorithmic_number_data($number * $base_value, $format_data, $in_fraction_rule_set)/e;
+						$format_rule =~ s/←(.*)←/$self->_process_algorithmic_number_data($number * $base_value, $format_data, $plural, $in_fraction_rule_set)/e;
 					}
 					else {
 						$format_rule =~ s/←(.*)←/$self->_format_number($number * $base_value, $1)/e;
 					}
 				}
 				else {
-					$format_rule =~ s/←←/$self->_process_algorithmic_number_data($number * $base_value, $format_data, $in_fraction_rule_set)/e;
+					$format_rule =~ s/←←/$self->_process_algorithmic_number_data($number * $base_value, $format_data, $plural, $in_fraction_rule_set)/e;
 				}
 			}
 			elsif($format_rule =~ /=.*=/) {
@@ -5503,14 +5551,14 @@ sub _process_algorithmic_number_data {
 					}
 					my $format_data = $self->_get_algorithmic_number_format_data_by_name($rule_name, $type);
 					if ($format_data) {
-						$format_rule =~ s/→(.+)→/$self->_process_algorithmic_number_data($number % $divisor, $format_data)/e;
+						$format_rule =~ s/→(.+)→/$self->_process_algorithmic_number_data($number % $divisor, $format_data, $plural)/e;
 					}
 					else {
 						$format_rule =~ s/→(.*)→/$self->_format_number($number % $divisor, $1)/e;
 					}
 				}
 				else {
-					$format_rule =~ s/→→/$self->_process_algorithmic_number_data($number % $divisor, $format_data)/e;
+					$format_rule =~ s/→→/$self->_process_algorithmic_number_data($number % $divisor, $format_data, $plural)/e;
 				}
 			}
 			
@@ -5522,14 +5570,14 @@ sub _process_algorithmic_number_data {
 					}
 					my $format_data = $self->_get_algorithmic_number_format_data_by_name($rule_name, $type);
 					if ($format_data) {
-						$format_rule =~ s|←(.*)←|$self->_process_algorithmic_number_data(int ($number / $divisor), $format_data)|e;
+						$format_rule =~ s|←(.*)←|$self->_process_algorithmic_number_data(int ($number / $divisor), $format_data, $plural)|e;
 					}
 					else {
 						$format_rule =~ s|←(.*)←|$self->_format_number(int($number / $divisor), $1)|e;
 					}
 				}
 				else {
-					$format_rule =~ s|←←|$self->_process_algorithmic_number_data(int($number / $divisor), $format_data)|e;
+					$format_rule =~ s|←←|$self->_process_algorithmic_number_data(int($number / $divisor), $format_data, $plural)|e;
 				}
 			}
 			
@@ -5545,17 +5593,17 @@ sub _process_algorithmic_number_data {
 				}
 			}
 		}
-	}
+	}	
 	
 	return $format_rule;
 }
 
 sub _process_algorithmic_number_data_fractions {
-	my ($self, $fraction, $format_data) = @_;
+	my ($self, $fraction, $format_data, $plural) = @_;
 	
 	my $result = '';
 	foreach my $digit (split //, $fraction) {
-		$result .= $self->_process_algorithmic_number_data($digit, $format_data, 1);
+		$result .= $self->_process_algorithmic_number_data($digit, $format_data, $plural, 1);
 	}
 	
 	return $result;

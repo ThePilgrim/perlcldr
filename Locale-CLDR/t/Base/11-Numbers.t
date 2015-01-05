@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 12;
+use Test::More tests => 13;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -69,5 +69,10 @@ diag $@ if $@;
 
 eval {
 	is($locale_en->format_number(1234, 'roman-lower'), 'mccxxxiv', 'Roman Number');
+};
+diag $@ if $@;
+
+eval {
+	is($locale_en->format_number(123, 'digits-ordinal'), '123rd', 'Ordinal Numbers');
 };
 diag $@ if $@;
