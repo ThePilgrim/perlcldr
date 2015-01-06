@@ -84,4 +84,6 @@ All dates are in ISO 8601 Format
 	- Added precomputed divisors for compound units
 	- Fixed all_units method to return all the unit identifiers
 	- Added unit_name method to get the localised name of a unit
-	
+	- Added time separator
+	- Added minimum grouping digits
+	- Added plural forms for rule based number formatting
