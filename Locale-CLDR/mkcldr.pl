@@ -5241,7 +5241,16 @@ sub get_formatted_number {
 	
 	my @digits = $self->get_digits;
 	my @number_symbols_bundles = reverse $self->_find_bundle('number_symbols');
-	my %symbols = map { %{$_->number_symbols} } @number_symbols_bundles;
+	my %symbols;
+	foreach my $bundle (@number_symbols_bundles) {
+		my $current_symbols = $bundle->number_symbols;
+		foreach my $type (keys %$current_symbols) {
+			foreach my $symbol (keys %{$current_symbols->{$type}}) {
+				$symbols{$type}{$symbol} = $current_symbols->{$type}{$symbol};
+			}
+		}
+	}
+	
 	my $symbols_type = $self->default_numbering_system;
 	
 	$symbols_type = $symbols{$symbols_type}{alias} if exists $symbols{$symbols_type}{alias};

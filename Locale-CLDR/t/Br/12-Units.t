@@ -227,8 +227,8 @@ is($locale->unit(1, 'millimeter-per-second', 'narrow'), '1 mm/s', 'Breton narrow
 is($locale->unit(2, 'millimeter-per-second', 'narrow'), '2 mm/s', 'Breton narrow 2 millimetres per second');
 is($locale->unit(1, 'millimeter-per-second', 'short'), '1 mm/s', 'Breton short 1 millimetre per second');
 is($locale->unit(2, 'millimeter-per-second', 'short'), '2 mm/s', 'Breton short 2 millimetres per second');
-is($locale->unit(1, 'millimeter-per-second'), '1 milimetr/eilenn', 'Breton long 1 millimetre per second');
-is($locale->unit(2, 'millimeter-per-second'), '2 vilimetr/eilenn', 'Breton long 2 millimetres per second');
+is($locale->unit(1, 'millimeter-per-second'), '1 milimetr dre eilenn', 'Breton long 1 millimetre per second');
+is($locale->unit(2, 'millimeter-per-second'), '2 vilimetr dre eilenn', 'Breton long 2 millimetres per second');
 is($locale->unit(1, 'picometer', 'narrow'), '1 pm', 'Breton narrow 1 picometre');
 is($locale->unit(2, 'picometer', 'narrow'), '2 pm', 'Breton narrow 2 picometres');
 is($locale->unit(1, 'picometer', 'short'), '1 pm', 'Breton short 1 picometre');
