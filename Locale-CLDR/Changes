@@ -78,7 +78,7 @@ All dates are in ISO 8601 Format
 	- Given all currency tests a locale with a region identifier
 	- Added tests for the Breton language
 
-0.26.8
+0.26.8 2015-01-09
 	- Added tests for all units in base distribution
 	- Added compound units for different lengths
 	- Added precomputed divisors for compound units
