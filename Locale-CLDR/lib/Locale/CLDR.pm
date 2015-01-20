@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.26.8
+Version 0.26.9
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.26.8');
+our $VERSION = version->declare('v0.26.9');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -2314,7 +2314,7 @@ sub measurement {
 	my $self = shift;
 	
 	my $measurement_data = $self->measurement_system;
-	my $territory = $self->territory_id // '001';
+	my $territory = $self->territory_id || '001';
 	
 	my $data = $measurement_data->{$territory};
 	
@@ -2336,7 +2336,7 @@ sub paper {
 	my $self = shift;
 	
 	my $paper_size = $self->paper_size;
-	my $territory = $self->territory_id // '001';
+	my $territory = $self->territory_id || '001';
 	
 	my $data = $paper_size->{$territory};
 	
