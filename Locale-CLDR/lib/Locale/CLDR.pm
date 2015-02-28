@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.26.9
+Version 0.26.10
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.26.9');
+our $VERSION = version->declare('v0.26.10');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -3873,6 +3873,81 @@ sub week_data_weekend_end {
 	return _week_data($self, $territory_id, $week_data_hash);
 }
 
+=item month_patterns($context, $width, $type)
+
+The Chinese lunar calendar can insert a leap month after nearly any month of its year;
+when this happens, the month takes the name of the preceding month plus a special marker.
+The Hindu lunar calendars can insert a leap month before any one or two months of the year;
+when this happens, not only does the leap month take the name of the following month plus a
+special marker, the following month also takes a special marker. Moreover, in the Hindu
+calendar sometimes a month is skipped, in which case the preceding month takes a special marker
+plus the names of both months. The monthPatterns() method returns an array ref of month names
+with the marker added.
+
+=cut
+
+my %month_functions = (
+	format => {
+		wide		=> 'month_format_wide',
+		abbreviated	=> 'month_format_abbreviated',
+		narrow		=> 'month_format_narrow',
+	},
+	stand_alone => {
+		wide		=> 'month_stand_alone_wide',
+		abbreviated	=> 'month_stand_alone_abbreviated',
+		narrow		=> 'month_stand_alone_narrow',
+	}
+);
+
+sub month_patterns {
+	my ($self, $context, $width, $type) = @_;
+	
+	my @months;
+	if ($context eq 'numeric') {
+		@months = ( 1 .. 14 );
+	}
+	else {
+		my $months_method = $month_functions{$context}{$width};
+		my $months = $self->$months_method;
+		@months = @$months;
+	}
+	
+	my $default_calendar = $self->default_calendar();
+	
+	my @bundles = $self->_find_bundle('month_patterns');
+
+	my $result;
+	BUNDLES: {
+		foreach my $bundle (@bundles) {
+			my $month_patterns = $bundle->month_patterns;
+			if (exists $month_patterns->{$default_calendar}{alias}) {
+				$default_calendar = $month_patterns->{$default_calendar}{alias};
+				redo BUNDLES;
+			}
+			
+			# Check for width alias
+			if (exists $month_patterns->{$default_calendar}{$context}{$width}{alias}) {
+				$context = $month_patterns->{$default_calendar}{$context}{$width}{alias}{context};
+				$width = $month_patterns->{$default_calendar}{$context}{$width}{alias}{width};
+				redo BUNDLES;
+			}
+			
+			$result = $month_patterns->{$default_calendar}{$context}{$width}{$type};
+			last if $result;
+		}
+		if ($default_calendar ne 'gregorian') {
+			$default_calendar = 'gregorian';
+			redo BUNDLES;
+		}
+	}
+	
+	if ($result) {
+		return [ map { s/\{0\}/$result/g; $_ } @months ];
+	}
+	
+	return \@months;
+}
+
 =back
 
 =head2 Territory Containment
@@ -4161,8 +4236,13 @@ sub _default_collation_strength {
 =head1 Locales
 
 Other locales can be found on CPAN. You can install Language packs from the 
-Locale::CLDR::Locales::* packages. You can also install language packs for
-a given territory by looking for a Bundle::Locale::CLDR::* package
+Locale::CLDR::Locales::* packages. You will in future be able to install language
+packs for a given territory by looking for a Bundle::Locale::CLDR::* package.
+
+If you are looking for a language pack that is not yet published then get hold of
+the version 0.25.4 from http://search.cpan.org/CPAN/authors/id/J/JG/JGNI/Locale-CLDR-v0.25.4.tar.gz
+which has data for all locals alternatively you can get hold of the latest version of the
+code from git hub at https://github.com/ThePilgrim/perlcldr
 
 =head1 AUTHOR
 
@@ -4212,7 +4292,7 @@ regex engine.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009-2014 John Imrie.
+Copyright 2009-2015 John Imrie.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

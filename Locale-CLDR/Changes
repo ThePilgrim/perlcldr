@@ -87,3 +87,13 @@ All dates are in ISO 8601 Format
 	- Added time separator
 	- Added minimum grouping digits
 	- Added plural forms for rule based number formatting
+
+0.26.9 2015-01-20
+	- Added tests for Catalan.
+	- Fixed a bug in Paper and Measurement systems that would crash a script using the module
+		if no territory was given to the locale.
+
+0.26.10 development
+	Added month patterns
+	Added cyclic names
+	Bumped year in copyright message

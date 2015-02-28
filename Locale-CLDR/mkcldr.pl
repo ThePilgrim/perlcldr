@@ -27,15 +27,15 @@ $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
 
 use version;
-my $API_VERSION = 0;
-my $CLDR_VERSION = 26;
-my $REVISION = 9;
+my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
+my $CLDR_VERSION = 26; # This needs to match the revision number of the CLDR revision being generated against
+my $REVISION = 10; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -348,7 +348,7 @@ opendir ( $dir, $main_directory);
 
 # Count the number of files
 $num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
-$num_files += 3; # We do root.xmn, en.xml and en_US.xml twice
+$num_files += 3; # We do root.xml, en.xml and en_US.xml twice
 $count_files = 0;
 rewinddir $dir;
 
@@ -2720,6 +2720,10 @@ sub process_calendars {
         $calendars{time_formats}{$type} = $time_formats if $time_formats;
         my $datetime_formats = process_datetime_formats($xpath, $type);
         $calendars{datetime_formats}{$type} = $datetime_formats if $datetime_formats;
+        my $month_patterns = process_month_patterns($xpath, $type);
+        $calendars{month_patterns}{$type} = $month_patterns if $month_patterns;
+        my $cyclic_name_sets = process_cyclic_name_sets($xpath, $type);
+        $calendars{cyclic_name_sets}{$type} = $cyclic_name_sets if $cyclic_name_sets;
     }
 
     # Got all the data now write it out to the file;
@@ -3180,6 +3184,107 @@ EOT
 					say $file "\t\t},";
 				}
 			}
+        }
+        print $file <<EOT;
+\t} },
+);
+
+EOT
+    }
+	
+    if (keys %{$calendars{month_patterns}}) {
+        print $file <<EOT;
+has 'month_patterns' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+        foreach my $ctype (sort keys %{$calendars{month_patterns}}) {
+            say $file "\t\t'$ctype' => {";
+            foreach my $context (sort keys %{$calendars{month_patterns}{$ctype}}) {
+				if ($context eq 'alias' ) {
+					say $file "\t\t\talias => '$calendars{month_patterns}{$ctype}{alias}'",
+				}
+				else {
+					say $file "\t\t\t'$context' => {";
+					foreach my $width (sort keys %{$calendars{month_patterns}{$ctype}{$context}}) {
+						say $file "\t\t\t\t'$width' => {";
+						foreach my $type ( sort keys %{$calendars{month_patterns}{$ctype}{$context}{$width}}) {
+							# Check for aliases
+							if ($type eq 'alias') {
+								say $file <<EOT;
+					alias => {
+						context => '$calendars{month_patterns}{$ctype}{$context}{$width}{alias}{context}',
+						width	=> '$calendars{month_patterns}{$ctype}{$context}{$width}{alias}{width}',
+					},
+EOT
+							}
+							else {
+								say $file "\t\t\t\t\t'$type' => q{$calendars{month_patterns}{$ctype}{$context}{$width}{$type}},";
+							}
+						}
+						say $file "\t\t\t\t},";
+					}
+					say $file "\t\t\t},";
+				}
+            }
+            say $file "\t\t},";
+        }
+        print $file <<EOT;
+\t} },
+);
+
+EOT
+    }
+
+    if (keys %{$calendars{cyclic_name_sets}}) {
+        print $file <<EOT;
+has 'cyclic_name_sets' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'HashRef',
+\tinit_arg\t=> undef,
+\tdefault\t\t=> sub { {
+EOT
+        foreach my $ctype (sort keys %{$calendars{cyclic_name_sets}}) {
+            say $file "\t\t'$ctype' => {";
+            foreach my $context (sort keys %{$calendars{cyclic_name_sets}{$ctype}}) {
+				if ($context eq 'alias' ) {
+					say $file "\t\t\talias => '$calendars{cyclic_name_sets}{$ctype}{alias}',",
+				}
+				else {
+					say $file "\t\t\t'$context' => {";
+					foreach my $width (sort keys %{$calendars{cyclic_name_sets}{$ctype}{$context}}) {
+						if ($width eq 'alias') {
+							say $file "\t\t\t\talias => q($calendars{cyclic_name_sets}{$ctype}{$context}{alias}),"
+						}
+						else {
+							say $file "\t\t\t\t'$width' => {";
+								foreach my $type ( sort keys %{$calendars{cyclic_name_sets}{$ctype}{$context}{$width}}) {
+								say $file "\t\t\t\t\t'$type' => {";
+								foreach my $id (sort { $a <=> $b } keys %{$calendars{cyclic_name_sets}{$ctype}{$context}{$width}{$type}} ) {
+									if ($id eq 'alias') {
+										print $file <<EOT;
+\t\t\t\t\t\talias => {
+\t\t\t\t\t\t\tcontext\t=> q{$calendars{cyclic_name_sets}{$ctype}{$context}{$width}{$type}{alias}{context}},
+\t\t\t\t\t\t\tname_set\t=> q{$calendars{cyclic_name_sets}{$ctype}{$context}{$width}{$type}{alias}{name_set}},
+\t\t\t\t\t\t\ttype\t=> q{$calendars{cyclic_name_sets}{$ctype}{$context}{$width}{$type}{alias}{type}},
+\t\t\t\t\t\t},
+EOT
+									}
+									else {
+										say $file "\t\t\t\t\t\t$id => q($calendars{cyclic_name_sets}{$ctype}{$context}{$width}{$type}{$id}),";
+									}
+								}
+								say $file "\t\t\t\t\t},";
+							}
+							say $file "\t\t\t\t},";
+						}
+					}
+					say $file "\t\t\t},";
+				}
+            }
+            say $file "\t\t},";
         }
         print $file <<EOT;
 \t} },
@@ -3712,6 +3817,136 @@ sub process_datetime_formats {
     }
 	
     return \%dateTimeFormats;
+}
+
+#/ldml/dates/calendars/calendar/monthPatterns/
+sub process_month_patterns {
+    my ($xpath, $type) = @_;
+
+    say "Processing Month Patterns ($type)" if $verbose;
+    my (%month_patterns);
+    my $month_patterns_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/monthPatterns/alias));
+    if ($month_patterns_alias->size) {
+        my $path = ($month_patterns_alias->get_nodelist)[0]->getAttribute('path');
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$month_patterns{alias} = $alias;
+    }
+    else {
+        my $month_patterns_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/monthPatterns/monthPatternContext));
+
+        return 0 unless $month_patterns_nodes->size;
+
+        foreach my $context_node ($month_patterns_nodes->get_nodelist) {
+            my $context_type = $context_node->getAttribute('type');
+
+            my $width = findnodes($xpath,
+                qq(/ldml/dates/calendars/calendar[\@type="$type"]/monthPatterns/monthPatternContext[\@type="$context_type"]/monthPatternWidth));
+
+            foreach my $width_node ($width->get_nodelist) {
+                my $width_type = $width_node->getAttribute('type');
+				
+				my $width_alias_nodes = findnodes($xpath,
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/monthPatterns/monthPatternContext[\@type="$context_type"]/monthPatternWidth[\@type="$width_type"]/alias)
+				);
+				
+				if ($width_alias_nodes->size) {
+                    my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+                    my ($new_width_context) = $path =~ /monthPatternContext\[\@type='([^']+)'\]/;
+                    $new_width_context //= $context_type;
+                    my ($new_width_type) = $path =~ /monthPatternWidth\[\@type='([^']+)'\]/;
+					$month_patterns{$context_type}{$width_type}{alias} = {
+						context	=> $new_width_context,
+						width	=> $new_width_type,
+					};
+					next;
+                }
+                my $month_pattern_nodes = findnodes($xpath, 
+                    qq(/ldml/dates/calendars/calendar[\@type="$type"]/monthPatterns/monthPatternContext[\@type="$context_type"]/monthPatternWidth[\@type="$width_type"]/monthPattern));
+                foreach my $month_pattern ($month_pattern_nodes->get_nodelist) {
+                    my $month_pattern_type = $month_pattern->getAttribute('type');
+                    $month_patterns{$context_type}{$width_type}{$month_pattern_type} = 
+                        $month_pattern->getChildNode(1)->getValue();
+                }
+            }
+        }
+    }
+    return \%month_patterns;
+}
+
+#/ldml/dates/calendars/calendar/cyclicNameSets/
+sub process_cyclic_name_sets {
+    my ($xpath, $type) = @_;
+
+	say "Processing Cyclic Name Sets ($type)" if $verbose;
+    
+	my (%cyclic_name_sets);
+    my $cyclic_name_sets_alias = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/cyclicNameSets/alias));
+    if ($cyclic_name_sets_alias->size) {
+        my $path = ($cyclic_name_sets_alias->get_nodelist)[0]->getAttribute('path');
+        my ($alias) = $path=~/\[\@type='(.*?)']/;
+		$cyclic_name_sets{alias} = $alias;
+    }
+    else {
+        my $cyclic_name_sets_nodes = findnodes($xpath, qq(/ldml/dates/calendars/calendar[\@type="$type"]/cyclicNameSets/cyclicNameSet));
+
+        return 0 unless $cyclic_name_sets_nodes->size;
+		
+		foreach my $name_set_node ($cyclic_name_sets_nodes->get_nodelist) {
+			my $name_set_type = $name_set_node->getAttribute('type');
+			my $cyclic_name_set_alias = findnodes($xpath, 
+				qq(/ldml/dates/calendars/calendar[\@type="$type"]/cyclicNameSets/cyclicNameSet[\@type="$name_set_type"]/alias)
+			);
+			
+			if ($cyclic_name_set_alias->size) {
+				my $path = ($cyclic_name_set_alias->get_nodelist)[0]->getAttribute('path');
+				my ($alias) = $path=~/\[\@type='(.*?)']/;
+				$cyclic_name_sets{$name_set_type}{alias} = $alias;
+				next;
+			}
+			else {
+				my $context_nodes = findnodes($xpath, 
+					qq(/ldml/dates/calendars/calendar[\@type="$type"]/cyclicNameSets/cyclicNameSet[\@type="$name_set_type"]/cyclicNameContext)
+				);
+			
+				foreach my $context_node ($context_nodes->get_nodelist) {
+					my $context_type = $context_node->getAttribute('type');
+
+					my $width = findnodes($xpath,
+						qq(/ldml/dates/calendars/calendar[\@type="$type"]/cyclicNameSets/cyclicNameSet[\@type="$name_set_type"]/cyclicNameContext[\@type="$context_type"]/cyclicNameWidth));
+
+					foreach my $width_node ($width->get_nodelist) {
+						my $width_type = $width_node->getAttribute('type');
+				
+						my $width_alias_nodes = findnodes($xpath,
+							qq(/ldml/dates/calendars/calendar[\@type="$type"]/cyclicNameSets/cyclicNameSet[\@type="$name_set_type"]/cyclicNameContext[\@type="$context_type"]/cyclicNameWidth[\@type="$width_type"]/alias)
+						);
+				
+						if ($width_alias_nodes->size) {
+							my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
+							my ($new_width_type) = $path =~ /cyclicNameWidth\[\@type='([^']+)'\]/;
+							my ($new_context_type) = $path =~ /cyclicNameContext\[\@type='([^']+)'\]/;
+							my ($new_name_type) = $path =~ /cyclicNameSet\[\@type='([^']+)'\]/;
+							$cyclic_name_sets{$name_set_type}{$context_type}{$width_type}{alias} = {
+								name_set => ($new_name_type // $name_set_type),
+								context => ($new_context_type // $context_type),
+								type	=> $new_width_type,
+							};
+							next;
+						}
+				
+						my $cyclic_name_set_nodes = findnodes($xpath, 
+							qq(/ldml/dates/calendars/calendar[\@type="$type"]/cyclicNameSets/cyclicNameSet[\@type="$name_set_type"]/cyclicNameContext[\@type="$context_type"]/cyclicNameWidth[\@type="$width_type"]/cyclicName));
+						foreach my $cyclic_name_set ($cyclic_name_set_nodes->get_nodelist) {
+							my $cyclic_name_set_type = $cyclic_name_set->getAttribute('type') -1;
+							$cyclic_name_sets{$name_set_type}{$context_type}{$width_type}{$cyclic_name_set_type} = 
+								$cyclic_name_set->getChildNode(1)->getValue();
+						}
+					}
+				}
+			}
+		}
+	}
+    return \%cyclic_name_sets;
 }
 
 #/ldml/dates/calendars/calendar/fields/field
