@@ -3892,7 +3892,7 @@ my %month_functions = (
 		abbreviated	=> 'month_format_abbreviated',
 		narrow		=> 'month_format_narrow',
 	},
-	stand_alone => {
+	'stand-alone' => {
 		wide		=> 'month_stand_alone_wide',
 		abbreviated	=> 'month_stand_alone_abbreviated',
 		narrow		=> 'month_stand_alone_narrow',
@@ -3933,7 +3933,7 @@ sub month_patterns {
 			}
 			
 			$result = $month_patterns->{$default_calendar}{$context}{$width}{$type};
-			last if $result;
+			last BUNDLES if $result;
 		}
 		if ($default_calendar ne 'gregorian') {
 			$default_calendar = 'gregorian';
@@ -3942,7 +3942,10 @@ sub month_patterns {
 	}
 	
 	if ($result) {
-		return [ map { s/\{0\}/$result/g; $_ } @months ];
+		foreach my $month (@months) {
+			(my $fixed_month = $result) =~ s/\{0\}/$month/g;
+			$month = $fixed_month;
+		}
 	}
 	
 	return \@months;
