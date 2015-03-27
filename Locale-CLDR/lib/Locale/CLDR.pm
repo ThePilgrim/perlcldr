@@ -3951,6 +3951,23 @@ sub month_patterns {
 	return \@months;
 }
 
+=item cyclic_name_sets($context, $width, $type)
+
+This method returns an arrayref containing the cyclic names for the locale's 
+default calendar using the given context, width and type.
+
+Context can can currently only be c<format>
+
+Width is one of C<abbreviated>, C<narrow> or C<wide>
+
+Type is one of C<dayParts>, C<days>, C<months>, C<solarTerms>, C<years> or C<zodiacs>
+
+=cut
+
+sub cyclic_name_sets {
+	my ($self, $context, $width, $type) = @_;
+}
+
 =back
 
 =head2 Territory Containment
