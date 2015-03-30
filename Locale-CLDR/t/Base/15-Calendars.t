@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 61;
+use Test::More tests => 62;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -138,3 +138,7 @@ $locale = Locale::CLDR->new('en_US_u_ca_chinese');
 is_deeply($locale->month_patterns('stand-alone', 'abbreviated', 'leap'), [
 	qw( Mo1bis Mo2bis Mo3bis Mo4bis Mo5bis Mo6bis Mo7bis Mo8bis Mo9bis Mo10bis Mo11bis Mo12bis )
 	], 'Month Pattens for Chinese Calendar in en' );
+	
+# Cyclic names
+is_deeply($locale->cyclic_name_sets( qw( format wide dayParts )), [	qw( zi chou yin mao chen si wu wei shen you xu hai) ], 'Cyclic day parts');
+

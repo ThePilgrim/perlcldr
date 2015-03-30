@@ -43,7 +43,7 @@ our $VERSION = version->declare('v0.26.10');
 
 use open ':encoding(utf8)';
 use utf8;
-use if $^V ge v5.12.0, feature => 'unicode_strings';
+use if ($^V ge v5.12.0), (feature => 'unicode_strings');
 
 use Moose;
 use MooseX::ClassAttribute;
@@ -3966,6 +3966,38 @@ Type is one of C<dayParts>, C<days>, C<months>, C<solarTerms>, C<years> or C<zod
 
 sub cyclic_name_sets {
 	my ($self, $context, $width, $type) = @_;
+	
+	my @bundles = $self->_find_bundle('cyclic_name_sets');
+	my $default_calendar = $self->default_calendar();
+	foreach my $bundle (@bundles) {
+		my $cyclic_name_set = $bundle->cyclic_name_sets();
+		NAME_SET: {
+			if (my $alias_calendar = $cyclic_name_set->{$default_calendar}{alias}) {
+				$default_calendar = $alias_calendar;
+				redo NAME_SET;
+			}
+			
+			if (my $type_alias = $cyclic_name_set->{$default_calendar}{$type}{alias}) {
+				$type = $type_alias;
+				redo NAME_SET;
+			}
+			
+			if (my $width_alias = $cyclic_name_set->{$default_calendar}{$type}{$context}{$width}{alias}) {
+				$context = $width_alias->{context};
+				$type = $width_alias->{name_set};
+				$width = $width_alias->{type};
+				redo NAME_SET;
+			}
+			
+			my $return = [ 
+				@{ $cyclic_name_set->{$default_calendar}{$type}{$context}{$width} }
+				{sort { $a <=> $b } keys %{ $cyclic_name_set->{$default_calendar}{$type}{$context}{$width} }} 
+			];
+			
+			return $return if @$return;
+		}
+	}
+	return [];
 }
 
 =back
