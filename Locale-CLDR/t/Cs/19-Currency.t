@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale_en = Locale::CLDR->new('ca_FR');
+my $locale_en = Locale::CLDR->new('cs_CZ');
 
 is($locale_en->format_number(12345678, '¤###,###'), '€12.345.678,00', 'Format currency with default currency');
 is($locale_en->format_number(12345678.9, '¤###,###', 'USD'), 'US$12.345.678,90', 'Format currency with explicit currency');

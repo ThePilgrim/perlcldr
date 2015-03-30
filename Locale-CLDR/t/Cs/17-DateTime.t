@@ -13,7 +13,7 @@ use ok 'Locale::CLDR';
 
 use DateTime;
 
-my $ca_fr = Locale::CLDR->new('ca_FR');
+my $ca_fr = Locale::CLDR->new('cs_CZ');
 
 my $dt_ca_fr = DateTime->new(
 	year => 1966,

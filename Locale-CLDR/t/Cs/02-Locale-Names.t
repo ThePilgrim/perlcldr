@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca');
+my $locale = Locale::CLDR->new('cs');
 is ($locale->locale_name('fr'), 'francès', 'Name without territory');
 is ($locale->locale_name('fr_CA'), 'francès canadenc', 'Name with known territory') ;
 is ($locale->locale_name('fr_BE'), 'francès (Bèlgica)', 'Name with unknown territory') ;

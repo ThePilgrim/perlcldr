@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca');
+my $locale = Locale::CLDR->new('cs');
 my $months = $locale->month_format_wide();
 is_deeply ($months, [qw( gener febrer març abril maig juny juliol agost setembre octubre novembre desembre )], 'Month format wide');
 $months = $locale->month_format_abbreviated();

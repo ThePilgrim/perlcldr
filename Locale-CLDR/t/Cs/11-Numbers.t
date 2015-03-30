@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale_ca = Locale::CLDR->new('ca_FR');
+my $locale_ca = Locale::CLDR->new('cs_CZ');
 is_deeply([$locale_ca->get_digits], [0 .. 9], 'Get digits en');
 
 my $format_data = {

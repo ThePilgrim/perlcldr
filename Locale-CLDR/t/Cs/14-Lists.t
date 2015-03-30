@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca');
+my $locale = Locale::CLDR->new('cs');
 is($locale->list(), '', 'Empty list');
 is($locale->list(1), '1', 'One element list');
 is($locale->list(qw(1 2)), '1 i 2', 'Two element list');

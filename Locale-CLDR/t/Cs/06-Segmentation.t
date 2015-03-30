@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca');
+my $locale = Locale::CLDR->new('cs');
 
 my $text = "adf543., Tiếng Viết\n\r45dfr.A new sentence";
 

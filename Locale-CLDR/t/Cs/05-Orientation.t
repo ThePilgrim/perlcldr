@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca');
+my $locale = Locale::CLDR->new('cs');
 
 is ($locale->text_orientation('lines'), 'top-to-bottom', 'Line orientation');
 is ($locale->text_orientation('characters'), 'left-to-right', 'Character orientation');

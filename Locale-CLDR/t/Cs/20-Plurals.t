@@ -10,7 +10,7 @@ use Test::More tests => 359;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca_FR');
+my $locale = Locale::CLDR->new('cs_CZ');
 
 #                       0    1        2 .. 199
 my @results = (qw( other one), ('other') x 198);

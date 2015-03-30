@@ -10,7 +10,7 @@ use Test::More tests => 56;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca_FR_u_ca_islamic');
+my $locale = Locale::CLDR->new('cs_CZ_u_ca_islamic');
 
 my $months = $locale->month_format_wide();
 is_deeply ($months, [ 'Muharram', 'Safar', "Rabiʻ I", 'Rabiʻ II', 'Jumada I', 'Jumada II', 'Rajab', "Shaʻban", 'Ramadan', 'Shawwal', "Dhuʻl-Qiʻdah", "Dhuʻl-Hijjah" ], 'Islamic Month format wide');
@@ -127,6 +127,6 @@ is ($locale->prefers_24_hour_time(), 1, 'Islamic Prefers 24 hour time');
 is ($locale->first_day_of_week(), 1, 'Islamic First day of week');
 
 # Number Overrides
-$locale = Locale::CLDR->new('ca_FR_u_numbers_roman');
+$locale = Locale::CLDR->new('cs_CZ_u_numbers_roman');
 is_deeply([$locale->get_digits], [qw( 0 1 2 3 4 5 6 7 8 9 )], 'Get digits Roman');
 is($locale->format_number(12345, '#,####,00'), "ↂMMCCCXLV", 'Format Roman override');

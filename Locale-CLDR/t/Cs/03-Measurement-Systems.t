@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca');
+my $locale = Locale::CLDR->new('cs');
 
 is ($locale->measurement_system_name('uk'), 'anglosaxó', 'Measurement system UK');
 is ($locale->measurement_system_name('us'), 'imperial', 'Measurement system US');

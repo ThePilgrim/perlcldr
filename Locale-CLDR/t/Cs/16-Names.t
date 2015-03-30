@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca_FR');
+my $locale = Locale::CLDR->new('cs_CZ');
 my $other_locale = Locale::CLDR->new('en_US');
 
 is($locale->locale_name(), 'català (França)', 'Locale name from current locale');

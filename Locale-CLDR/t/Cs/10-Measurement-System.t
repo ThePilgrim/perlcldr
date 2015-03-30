@@ -11,6 +11,6 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('ca');
-is($locale->measurement, 'metric', 'GB uses metric measurement');
-is($locale->paper, 'A4', 'GB uses A4 paper');
+my $locale = Locale::CLDR->new('cs');
+is($locale->measurement, 'metric', 'CS uses metric measurement');
+is($locale->paper, 'A4', 'CS uses A4 paper');
