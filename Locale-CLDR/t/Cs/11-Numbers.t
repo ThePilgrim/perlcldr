@@ -55,13 +55,13 @@ $format_data->{negative}{pad_length} = 19;
 $format_data->{negative}{pad_location}	= 'after suffix';
 $format_data->{negative}{suffix} = " food ";
 is_deeply($locale_ca->parse_number_format('###,##0.###;###,##0.### \'food\' *x'), $format_data, 'A more complex Number format');
-is($locale_ca->format_number(12345.6, '###,##0.###'), '12.345,6', 'Format a number');
-is($locale_ca->format_number(12345.6, '###,#00%'), '1.234.560%', 'Format a percent');
-is($locale_ca->format_number(12345.6, '###,#00‰'), '12.345.600‰', 'Format a per thousand' );
-is($locale_ca->format_number(12345678, '#,####,00%'), '1234.5678.00%', 'Format percent with different grouping');
+is($locale_ca->format_number(12345.6, '###,##0.###'), '12 345,6', 'Format a number');
+is($locale_ca->format_number(12345.6, '###,#00%'), '1 234 560%', 'Format a percent');
+is($locale_ca->format_number(12345.6, '###,#00‰'), '12 345 600‰', 'Format a per thousand' );
+is($locale_ca->format_number(12345678, '#,####,00%'), '1234 5678 00%', 'Format percent with different grouping');
 
 # RBNF
-is($locale_ca->format_number(0, 'spellout-numbering-year'), 'zero', 'RBNF: Spell out year 0');
-is($locale_ca->format_number('-0.0', 'spellout-numbering'), 'menys zero coma zero', 'RBNF: Spell out -0.0');
-is($locale_ca->format_number(123456, 'roman-lower'), '123.456', 'Number grater than max value');
+is($locale_ca->format_number(0, 'spellout-numbering-year'), 'nula', 'RBNF: Spell out year 0');
+is($locale_ca->format_number('-0.0', 'spellout-numbering'), 'minus nula čárka nula', 'RBNF: Spell out -0.0');
+is($locale_ca->format_number(123456, 'roman-lower'), '123 456', 'Number grater than max value');
 is($locale_ca->format_number(1234, 'roman-lower'), 'mccxxxiv', 'Roman Number');

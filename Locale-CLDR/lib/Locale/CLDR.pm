@@ -128,8 +128,8 @@ has 'territory_id' => (
 around 'territory_id' => sub {
 	my ($orig, $self) = @_;
 	my $value = $self->$orig;
-	return $value if defined $value;
 	my $alias = $self->territory_aliases->{$value};
+	return $value if ! defined $alias;
 	return (split /\s+/, $alias)[0];
 };
 

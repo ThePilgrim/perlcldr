@@ -29,4 +29,4 @@ else {
 	ok($locale->is_exemplar_character('punctuation', "!"), 'Is Punctuation Exemplar Character');
 	ok(!$locale->is_exemplar_character('punctuation', 'a'), 'Is not Punctuation Exemplar Character');
 }
-is("@{$locale->index_characters()}", 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z', 'Index Characters');
+is("@{$locale->index_characters()}", 'A B C Č D E F G H {CH} I J K L M N O P Q R Ř S Š T U V W X Y Z Ž', 'Index Characters');

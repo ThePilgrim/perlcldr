@@ -13,8 +13,8 @@ use ok 'Locale::CLDR';
 
 my $locale = Locale::CLDR->new('cs');
 my $quoted = $locale->quote('abc');
-is($quoted, '«abc»', 'Quote cs_CZ');
+is($quoted, '„abc“', 'Quote cs_CZ');
 $quoted = $locale->quote("z $quoted z");
-is($quoted, '«z “abc” z»', 'Quote cs_CZ');
+is($quoted, '„z ‚abc‘ z“', 'Quote cs_CZ');
 $quoted = $locale->quote("dd 'z $quoted z dd");
-is($quoted, '«dd \'z “z «abc» z” z dd»', 'Quote en_GB');
+is($quoted, '„dd \'z ‚z „abc“ z‘ z dd“', 'Quote en_GB');
