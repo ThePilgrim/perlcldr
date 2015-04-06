@@ -6,14 +6,14 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 60;
+use Test::More tests => 57;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
 
 my $locale = Locale::CLDR->new('ca');
 my $months = $locale->month_format_wide();
-is_deeply ($months, [qw( gener febrer març abril maig juny juliol agost setembre octubre novembre desembre )], 'Month format wide');
+is_deeply ($months, ['de gener', 'de febrer', 'de març', 'd’abril', 'de maig', 'de juny', 'de juliol', 'd’agost', 'de setembre', 'd’octubre', 'de novembre', 'de desembre' ], 'Month format wide');
 $months = $locale->month_format_abbreviated();
 is_deeply ($months, [qw( gen. febr. març abr. maig juny jul. ag. set. oct. nov. des. )], 'Month format abbreviated');
 $months = $locale->month_format_narrow();
@@ -89,12 +89,14 @@ is_deeply ($era, ['aC', 'dC'], 'Era stand alone abbreviated');
 $era = $locale->era_stand_alone_narrow();
 is_deeply ($era, [ 'aC', 'dC' ], 'Era stand alone narrow');
 
+=for comment
 my $day_period_data = $locale->get_day_period('0000');
 is($day_period_data, 'a. m.', 'Day period data AM');
 $day_period_data = $locale->get_day_period('1200');
 is($day_period_data, 'p. m.', 'Day period data Noon');
 $day_period_data = $locale->get_day_period('1800');
 is($day_period_data, 'p. m.', 'Day period data PM');
+=cut
 
 my $date_format = $locale->date_format_full;
 is($date_format, "EEEE, d MMMM 'de' y", 'Date Format Full');

@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 56;
+use Test::More tests => 53;
 
 use ok 'Locale::CLDR';
 
@@ -52,23 +52,23 @@ $quarters = $locale->quarter_stand_alone_narrow();
 is_deeply ($quarters, [qw( 1 2 3 4 )], 'Islamic Quarter stand alone narrow');
 
 my $am_pm = $locale->am_pm_wide();
-is_deeply ($am_pm, [ 'AM', 'PM' ], 'Islamic AM PM wide');
+is_deeply ($am_pm, [ 'dopoledne', 'odpoledne' ], 'Islamic AM PM wide');
 $am_pm = $locale->am_pm_abbreviated();
-is_deeply ($am_pm, [ 'AM', 'PM' ], 'Islamic AM PM abbreviated');
+is_deeply ($am_pm, [ 'dop.', 'odp.' ], 'Islamic AM PM abbreviated');
 $am_pm = $locale->am_pm_narrow();
-is_deeply ($am_pm, [qw( AM PM )], 'Islamic AM PM narrow');
+is_deeply ($am_pm, [qw( dop. odp. )], 'Islamic AM PM narrow');
 $am_pm = $locale->am_pm_format_wide();
-is_deeply ($am_pm, { am => 'AM', noon => 'poledne', pm => 'PM' }, 'Islamic AM PM format wide');
+is_deeply ($am_pm, { am => 'dopoledne', noon => 'poledne', pm => 'odpoledne' }, 'Islamic AM PM format wide');
 $am_pm = $locale->am_pm_format_abbreviated();
-is_deeply ($am_pm, { am => 'AM', noon => 'poledne', pm => 'PM' }, 'Islamic AM PM format abbreviated');
+is_deeply ($am_pm, { am => 'dop.', noon => 'pol.', pm => 'odp.' }, 'Islamic AM PM format abbreviated');
 $am_pm = $locale->am_pm_format_narrow();
-is_deeply ($am_pm, { am => 'AM', noon => 'pol.', pm => 'PM' }, 'Islamic AM PM format narrow');
+is_deeply ($am_pm, { am => 'dop.', noon => 'pol.', pm => 'odp.' }, 'Islamic AM PM format narrow');
 $am_pm = $locale->am_pm_stand_alone_wide();
-is_deeply ($am_pm, { am => 'AM', noon => 'poledne', pm => 'PM' }, 'Islamic AM PM stand alone wide');
+is_deeply ($am_pm, { am => 'dopoledne', noon => 'poledne', pm => 'odpoledne' }, 'Islamic AM PM stand alone wide');
 $am_pm = $locale->am_pm_stand_alone_abbreviated();
-is_deeply ($am_pm, { am => 'AM', noon => 'poledne', pm => 'PM' }, 'Islamic AM PM stand alone abbreviated');
+is_deeply ($am_pm, { am => 'dop.', noon => 'pol.', pm => 'odp.' }, 'Islamic AM PM stand alone abbreviated');
 $am_pm = $locale->am_pm_stand_alone_narrow();
-is_deeply ($am_pm, { am => 'AM', noon => 'pol.', pm => 'PM' }, 'Islamic AM PM stand alone narrow');
+is_deeply ($am_pm, { am => 'dop.', noon => 'pol.', pm => 'odp.' }, 'Islamic AM PM stand alone narrow');
 
 my $era = $locale->era_wide();
 is_deeply ($era, [ 'AH', undef() ], 'Islamic Era wide');
@@ -89,12 +89,14 @@ is_deeply ($era, [ 'AH' ], 'Islamic Era stand alone abbreviated');
 $era = $locale->era_stand_alone_narrow();
 is_deeply ($era, [ 'AH' ], 'Islamic Era stand alone narrow');
 
+=for comment
 my $day_period_data = $locale->get_day_period('0000');
 is($day_period_data, 'AM', 'Islamic Day period data AM');
 $day_period_data = $locale->get_day_period('1200');
 is($day_period_data, 'PM', 'Islamic Day period data Noon');
 $day_period_data = $locale->get_day_period('1800');
 is($day_period_data, 'PM', 'Islamic Day period data PM');
+=cut
 
 my $date_format = $locale->date_format_full;
 is($date_format, "EEEE d. MMMM y", 'Islamic Date Format Full');

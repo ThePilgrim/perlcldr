@@ -12,7 +12,7 @@ use Test::Exception;
 use ok 'Locale::CLDR';
 
 my $locale = Locale::CLDR->new('en_GB');
-is($locale->measurement, 'metric', 'GB uses metric measurement');
+is($locale->measurement, 'UK', 'GB uses UK measurement');
 is($locale->paper, 'A4', 'GB uses A4 paper');
 $locale = Locale::CLDR->new('en_US');
 is($locale->measurement, 'US', 'US uses US measurement');

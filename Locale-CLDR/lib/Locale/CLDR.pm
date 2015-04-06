@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.26.10
+Version 0.27.0
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.26.10');
+our $VERSION = version->declare('v0.27.0');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -1044,7 +1044,7 @@ has 'prefers_24_hour_time' => (
 Returns the numeric representation of the first day of the week
 With 0 = Saturday
 
-=item get_day_period($time)
+=item get_day_period($time, $type = 'default')
 
 This method will calculate the correct
 period for a given time and return the period name in
@@ -3098,14 +3098,15 @@ sub _build_quarter_stand_alone_narrow {
 
 sub get_day_period {
 	# Time in hhmm
-	my ($self, $time) = @_;
+	my ($self, $time, $type) = @_;
+	$type //= 'default';
 	
 	my $default_calendar = $self->default_calendar();
 	
 	my $bundle = $self->_find_bundle('day_period_data');
 	
 	my $day_period = $bundle->day_period_data;
-	$day_period = $self->$day_period($default_calendar, $time);
+	$day_period = $self->$day_period($default_calendar, $time, $type);
 	
 	my $am_pm = $self->am_pm_format_abbreviated;
 	

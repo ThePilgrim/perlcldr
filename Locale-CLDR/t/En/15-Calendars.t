@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 60;
+use Test::More tests => 57;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -52,21 +52,21 @@ $quarters = $locale->quarter_stand_alone_narrow();
 is_deeply ($quarters, [qw( 1 2 3 4 )], 'Quarter stand alone narrow');
 
 my $am_pm = $locale->am_pm_wide();
-is_deeply ($am_pm, [qw( am pm )], 'AM PM wide');
+is_deeply ($am_pm, [qw( a.m. p.m. )], 'AM PM wide');
 $am_pm = $locale->am_pm_abbreviated();
-is_deeply ($am_pm, [qw( am pm )], 'AM PM abbreviated');
+is_deeply ($am_pm, [qw( a.m. p.m. )], 'AM PM abbreviated');
 $am_pm = $locale->am_pm_narrow();
 is_deeply ($am_pm, [qw( a p )], 'AM PM narrow');
 $am_pm = $locale->am_pm_format_wide();
-is_deeply ($am_pm, { am => 'am', noon => 'noon', pm => 'pm' }, 'AM PM format wide');
+is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM format wide');
 $am_pm = $locale->am_pm_format_abbreviated();
-is_deeply ($am_pm, { am => 'am', noon => 'noon', pm => 'pm' }, 'AM PM format abbreviated');
+is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM format abbreviated');
 $am_pm = $locale->am_pm_format_narrow();
 is_deeply ($am_pm, { am => 'a', noon => 'n', pm => 'p' }, 'AM PM format narrow');
 $am_pm = $locale->am_pm_stand_alone_wide();
-is_deeply ($am_pm, { am => 'am', noon => 'noon', pm => 'pm' }, 'AM PM stand alone wide');
+is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM stand alone wide');
 $am_pm = $locale->am_pm_stand_alone_abbreviated();
-is_deeply ($am_pm, { am => 'am', noon => 'noon', pm => 'pm' }, 'AM PM stand alone abbreviated');
+is_deeply ($am_pm, { am => 'a.m.', noon => 'noon', pm => 'p.m.' }, 'AM PM stand alone abbreviated');
 $am_pm = $locale->am_pm_stand_alone_narrow();
 is_deeply ($am_pm, { am => 'a', noon => 'n', pm => 'p' }, 'AM PM stand alone narrow');
 
@@ -89,12 +89,14 @@ is_deeply ($era, ['BC', 'AD'], 'Era stand alone abbreviated');
 $era = $locale->era_stand_alone_narrow();
 is_deeply ($era, [ 'B', 'A' ], 'Era stand alone narrow');
 
+=for comment
 my $day_period_data = $locale->get_day_period('0000');
 is($day_period_data, 'am', 'Day period data AM');
 $day_period_data = $locale->get_day_period('1200');
 is($day_period_data, 'noon', 'Day period data Noon');
 $day_period_data = $locale->get_day_period('1210');
 is($day_period_data, 'pm', 'Day period data PM');
+=cut
 
 my $date_format = $locale->date_format_full;
 is($date_format, 'EEEE, d MMMM y', 'Date Format Full');

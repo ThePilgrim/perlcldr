@@ -28,14 +28,14 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = 26; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 10; # This is the build number against the CLDR revision
-our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
+my $CLDR_VERSION = '27.0.1'; # This needs to match the revision number of the CLDR revision being generated against
+my $REVISION = 0; # This is the build number against the CLDR revision
+our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'unstable';
+my $RELEASE_STATUS = 'stable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -94,15 +94,14 @@ EOM
 
     unless -d File::Spec->catdir($base_directory);
 
-# We look at the supplemental data file to get the cldr version number
-my $xml_parser = XML::Parser->new(
-    NoLWP => 1,
-    ErrorContext => 2,
-    ParseParamEnt => 1,
-);
+# We look at the root.xml data file to get the cldr version number
 
 my $vf = XML::XPath->new(
-    parser => $xml_parser,
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
     filename => File::Spec->catfile($base_directory, 
     'main',
     'root.xml'),
@@ -125,7 +124,12 @@ my $file_name = File::Spec->catfile($base_directory,
 );
 
 my $xml = XML::XPath->new(
-    File::Spec->catfile($file_name)
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name)
 );
 
 # Number Formatter
@@ -163,7 +167,12 @@ $file_name = File::Spec->catfile($base_directory,
 );
 
 $xml = XML::XPath->new(
-    File::Spec->catfile($file_name));
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name));
 
 open $file, '>', File::Spec->catfile($lib_directory, 'NumberingSystems.pm');
 
@@ -182,15 +191,27 @@ $file_name = File::Spec->catfile($base_directory,
 );
 
 my $plural_xml = XML::XPath->new(
-    File::Spec->catfile($file_name));
-	
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name)
+);
+
 $file_name = File::Spec->catfile($base_directory,
     'supplemental',
     'ordinals.xml'
 );
 
 my $ordanal_xml = XML::XPath->new(
-    File::Spec->catfile($file_name));
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name)
+);
 
 open $file, '>', File::Spec->catfile($lib_directory, 'Plurals.pm');
 
@@ -206,7 +227,13 @@ $file_name = File::Spec->catfile($base_directory,
 );
 
 my $plural_ranges_xml = XML::XPath->new(
-    File::Spec->catfile($file_name));
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name)
+);
 
 process_plural_ranges($file, $plural_ranges_xml);
 process_footer($file, 1);
@@ -214,8 +241,14 @@ close $file;
 
 # The supplemental/supplementalMetaData.xml file contains a list of all valid
 # locale codes
+
 $xml = XML::XPath->new(
-    File::Spec->catfile($base_directory,
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
         'supplemental',
         'supplementalMetadata.xml',
     )
@@ -245,7 +278,12 @@ close $file;
 
 # File for era boundaries
 $xml = XML::XPath->new(
-    File::Spec->catfile($base_directory,
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
         'supplemental',
         'supplementalData.xml',
     )
@@ -309,6 +347,9 @@ process_measurement_system_data($file, $xml);
 process_footer($file, 1);
 close $file;
 
+# Parent data
+my %parent_locales = get_parent_locales($xml);
+
 # Transformations
 make_path($transformations_directory) unless -d $transformations_directory;
 opendir (my $dir, $transform_directory);
@@ -321,7 +362,15 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $percent = ++$count_files / $num_files * 100;
     my $full_file_name = File::Spec->catfile($transform_directory, $file_name);
     say sprintf("Processing Transformation File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent) if $verbose;
-	$xml = XML::XPath->new($full_file_name);
+	$xml = XML::XPath->new(
+		parser => XML::Parser->new(
+			NoLWP => 1,
+			ErrorContext => 2,
+			ParseParamEnt => 1,
+		),
+		filename => $full_file_name
+	);
+	
     process_transforms($transformations_directory, $xml, $full_file_name);
 }
 
@@ -363,21 +412,37 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
     if (@ARGV) {
         next unless grep {$file_name eq $_} @ARGV;
     }
-    $xml = XML::XPath->new(
-        File::Spec->catfile($main_directory, $file_name)
+    
+	$xml = XML::XPath->new(
+		parser => XML::Parser->new(
+			NoLWP => 1,
+			ErrorContext => 2,
+			ParseParamEnt => 1,
+		),
+		filename => File::Spec->catfile($main_directory, $file_name)
     );
 
     my $segment_xml = undef;
     if (-f File::Spec->catfile($segmentation_directory, $file_name)) {
         $segment_xml = XML::XPath->new(
-            File::Spec->catfile($segmentation_directory, $file_name)
+			parser => XML::Parser->new(
+				NoLWP => 1,
+				ErrorContext => 2,
+				ParseParamEnt => 1,
+			),
+			filename => File::Spec->catfile($segmentation_directory, $file_name)
         );
     }
 
 	my $rbnf_xml = undef;
 	if (-f File::Spec->catfile($rbnf_directory, $file_name)) {
         $rbnf_xml = XML::XPath->new(
-            File::Spec->catfile($rbnf_directory, $file_name)
+            parser => XML::Parser->new(
+				NoLWP => 1,
+				ErrorContext => 2,
+				ParseParamEnt => 1,
+			),
+			filename => File::Spec->catfile($rbnf_directory, $file_name)
         );
     }
 
@@ -680,8 +745,8 @@ EOT
 	if (!$isRole && $class =~ /^Locale::CLDR::Locales::...?(?:::|$)/) {
 		my ($parent) = $class =~ /^(.+)::/;
 		$parent = 'Locale::CLDR::Locales::Root' if $parent eq 'Locale::CLDR::Locales';
-		
-		say $file "extends('$parent');" unless $isRole;
+		$parent = $parent_locales{$class} // $parent;
+		say $file "extends('$parent');";
 	}
 }
 
@@ -899,7 +964,12 @@ sub process_valid_keys {
     my %keys;
     foreach my $file_name (@files) {
         my $xml = XML::XPath->new(
-            $file_name
+			parser => XML::Parser->new(
+				NoLWP => 1,
+				ErrorContext => 2,
+				ParseParamEnt => 1,
+			),
+            filename => $file_name
         );
 
         my @keys = findnodes($xml, '/ldmlBCP47/keyword/key')->get_nodelist;
@@ -2008,6 +2078,25 @@ EOT
 EOT
 }
 
+sub get_parent_locales {
+	my $xpath = shift;
+	my $parentData = findnodes($xpath, '/supplementalData/parentLocales/*');
+	my %parents;
+	foreach my $parent_node ($parentData->get_nodelist) {
+		my $parent = $parent_node->getAttribute('parent');
+		my @locales = split / /, $parent_node->getAttribute('locales');
+		foreach my $locale (@locales, $parent) {
+			my @path = split /_/, $locale;
+			@path = ($path[0], 'Any', $path[1])
+				if ( @path == 2 );
+			$locale = join '::', 'Locale::CLDR::Locales', map { ucfirst lc } @path;
+		}
+		@parents{@locales} = ($parent) x @locales;
+	}
+	
+	return %parents;
+}
+
 sub process_units {
     my ($file, $xpath) = @_;
 
@@ -2910,35 +2999,44 @@ has 'day_period_data' => (
 \thandles\t\t=> { call => 'execute_method' },
 \tdefault\t\t=> sub { sub {
 \t\t# Time in hhmm format
-\t\tmy (\$self, \$type, \$time) = \@_;
+\t\tmy (\$self, \$type, \$time, \$day_period_type) = \@_;
+\t\t\$day_period_type //= 'default';
 \t\tSWITCH:
 \t\tfor (\$type) {
 EOT
         foreach my $ctype (keys  %{$calendars{day_period_data}}) {
             say $file "\t\t\tif (\$_ eq '$ctype') {";
-            foreach my $type (keys  %{$calendars{day_period_data}{$ctype}}) {
-                my %boundries = map {@$_} @{$calendars{day_period_data}{$ctype}{$type}};
-                if (exists $boundries{at}) {
-                    my ($hm) = $boundries{at};
-                    $hm =~ s/://;
-                    say $file "\t\t\t\treturn '$type' if \$time == $hm;";
-                    next;
-                }
+			foreach my $day_period_type (keys  %{$calendars{day_period_data}{$ctype}}) {
+				say $file "\t\t\t\tif(\$day_period_type eq '$day_period_type') {";
+				foreach my $type (keys  %{$calendars{day_period_data}{$ctype}{$day_period_type}}) {
+					my %boundries = map {@$_} @{$calendars{day_period_data}{$ctype}{$day_period_type}{$type}};
+					if (exists $boundries{at}) {
+						my ($hm) = $boundries{at};
+						$hm =~ s/://;
+						$hm = $hm + 0;
+						say $file "\t\t\t\t\treturn '$type' if \$time == $hm;";
+						next;
+					}
 
-                my $start = exists $boundries{from} ? '>=' : '>';
-                my $end   = exists $boundries{to}   ? '<=' : '<';
+					my $start = exists $boundries{from} ? '>=' : '>';
+					my $end   = exists $boundries{to}   ? '<=' : '<';
 
-                my $stime = $boundries{from} // $boundries{after};
-                my $etime = $boundries{to}   // $boundries{before};
+					my $stime = $boundries{from} // $boundries{after};
+					my $etime = $boundries{to}   // $boundries{before};
 
-                s/:// foreach ($stime, $etime);
+					foreach ($stime, $etime) {
+						s/://;
+						$_ = $_ + 0;
+					}
 
-                say $file "\t\t\t\treturn '$type' if \$time $start $stime";
-                say $file "\t\t\t\t\t&& \$time $end $etime;";
-            }
-            say $file "\t\t\tlast SWITCH;";
-            say $file "\t\t\t}"
-        }
+					say $file "\t\t\t\t\treturn '$type' if \$time $start $stime";
+					say $file "\t\t\t\t\t\t&& \$time $end $etime;";
+				}
+				say $file "\t\t\t\t}";
+			}
+			say $file "\t\t\t\tlast SWITCH;";
+			say $file "\t\t\t\t}"
+		}
         print $file <<EOT;
 \t\t}
 \t} },
@@ -3467,51 +3565,70 @@ sub process_day_period_data {
     my $locale = shift;
 
 	use feature 'state';
-	state %day_period_data;	
+	state %day_period_data;
 
     unless (keys %day_period_data) {
 
 	# The supplemental/dayPeriods.xml file contains a list of all valid
 	# day periods
         my $xml = XML::XPath->new(
-            File::Spec->catfile(
+			parser => XML::Parser->new(
+				NoLWP => 1,
+				ErrorContext => 2,
+				ParseParamEnt => 1,
+			),
+            filename => File::Spec->catfile(
 				$base_directory,
 				'supplemental',
 				'dayPeriods.xml',
 			)
         );
 
-        my $dayPeriodRules = findnodes($xml, 
-            q(/supplementalData/dayPeriodRuleSet/dayPeriodRules)
+		my $dayPeriodRuleSets = findnodes($xml, 
+            q(/supplementalData/dayPeriodRuleSet)
         );
+		
+		foreach my $dayPeriodRuleSet ($dayPeriodRuleSets->get_nodelist) {
+			my $day_period_type = $dayPeriodRuleSet->getAttribute('type');
+		
+			my $dayPeriodRules = findnodes($xml, 
+				$day_period_type
+				? qq(/supplementalData/dayPeriodRuleSet[\@type="$day_period_type"]/dayPeriodRules)
+				: qq(/supplementalData/dayPeriodRuleSet[not(\@type)]/dayPeriodRules)
+			);
 
-        foreach my $day_period_rule ($dayPeriodRules->get_nodelist) {
-            my $locales = $day_period_rule->getAttribute('locales');
-            my %data;
-            my $day_periods = findnodes($xml, 
-                qq(/supplementalData/dayPeriodRuleSet/dayPeriodRules[\@locales="$locales"]/dayPeriodRule)
-            );
+			foreach my $day_period_rule ($dayPeriodRules->get_nodelist) {
+				my $locales = $day_period_rule->getAttribute('locales');
+				my %data;
+				my $day_periods = findnodes($xml,
+					$day_period_type
+					? qq(/supplementalData/dayPeriodRuleSet[\@type="$day_period_type"]/dayPeriodRules[\@locales="$locales"]/dayPeriodRule)
+					: qq(/supplementalData/dayPeriodRuleSet[not(\@type)]/dayPeriodRules[\@locales="$locales"]/dayPeriodRule)
+				);
 
-            foreach my $day_period ($day_periods->get_nodelist) {
-                my $type;
-                my @data;
-                foreach my $attribute_node ($day_period->getAttributes) {
-                    if ($attribute_node->getLocalName() eq 'type') {
-                        $type = $attribute_node->getData;
-                    }
-                    else {
-                        push @data, [
-                            $attribute_node->getLocalName,
-                            $attribute_node->getData
-                        ]
-                    }
-                }
-                $data{$type} = \@data;
-            }
-            my @locales = split / /, $locales;
-            @day_period_data{@locales} = (\%data) x @locales;
-        }
-    }
+				foreach my $day_period ($day_periods->get_nodelist) {
+					my $type;
+					my @data;
+					foreach my $attribute_node ($day_period->getAttributes) {
+						if ($attribute_node->getLocalName() eq 'type') {
+							$type = $attribute_node->getData;
+						}
+						else {
+							push @data, [
+								$attribute_node->getLocalName,
+								$attribute_node->getData
+							]
+						}
+					}
+					$data{$type} = \@data;
+				}
+				my @locales = split / /, $locales;
+				foreach my $locale (@locales) {
+					$day_period_data{$locale}{$day_period_type // 'default'} = \%data;
+				}
+			}
+		}
+	}
 
     return $day_period_data{$locale};
 }

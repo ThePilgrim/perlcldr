@@ -93,7 +93,10 @@ All dates are in ISO 8601 Format
 	- Fixed a bug in Paper and Measurement systems that would crash a script using the module
 		if no territory was given to the locale.
 
-0.26.10 development
+0.27.0 2015-04-07
+	first draft with the CLDR v27 data
 	Added month patterns
 	Added cyclic names
 	Bumped year in copyright message
+	Fixed package inheritance to use the parent package data in the supplemental data
+	Fixed tests to handle new data set
