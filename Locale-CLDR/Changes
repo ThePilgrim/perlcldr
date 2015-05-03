@@ -100,3 +100,6 @@ All dates are in ISO 8601 Format
 	Bumped year in copyright message
 	Fixed package inheritance to use the parent package data in the supplemental data
 	Fixed tests to handle new data set
+
+0.27.1 2015-05-03
+	Added Welsh as a Language Pack
