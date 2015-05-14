@@ -374,22 +374,16 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_transforms($transformations_directory, $xml, $full_file_name);
 }
 
-=for comment
-
 #Collation
 # First convert the base collation file into a moose role
 say "Copying base collation file" if $verbose;
-open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA.txt'));
+open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
 process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'), 1);
 process_collation_base($Allkeys_in, $Allkeys_out);
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
 close $Allkeys_out;
-
-=end
-
-=cut
 
 # Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
@@ -750,8 +744,6 @@ EOT
 	}
 }
 
-=for comment
-
 sub process_collation_base {
 	my ($Allkeys_in, $Allkeys_out) = @_;
 
@@ -777,21 +769,21 @@ EOT
 	while (<$Allkeys_in>) {
 		next if /^#/;
 		next if /^$/;
-		
+
 		#Top Byte
-		if (my ($top_byte, $category) = /^\[top_byte\t(\p{AHex}{2})\t([A-Za-z ]+)(?:\tCOMPRESS)? \]) {
+		if (my ($top_byte, $category) = /^\[top_byte\t(\p{AHex}{2})\t([A-Za-z ]+)(?:\tCOMPRESS)? \]/) {
 			my @category = split / /, $category;
-			@top_byte{@category} = (hex $top_byte) x @category;
+			@top_bytes{@category} = (hex $top_byte) x @category;
 		}
 		# CE
-		elsif (my ($character, $primary, $secondary, $tertiary) = /^((?:\p{AHex}{4,6}[| ]?)+; \[([^U+,]*),([^,]*),(.*?)\]/) {
+		elsif (my ($character, $primary, $secondary, $tertiary) = /^(?:(?:\p{AHex}{4,6}[| ]?)+; \[([^U+,]*),([^,]*),(.*?)\])/) {
 			foreach ($primary, $secondary, $tertiary) {
 				s/\s+//;
 				my @bytes = map {chr hex} /(..)/g;
 				$_ = join '', @bytes;
 			}
 			
-			@character = split /[| ]+/, $character;
+			my @character = split /[| ]+/, $character;
 			$character = join '', map {chr hex} @character;
 			
 			push @character_sequences, $character if @character > 1;
@@ -801,7 +793,7 @@ EOT
 			$tertiary .= "\0" x 2 - length $tertiary;
 			$ce{$character} = [$primary, $secondary, $tertiary];
 		}
-		elsif (my ($character, $primary, $secondary, $tertiary) = /^((?:\p{AHex}{4,6}[| ]?)+; \[U+(\p{AHex}+)(,[^,]+)?(,(.*?)\]/) {
+		elsif (my ($character, $primary, $secondary, $tertiary) = /^(?:\p{AHex}{4,6}[| ]?)+; \[U+(\p{AHex}+)(?:,([^,]+))?(?:,(.*?))\]/) {
 			my $same = $ce{chr hex $primary};
 			foreach ($secondary, $tertiary) {
 				next unless defined;
@@ -819,15 +811,15 @@ EOT
 			
 			$ce{$character} = $same;
 		}
-		
+
+	}
 	my $character_sequences = join "','", 
 		map {$_->[0]} 
 		sort {$b->[1] <=> $a->[1]}
 		map {[$_ => length $_]}
 		@character_sequences;
-	
+
 	print $Allkeys_out <<EOT;
-		}
 	}
 );
 
@@ -856,10 +848,6 @@ has '_sort_digraphs' => (
 
 EOT
 }
-
-=end
-
-=cut
 
 sub process_valid_languages {
     my ($file, $xpath) = @_;
