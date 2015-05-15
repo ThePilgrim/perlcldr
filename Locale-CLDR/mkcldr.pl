@@ -379,7 +379,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 say "Copying base collation file" if $verbose;
 open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
-process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'), 1);
+process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
 process_collation_base($Allkeys_in, $Allkeys_out);
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
@@ -747,106 +747,6 @@ EOT
 sub process_collation_base {
 	my ($Allkeys_in, $Allkeys_out) = @_;
 
-	print $Allkeys_out <<EOT;
-has 'collation_base' => (
-	is			=> 'ro',
-	isa			=> 'HashRef',
-	init_arg	=> undef,
-	traits 		=> ['Hash'],
-	handles		=> {
-		_set_ce	=> 'set',
-		get_collation_element	=> 'get',
-	},
-	default		=> sub {
-		{
-EOT
-	
-	my @character_sequences;
-	my %top_bytes = ();
-	my %ce = ();
-	my ($max_variable, $min_variable);
-	
-	while (<$Allkeys_in>) {
-		next if /^#/;
-		next if /^$/;
-
-		#Top Byte
-		if (my ($top_byte, $category) = /^\[top_byte\t(\p{AHex}{2})\t([A-Za-z ]+)(?:\tCOMPRESS)? \]/) {
-			my @category = split / /, $category;
-			@top_bytes{@category} = (hex $top_byte) x @category;
-		}
-		# CE
-		elsif (my ($character, $primary, $secondary, $tertiary) = /^(?:(?:\p{AHex}{4,6}[| ]?)+; \[([^U+,]*),([^,]*),(.*?)\])/) {
-			foreach ($primary, $secondary, $tertiary) {
-				s/\s+//;
-				my @bytes = map {chr hex} /(..)/g;
-				$_ = join '', @bytes;
-			}
-			
-			my @character = split /[| ]+/, $character;
-			$character = join '', map {chr hex} @character;
-			
-			push @character_sequences, $character if @character > 1;
-			
-			$primary .= "\0" x 3 - length $primary;
-			$secondary .= "\0" x 2 - length $secondary;
-			$tertiary .= "\0" x 2 - length $tertiary;
-			$ce{$character} = [$primary, $secondary, $tertiary];
-		}
-		elsif (my ($character, $primary, $secondary, $tertiary) = /^(?:\p{AHex}{4,6}[| ]?)+; \[U+(\p{AHex}+)(?:,([^,]+))?(?:,(.*?))\]/) {
-			my $same = $ce{chr hex $primary};
-			foreach ($secondary, $tertiary) {
-				next unless defined;
-				s/\s+//;
-				my @bytes = map {chr hex} /(..)/g;
-				$_ = join '', @bytes;
-			}
-			
-			if (defined $tertiary) {
-				$same=~s/^(...)..../$1$secondary$tertiary/;
-			}
-			elsif (defined $secondary) {
-				$same=~s/^(.....)../$1$secondary/;
-			}
-			
-			$ce{$character} = $same;
-		}
-
-	}
-	my $character_sequences = join "','", 
-		map {$_->[0]} 
-		sort {$b->[1] <=> $a->[1]}
-		map {[$_ => length $_]}
-		@character_sequences;
-
-	print $Allkeys_out <<EOT;
-	}
-);
-
-has min_variable => (
-	is => 'ro',
-	isa => 'Str',
-	init_arg => undef,
-	default => '$min_variable'
-);
-
-has max_variable => (
-	is => 'ro',
-	isa => 'Str',
-	init_arg => undef,
-	default => '$max_variable'
-);
-
-has '_sort_digraphs' => (
-	is => 'ro',
-	isa => 'ArrayRef',
-	init_arg => undef,
-	default => sub {['$character_sequences']},
-	writer => '_set_sort_digraphs',
-	reader => '_get_sort_digraphs',
-);
-
-EOT
 }
 
 sub process_valid_languages {
