@@ -17,6 +17,7 @@ use DateTime;
 use XML::Parser;
 use Text::ParseWords;
 use List::MoreUtils qw( any );
+use List::Util qw( min max );
 use Unicode::UCD qw(charinfo);
 no warnings "experimental::regex_sets";
 
@@ -746,9 +747,211 @@ EOT
 
 sub process_collation_base {
 	my ($Allkeys_in, $Allkeys_out) = @_;
-
+	
+	my @unified_ideographs = ();
+	my @han_order = ();
+	my %top_byte = ();
+	my %characters = ();
+	while (my $line = <$Allkeys_in>) {
+		next if $line =~ /^\s*$/; # Comments
+		next if $line =~ /^#/; # Empty lines
+		
+		next if $line =~ /^\[UCA version =/; # Version line
+		
+		# Unified Ideographs
+		if ($line =~ s/^\[Unified_Ideograph (.+)\]/$1/) {
+			$line =~ s/(\p{hex}+)/char hex $1/ge;
+			$line =~ s/ /','/g;
+			$line =~ s/\.\./'..'/g;
+			@unified_ideographs = eval "($line)";
+			next;
+		}
+		
+		# Han order
+		if ($line =~ s/^\[radical [0-9]+=[^:]+:(.+)\]/$1/) {
+			$line =~ s/(\p{hex}+)/char hex $1/ge;
+			$line =~ s/ /','/g;
+			$line =~ s/\.\./'..'/g;
+			push @han_order, eval "($line)";
+			next;
+		}
+		
+		next if $line eq '[radical end]';
+		
+		# top byte
+		if (my ($byte, $name) = $line =~ /^\[top_byte\t(\p{hex}\p{hex})\t([A-Za-z ]+)(?:\tCOMPRESS)? \]$/) {
+			my @names = split / /, $name;
+			push @{$top_byte{$name}}, $byte foreach (@names);
+			next;
+		}
+		
+		# Characters
+		if (my ($character, $from, $levels) = $line =~ /^\p{hex}{4,6}; \[U+(\p{hex}{4,6})(?:,(.*))?\]/) {
+			$characters{$character} = process_collation_element_from_character(($characters{$from} //= generate_waight_from($from)), $levels);
+			next;
+		}
+		
+		if (my ($character, $collation_element) = $line =~ /^(\p{hex}{4,6}); (.*)$/) {
+			$characters{$character} = process_collation_element($collation_element, ord $unified_ideographs[0]);
+			next;
+		}
+	}
+	
+	@han_order = map { ord } @han_order;
+	my $min_han = min @han_order;
+	@han_order = map { $_ - $min_han } @han_order;
 }
 
+sub process_collation_element_from_character {
+	my ($origanal, $levels) = @_;
+	my @collation_elements = @$original;
+	if ($levels) {
+		my @levels = map {chr hex } split/,/, $levels;
+		foreach my $element (@collation_elements) {
+			if (@levels == 1) {
+				$element->[2] = $levels[0];
+			}
+			else {
+				@{$element}[1,2] = @levels;
+			}
+		}
+	}
+
+	return \@collation_elements;
+}
+
+sub process_collation_element {
+	my $collation_string = shift;
+	my @collation_elements = $collation_string =~ /^(?:\[(.*?)\])+$/;
+	foreach my $element (@collation_elements) {
+		my ($primary, $secondary, $tertary) = map { s/^\s*//r } { map { $_ || 0 } split(/,/, $element);
+		foreach my $level ($primary, $secondary, $tertary) {
+			my @char = split / /, $level;
+			@char = map {chr hex} @chr;
+			$level = join '', @char;
+		}
+		$element = [$primary, $secondary, $tertary];
+	}
+	
+	return \@collation_elements;
+}
+
+sub generate_waight_from {
+	my ($code_point) = @_;
+
+	# The constants for the boundaries of CJK characters vary from release to release. 
+	# They are of the form CJK*BASE and CJK*LIMIT, and may be expanded to new blocks as well.
+ 
+	my $min3Primary = 0xE0,
+	my $max4Primary = 0xE4,
+	my $minTrail = 0x04,
+	my $maxTrail = 0xFE,
+	my $gap3 = 1,
+	my $primaries3count = 1,
+
+	my $final3Multiplier = $gap3 + 1,
+	my $final3Count = int(($maxTrail - $minTrail + 1) / $final3Multiplier),
+	my $max3Trail = $minTrail + ($final3Count - 1) * $final3Multiplier,
+
+	my $medialCount = ($maxTrail - $minTrail + 1),
+	my $threeByteCount = $medialCount * $final3Count,
+	my $primariesAvailable = $max4Primary - $min3Primary + 1,
+	my $primaries4count = $primariesAvailable - $primaries3count,
+
+	my $min3ByteCoverage = $primaries3count * $threeByteCount,
+	my $min4Primary = $min3Primary + $primaries3count,
+	my $min4Boundary = $min3ByteCoverage,
+ 
+
+	my $totalNeeded = $MAX_INPUT - $min4Boundary,
+	my $neededPerPrimaryByte = divideAndRoundUp($totalNeeded, $primaries4count),
+
+	my $neededPerFinalByte = divideAndRoundUp($neededPerPrimaryByte, $medialCount * $medialCount),
+
+	my $gap4 = ($maxTrail - $minTrail - 1) / $neededPerFinalByte,
+
+	my $final4Multiplier = $gap4 + 1,
+	my $final4Count = $neededPerFinalByte;
+
+	$code_point += swapCJK($code_point) + 1;
+	my $last0 = $code_point - $min4Boundary;
+	if ($last0 < 0) {
+		my $last1 = int($code_point / $final3Count);
+		$last0 = $code_point % $final3Count;
+
+		my $last2 = int($last1 / $medialCount);
+		$last1 %= $medialCount;
+
+		$last0 = $minTrail + $last0 * $final3Multiplier; # spread out, leaving gap at start
+		$last1 = $minTrail + $last1; # offset
+		$last2 = $min3Primary + $last2; # offset
+
+		return ($last2 << 24) + ($last1 << 16) + ($last0 << 8);
+	}
+	else {
+		my $last1 = int($last0 / $final4Count);
+		my $last0 %= $final4Count;
+
+		my $last2 = int($last1 / $medialCount);
+		$last1 %= $medialCount;
+
+		my $last3 = int ($last2 / $medialCount);
+		$last2 %= $medialCount;
+
+		$last0 = $minTrail + $last0 * $final4Multiplier; # spread out, leaving gap at start 
+		$last1 = $minTrail + $last1; # offset
+		$last2 = $minTrail + $last2; # offset
+		$last3 = $min4Primary + $last3; # offset
+
+		return ($last3 << 24) + ($last2 << 16) + ($last1 << 8) + $last0;
+	}
+}
+
+sub divideAndRoundUp {
+	return int (1 + ($_[0]-1)/$_[1]);
+}
+
+{
+	my $CJK_BASE = 0x4E00;
+	my $CJK_LIMIT = 0x9FCC+1,
+
+	my $CJK_COMPAT_USED_BASE = 0xFA0E,
+	my $CJK_COMPAT_USED_LIMIT = 0xFA2F+1,
+
+	my $CJK_A_BASE = 0x3400,
+	my $CJK_A_LIMIT = 0x4DB5+1,
+	my $CJK_B_BASE = 0x20000,
+	my $CJK_B_LIMIT = 0x2A6D6+1,
+
+	my $CJK_C_BASE = 0x2A700,
+	my $CJK_C_LIMIT = 0x2B734+1,
+
+	my $CJK_D_BASE = 0x2B740,
+	my $CJK_D_LIMIT = 0x2B81D+1,
+
+	my $MAX_INPUT = 0x220001,
+	my $NON_CJK_OFFSET = 0x110000,
+
+	sub swapCJK {
+		my $i = shift;
+		if ($i >= $CJK_BASE) {
+			return $i - $CJK_BASE if ($i < $CJK_LIMIT);
+			return $i + $NON_CJK_OFFSET if ($i < $CJK_COMPAT_USED_BASE);
+			return $i - $CJK_COMPAT_USED_BASE + ($CJK_LIMIT - $CJK_BASE) if ($i < $CJK_COMPAT_USED_LIMIT);
+			return $i + $NON_CJK_OFFSET if ($i < $CJK_B_BASE);
+			return $i if ($i < $CJK_B_LIMIT); # non-BMP-CJK
+			return $i + $NON_CJK_OFFSET if ($i < $CJK_C_BASE);
+			return $i if ($i < $CJK_C_LIMIT); # non-BMP-CJK
+            return $i + $NON_CJK_OFFSET if ($i < $CJK_D_BASE);
+            return $i if ($i < $CJK_D_LIMIT); # non-BMP-CJK
+			return $i + $NON_CJK_OFFSET;  # non-CJK
+		}
+		return $i + $NON_CJK_OFFSET if ($i < $CJK_A_BASE);
+		return $i - $CJK_A_BASE + ($CJK_LIMIT - $CJK_BASE) + ($CJK_COMPAT_USED_LIMIT - $CJK_COMPAT_USED_BASE) if ($i < $CJK_A_LIMIT);
+		return $i + $NON_CJK_OFFSET; # non-CJK
+	}
+}
+ 
 sub process_valid_languages {
     my ($file, $xpath) = @_;
     say "Processing Valid Languages"
