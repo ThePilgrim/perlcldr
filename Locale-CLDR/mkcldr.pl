@@ -140,15 +140,9 @@ close $file;
 
 # Collator
 
-=for comment
-
 open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
 write_out_collator($file);
 close $file;
-
-=end
-
-=cut
 
 # Likely sub-tags
 open $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
@@ -5125,8 +5119,6 @@ EOT
 	}
 }
 
-=for comment
-
 sub write_out_collator {
 	# In order to keep git out of the CLDR directory we need to 
 	# write out the code for the CLDR::Collator module
@@ -5141,10 +5133,6 @@ our \$VERSION = version->declare('v$VERSION');
 EOT
 	print $file $_ while (<DATA>);
 }
-
-=end
-
-=cut
 
 sub build_bundle {
 	my ($directory, $territories, $name, $territory_names) = @_;
@@ -6089,7 +6077,7 @@ package Locale::CLDR::Collator;
 
 use version;
 
-our $VERSION = version->declare('v0.26.4');
+our $VERSION = version->declare('v0.27.1');
 
 use v5.10;
 use mro 'c3';
