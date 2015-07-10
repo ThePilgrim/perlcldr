@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.27.1');
+our $VERSION = version->declare('v0.27.2');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -58,7 +58,7 @@ use List::Util qw(first);
 use Class::MOP;
 use DateTime::Locale;
 use Unicode::Normalize();
-#use Locale::CLDR::Collator();
+use Locale::CLDR::Collator();
 use File::Spec();
 
 # Backwards compatibility
@@ -4229,8 +4229,6 @@ used the territory of the current locale.
 
 =back
 
-=begin comment
-
 =head2 Collation
 
 =over 4
@@ -4242,11 +4240,7 @@ try and match the API from L<Unicode::Collate> as much as possible and add tailo
 
 =back
 
-=end comment
-
 =cut
-
-=begin comment
 
 sub collation {
 	my ($self, %params) = @_;
@@ -4257,7 +4251,7 @@ sub collation {
 	return Locale::CLDR::Collator->new(locale => $self, %params);
 }
 
-sub collation_overrides {
+sub _collation_overrides {
 	my ($self, $type) = @_;
 	
 	my @bundles = reverse $self->_find_bundle('collation');
@@ -4283,8 +4277,6 @@ sub _default_collation {
 sub _default_collation_strength {
 	return 3;
 }
-
-=end comment
 
 =head1 Locales
 
