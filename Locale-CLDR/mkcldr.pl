@@ -134,13 +134,14 @@ my $xml = XML::XPath->new(
     filename => File::Spec->catfile($file_name)
 );
 
+# Note that the Number Formatter code comes before the collator in the data section
+# so this needs to be done first
 # Number Formatter
 open my $file, '>', File::Spec->catfile($lib_directory, 'NumberFormatter.pm');
 write_out_number_formatter($file);
 close $file;
 
 # Collator
-
 open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
 write_out_collator($file);
 close $file;
@@ -323,7 +324,7 @@ process_calendar_preferences($file, $xml);
 process_footer($file, 1);
 close $file;
 
-#Week data
+# Week data
 open $file, '>', File::Spec->catfile($lib_directory, 'WeekData.pm');
 
 # Note: The order of these calls is important
@@ -368,6 +369,24 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_transforms($transformations_directory, $xml, $full_file_name);
 }
 
+# Write out a dummy transformation module to keep CPAN happy
+open my $file, '>', File::Spec->catfile($lib_directory, 'Transformations.pm');
+print $file <<EOT;
+package Locale::CLDR::Transformations;
+
+=head1 Locale::CLDR::Transformations - Dummy base class to keep CPAN happy
+
+=cut
+
+use version;
+
+our $VERSION = version->declare('v$VERSION');
+
+1;
+EOT
+
+push @transformation_list, 'Locale::CLDR::Transformations';
+
 #Collation
 # First convert the base collation file into a moose role
 say "Copying base collation file" if $verbose;
@@ -375,6 +394,18 @@ open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'Fraction
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
 process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
 process_collation_base($Allkeys_in, $Allkeys_out);
+process_footer($Allkeys_out,1);
+close $Allkeys_in;
+close $Allkeys_out;
+
+# Perl older than 5.16 can't handle all the utf8 encoded code points, so we need a version of Locale::CLDR::CollatorBase
+# that does not have the characters as raw utf8
+
+say "Copying base collation file for pre v5.16" if $verbose;
+open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
+open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBaseOldPerl.pm'));
+process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
+process_collation_base($Allkeys_in, $Allkeys_out, sub { return sprintf '"\\x{%0.4X}"', ord $_[0] });
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
 close $Allkeys_out;
@@ -576,6 +607,7 @@ my @base_bundle = (
 	'Locale::CLDR::CalendarPreferences',
 	'Locale::CLDR::Collator',
 	'Locale::CLDR::CollatorBase',
+	'Locale::CLDR::CollatorBaseOldPerl',
 	'Locale::CLDR::Currencies',
 	'Locale::CLDR::EraBoundries',
 	'Locale::CLDR::LikelySubtags',
@@ -741,7 +773,7 @@ EOT
 }
 
 sub process_collation_base {
-	my ($Allkeys_in, $Allkeys_out) = @_;
+	my ($Allkeys_in, $Allkeys_out, $filter) = @_;
 	
 	my @unified_ideographs = ();
 	my @han_order = ();
@@ -805,7 +837,8 @@ has han_order => (
 		return {
 EOT
 	foreach my $character (sort keys %han_order) {
-		print $Allkeys_out "\t\t\t$character => $han_order{$character},\n";
+		my $character_out = $filter ? $filter->($character) : $character;
+		print $Allkeys_out "\t\t\t$character_out => $han_order{$character},\n";
 	}
 	print $Allkeys_out <<EOT;
 		}
@@ -824,8 +857,9 @@ has collation_elements => (
 EOT
 	foreach my $character (sort (@unified_ideographs, keys %characters)) {
 		my $character_out = $character;
-		$character_out =~ s/([\\'])/\\$1/;
-		print $Allkeys_out "\t\t\t'$character_out' => '";
+		$character_out =~ s/([\\'])/\\$1/ unless $filter;
+		$character_out = $filter ? $filter->($character_out) : "'$character_out'";
+		print $Allkeys_out "\t\t\t$character_out => '";
 		my @ce = @{$characters{$character} || generate_waight_from($character) };
 		foreach my $ce (@ce) {
 			$ce = join "\x{0002}", @$ce;
@@ -5478,6 +5512,9 @@ sub build_transforms_distribution {
 		copy($source_name, $destination_name);
 	}
 	
+	# Copy over the dummy base file
+	copy(File::Spec->catfile($lib_directory, 'Transformations.pm'), File::Spec->catfile($distribution, qw(Locale CLDR Transformations.pm)));
+	
 	make_distribution(File::Spec->catdir($distributions_directory, 'Transformations'));
 }
 
@@ -6179,7 +6216,7 @@ use Unicode::Normalize('NFD');
 
 use Moose;
 
-with 'Locale::CLDR::CollatorBase';
+with $^V ge 'v5.16.0' ? 'Locale::CLDR::CollatorBase' : 'Locale::CLDR::CollatorBaseOldPerl';
 
 has 'type' => (
 	is => 'ro',

@@ -4237,6 +4237,10 @@ used the territory of the current locale.
 
 This method returns a Locale::CLDR::Collator object. This is still in development. Future releases will
 try and match the API from L<Unicode::Collate> as much as possible and add tailoring for locales.
+There are currently two named Parameters, more will be added as the functionality increases. They are C<type>
+which is currently ignored but will be used in future to select which collation type of the locale you want. 
+E.G. I<standard> or I<phonebook> for German. The second is C<strenth> which selects which of the collation
+strength's you want.
 
 =back
 
