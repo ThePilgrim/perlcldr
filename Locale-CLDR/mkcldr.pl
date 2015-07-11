@@ -404,7 +404,7 @@ close $Allkeys_out;
 say "Copying base collation file for pre v5.16" if $verbose;
 open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBaseOldPerl.pm'));
-process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
+process_header($Allkeys_out, 'Locale::CLDR::CollatorBaseOldPerl', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
 process_collation_base($Allkeys_in, $Allkeys_out, sub { return sprintf '"\\x{%0.4X}"', ord $_[0] });
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
@@ -6216,6 +6216,8 @@ use Unicode::Normalize('NFD');
 
 use Moose;
 
+# Perl's before v5.16.0 can not handle the full set of utf8 encoded characters in the source file
+# So for older Perls we have a version of Locale::CLDR::CollatorBase
 with $^V ge 'v5.16.0' ? 'Locale::CLDR::CollatorBase' : 'Locale::CLDR::CollatorBaseOldPerl';
 
 has 'type' => (
