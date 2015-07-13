@@ -5402,6 +5402,18 @@ my \$builder = Module::Build->new(
 	configure_requires => { 'Module::Build' => '0.40' },
     create_makefile_pl => 'traditional',
 	release_status => '$RELEASE_STATUS',
+	meta_add => {
+		keywords => [ qw( locale CLDR ) ],
+		resources => {
+			homepage => 'https://github.com/ThePilgrim/perlcldr',
+			bugtracker => 'https://github.com/ThePilgrim/perlcldr/issues',
+			repository => {
+				url => https://github.com/ThePilgrim/perlcldr.git',
+				web => 'https://github.com/ThePilgrim/perlcldr',
+				type => 'git',
+			},
+		},
+	},
 );
 
 \$builder->create_build_script();
@@ -5464,6 +5476,18 @@ my \$builder = Module::Build->new(
     create_makefile_pl => 'traditional',
 	release_status => '$RELEASE_STATUS',
 	dist_abstract => 'Locale::CLDR - Data Package $module',
+	meta_add => {
+		keywords => [ qw( locale CLDR locale-data-pack ) ],
+		resources => {
+			homepage => 'https://github.com/ThePilgrim/perlcldr',
+			bugtracker => 'https://github.com/ThePilgrim/perlcldr/issues',
+			repository => {
+				url => https://github.com/ThePilgrim/perlcldr.git',
+				web => 'https://github.com/ThePilgrim/perlcldr',
+				type => 'git',
+			},
+		},
+	},
 );
 
 \$builder->create_build_script();
