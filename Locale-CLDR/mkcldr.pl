@@ -388,23 +388,14 @@ EOT
 push @transformation_list, 'Locale::CLDR::Transformations';
 
 #Collation
-# First convert the base collation file into a moose role
-say "Copying base collation file" if $verbose;
-open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
-open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
-process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
-process_collation_base($Allkeys_in, $Allkeys_out);
-process_footer($Allkeys_out,1);
-close $Allkeys_in;
-close $Allkeys_out;
 
 # Perl older than 5.16 can't handle all the utf8 encoded code points, so we need a version of Locale::CLDR::CollatorBase
 # that does not have the characters as raw utf8
 
 say "Copying base collation file for pre v5.16" if $verbose;
 open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
-open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBaseOldPerl.pm'));
-process_header($Allkeys_out, 'Locale::CLDR::CollatorBaseOldPerl', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
+open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
+process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
 process_collation_base($Allkeys_in, $Allkeys_out, sub { return sprintf '"\\x{%0.4X}"', ord $_[0] });
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
@@ -607,7 +598,6 @@ my @base_bundle = (
 	'Locale::CLDR::CalendarPreferences',
 	'Locale::CLDR::Collator',
 	'Locale::CLDR::CollatorBase',
-	'Locale::CLDR::CollatorBaseOldPerl',
 	'Locale::CLDR::Currencies',
 	'Locale::CLDR::EraBoundries',
 	'Locale::CLDR::LikelySubtags',
@@ -5407,11 +5397,7 @@ my \$builder = Module::Build->new(
 		resources => {
 			homepage => 'https://github.com/ThePilgrim/perlcldr',
 			bugtracker => 'https://github.com/ThePilgrim/perlcldr/issues',
-			repository => {
-				url => https://github.com/ThePilgrim/perlcldr.git',
-				web => 'https://github.com/ThePilgrim/perlcldr',
-				type => 'git',
-			},
+			repository => 'https://github.com/ThePilgrim/perlcldr.git',
 		},
 	},
 );
@@ -5481,11 +5467,7 @@ my \$builder = Module::Build->new(
 		resources => {
 			homepage => 'https://github.com/ThePilgrim/perlcldr',
 			bugtracker => 'https://github.com/ThePilgrim/perlcldr/issues',
-			repository => {
-				url => https://github.com/ThePilgrim/perlcldr.git',
-				web => 'https://github.com/ThePilgrim/perlcldr',
-				type => 'git',
-			},
+			repository => 'https://github.com/ThePilgrim/perlcldr.git',
 		},
 	},
 );
@@ -6240,9 +6222,7 @@ use Unicode::Normalize('NFD');
 
 use Moose;
 
-# Perl's before v5.16.0 can not handle the full set of utf8 encoded characters in the source file
-# So for older Perls we have a version of Locale::CLDR::CollatorBase
-with $^V ge 'v5.16.0' ? 'Locale::CLDR::CollatorBase' : 'Locale::CLDR::CollatorBaseOldPerl';
+with 'Locale::CLDR::CollatorBase';
 
 has 'type' => (
 	is => 'ro',
