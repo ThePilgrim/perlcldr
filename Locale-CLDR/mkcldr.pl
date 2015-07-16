@@ -37,7 +37,7 @@ my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'unstable';
+my $RELEASE_STATUS = 'stable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
