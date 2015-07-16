@@ -31,13 +31,13 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '27.0.1'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 2; # This is the build number against the CLDR revision
+my $REVISION = 3; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -5332,6 +5332,7 @@ sub build_distributions {
 	build_transforms_distribution();
 	build_language_distributions();
 	build_territory_distributions();
+	build_bundle_distributions();
 }
 
 sub copy_tests {
@@ -5380,6 +5381,9 @@ my \$builder = Module::Build->new(
         'Moose'                     => '2.0401',
         'MooseX::ClassAttribute'    => '0.26',
         'perl'                      => '5.10.0',
+        'Class::Load'               => 0,
+        'DateTime::Locale'          => 0,
+        'namespace::autoclean'      => 0,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
     dist_version_from   => 'lib/Locale/CLDR.pm',
@@ -5389,17 +5393,16 @@ my \$builder = Module::Build->new(
         'Test::More'        => '0.98',
     },
     add_to_cleanup      => [ 'Locale-CLDR-*' ],
-	configure_requires => { 'Module::Build' => '0.40' },
-    create_makefile_pl => 'traditional',
-	release_status => '$RELEASE_STATUS',
-	meta_add => {
-		keywords => [ qw( locale CLDR ) ],
-		resources => {
-			homepage => 'https://github.com/ThePilgrim/perlcldr',
-			bugtracker => 'https://github.com/ThePilgrim/perlcldr/issues',
-			repository => 'https://github.com/ThePilgrim/perlcldr.git',
-		},
-	},
+    configure_requires => { 'Module::Build' => '0.40' },
+    release_status => '$RELEASE_STATUS',
+    meta_add => {
+        keywords => [ qw( locale CLDR ) ],
+        resources => {
+            homepage => 'https://github.com/ThePilgrim/perlcldr',
+            bugtracker => 'https://github.com/ThePilgrim/perlcldr/issues',
+            repository => 'https://github.com/ThePilgrim/perlcldr.git',
+        },
+    },
 );
 
 \$builder->create_build_script();
@@ -5426,6 +5429,8 @@ EOT
 sub build_text {
 	my ($module, $version) = @_;
 	$file = $module;
+	$module =~ s/\.pm$//;
+	my $cleanup = $module =~ s/::/-/gr;
 	if ($version) {
 		$version = "/$version";
 	}
@@ -5448,7 +5453,7 @@ my \$builder = Module::Build->new(
         'Moose'                     => '2.0401',
         'MooseX::ClassAttribute'    => '0.26',
         'perl'                      => '5.10.0',
-		'Locale::CLDR'              => '$VERSION'
+        'Locale::CLDR'              => '$VERSION'
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
     dist_version_from   => 'lib/Locale/CLDR/$file$version',
@@ -5457,9 +5462,8 @@ my \$builder = Module::Build->new(
         'Test::Exception'   => 0,
         'Test::More'        => '0.98',
     },
-    add_to_cleanup      => [ 'Locale-CLDR-$module-*' ],
+    add_to_cleanup      => [ 'Locale-CLDR-$cleanup-*' ],
 	configure_requires => { 'Module::Build' => '0.40' },
-    create_makefile_pl => 'traditional',
 	release_status => '$RELEASE_STATUS',
 	dist_abstract => 'Locale::CLDR - Data Package $module',
 	meta_add => {
@@ -5564,6 +5568,9 @@ sub build_language_distributions {
 }
 
 sub build_territory_distributions{
+}
+
+sub build_bundle_distributions {
 }
 
 __DATA__
