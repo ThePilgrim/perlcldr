@@ -6243,6 +6243,18 @@ has 'locale' => (
 	required => 1,
 );
 
+has 'alternate' => (
+	is => 'ro',
+	isa => 'Str',
+	default => 'noignore'
+);
+
+has 'backwards' => (
+	is => 'ro',
+	isa => 'Str',
+	default => 'false',
+);
+
 has 'strength' => (
 	is => 'ro',
 	isa => 'Int',

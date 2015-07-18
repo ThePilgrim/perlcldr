@@ -4237,20 +4237,19 @@ used the territory of the current locale.
 
 This method returns a Locale::CLDR::Collator object. This is still in development. Future releases will
 try and match the API from L<Unicode::Collate> as much as possible and add tailoring for locales.
-There are currently two named Parameters, more will be added as the functionality increases. They are C<type>
-which is currently ignored but will be used in future to select which collation type of the locale you want. 
-E.G. I<standard> or I<phonebook> for German. The second is C<strength> which selects which of the collation
-strength's you want.
 
 =back
 
 =cut
 
 sub collation {
-	my ($self, %params) = @_;
+	my ($self) = @_;
 	
-	$params{type} //= $self->_default_collation;
-	$params{strength} //= $self->_default_collation_strength;
+	my %params;
+	$params{type} = $self->_collation_type;
+	$params{alternate} = $self->_collation_alternate;
+	$params{backwards} = $self->_collation_backwards;
+	$params{strength} = $self->_collation_strength;
 	
 	return Locale::CLDR::Collator->new(locale => $self, %params);
 }
@@ -4274,12 +4273,66 @@ sub _collation_overrides {
 	return $override || [];
 }
 	
-sub _default_collation {
-	return 'standard';
+sub _collation_type {
+	my $self = shift;
+	
+	return $self->extentions()->{co} if $self->extentions()->{co};
+	my @bundles = reverse $self->_find_bundle('collation_type');
+	my $collation_type = '';
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_type = $bundle->collation_type();
+	}
+	
+	return $collation_type || 'standard';
 }
 
-sub _default_collation_strength {
-	return 3;
+sub _collation_alternate {
+	my $self = shift;
+	
+	return $self->extentions()->{ka} if $self->extentions()->{ka};
+	my @bundles = reverse $self->_find_bundle('collation_alternate');
+	my $collation_alternate = '';
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_alternate = $bundle->collation_alternate();
+	}
+	
+	return $collation_alternate || 'noignore';
+}
+
+sub _collation_backwards {
+	my $self = shift;
+	
+	return $self->extentions()->{kb} if $self->extentions()->{kb};
+	my @bundles = reverse $self->_find_bundle('collation_backwards');
+	my $collation_backwards = '';
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_alternate = $bundle->collation_alternate();
+	}
+	
+	return $collation_alternate || 'noignore';
+}
+
+sub _collation_strength {
+	my $self = shift;
+	
+	my $collation_strength = $self->extentions()->{ks};
+	if ($collation_strength) {
+		$collation_strength =~ s/^level//;
+		$collation_strength = 5 unless ($collation_strength + 0);
+		return $collation_strength;
+	}
+	
+	my @bundles = reverse $self->_find_bundle('collation_strength');
+	my $collation_strength = 0;
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_strength = $bundle->collation_strength();
+	}
+	
+	return $collation_strength || 3;
 }
 
 =head1 Locales
