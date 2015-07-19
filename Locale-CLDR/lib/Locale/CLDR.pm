@@ -4249,7 +4249,13 @@ sub collation {
 	$params{type} = $self->_collation_type;
 	$params{alternate} = $self->_collation_alternate;
 	$params{backwards} = $self->_collation_backwards;
+	$params{case_level} = $self->_collation_case_level;
+	$params{case_ordering} = $self->_collation_case_ordering;
+	$params{normalization} = $self->_collation_normalizeation;
+	$params{numeric} = $self->_collation_numeric;
+	$params{reorder} = $self->_collation_reorder;
 	$params{strength} = $self->_collation_strength;
+	$params{max_variable} = $self->_collation_max_variable;
 	
 	return Locale::CLDR::Collator->new(locale => $self, %params);
 }
@@ -4315,6 +4321,76 @@ sub _collation_backwards {
 	return $collation_alternate || 'noignore';
 }
 
+sub _collation_case_level {
+	my $self = shift;
+	
+	return $self->extentions()->{kc} if $self->extentions()->{kc};
+	my @bundles = reverse $self->_find_bundle('collation_case_level');
+	my $collation_case_level = '';
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_case_level = $bundle->collation_case_level();
+	}
+	
+	return $collation_case_level || 'false';
+}
+
+sub _collation_case_ordering {
+	my $self = shift;
+	
+	return $self->extentions()->{kf} if $self->extentions()->{kf};
+	my @bundles = reverse $self->_find_bundle('collation_case_ordering');
+	my $collation_case_ordering = '';
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_case_ordering = $bundle->collation_case_ordering();
+	}
+	
+	return $collation_case_ordering || 'false';
+}
+
+sub _collation_normalization {
+	my $self = shift;
+	
+	return $self->extentions()->{kk} if $self->extentions()->{kk};
+	my @bundles = reverse $self->_find_bundle('collation_normalization');
+	my $collation_normalization = '';
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_normalization = $bundle->collation_normalization();
+	}
+	
+	return $collation_normalization || 'true';
+}
+
+sub _collation_numeric {
+	my $self = shift;
+	
+	return $self->extentions()->{kn} if $self->extentions()->{kn};
+	my @bundles = reverse $self->_find_bundle('collation_numeric');
+	my $collation_numeric = '';
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_numeric = $bundle->collation_numeric();
+	}
+	
+	return $collation_numeric || 'false';
+}
+
+sub _collation_reorder {
+	my $self = shift;
+	
+	return $self->extentions()->{kr} if $self->extentions()->{kr};
+	my @bundles = reverse $self->_find_bundle('collation_reorder');
+	my $collation_reorder = [];
+	
+	foreach my $bundle (@bundles) {
+		last if ref( $collation_reorder = $bundle->collation_reorder()) && @$collation_reorder;
+	}
+	
+	return $collation_reorder || [];
+}
+
 sub _collation_strength {
 	my $self = shift;
 	
@@ -4333,6 +4409,20 @@ sub _collation_strength {
 	}
 	
 	return $collation_strength || 3;
+}
+
+sub _collation_max_variable {
+	my $self = shift;
+	
+	return $self->extentions()->{kv} if $self->extentions()->{kv};
+	my @bundles = reverse $self->_find_bundle('collation_max_variable');
+	my $collation_max_variable = '';
+	
+	foreach my $bundle (@bundles) {
+		last if $collation_max_variable = $bundle->collation_max_variable();
+	}
+	
+	return $collation_max_variable || 'punct';
 }
 
 =head1 Locales

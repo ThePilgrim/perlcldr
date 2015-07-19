@@ -806,11 +806,6 @@ sub process_collation_base {
 		if (my ($character, $collation_element) = $line =~ /^(\p{hex}{4,6}(?: \| \p{hex}{4,6})*); (.*)$/) {
 			$character = join '', map {chr hex $_} split /\s* \| \s*/x, $character;
 			push @digraphs, $character if length $character > 1;
-			
-			# Skip anything that has a NFD form that was not a digraph
-			next if length $character == 1 and NFD($character) ne $character;
-			$characters{$character} = process_collation_element($collation_element, \%characters);
-			next;
 		}
 	}
 
@@ -873,26 +868,6 @@ has _digraphs => (
 		return [ qw( @digraphs ) ]
 	}
 );
-
-# Get the collation element at the current strength
-sub get_collation_element {
-	my (\$self, \$grapheme) = \@_;
-	my \$ce = \$self->collation_elements()->{\$grapheme};
-
-	my \$strength = \$self->strength;
-	my \@elements = split /\\x{0001}/, \$ce;
-	foreach my \$element (\@elements) {
-		my \@parts = split /\\x{0002}/, \$element;
-		if (\@parts > \$strength) {
-			\@parts = \@parts[0 .. \$strength - 1];
-		}
-		\$element = join "\\x{0002}", \@parts;
-	}
-	
-	\$ce = join "\\x{0001}", \@elements;
-	
-	return \$ce;
-}
 EOT
 }
 
@@ -6239,8 +6214,9 @@ has 'type' => (
 
 has 'locale' => (
 	is => 'ro',
-	isa => 'Locale::CLDR',
-	required => 1,
+	isa => 'Maybe[Locale::CLDR]',
+	default => undef,
+	predicate => 'has_locale',
 );
 
 has 'alternate' => (
@@ -6255,17 +6231,58 @@ has 'backwards' => (
 	default => 'false',
 );
 
+kas 'case_level' => (
+	is => 'ro',
+	isa => 'Str',
+	default => 'No',
+);
+
+has 'case_ordering' => (
+	is => 'ro',
+	isa => 'Str',
+	default => 'false',
+);
+
+has 'normalization' => (
+	is => 'ro',
+	isa => 'str',
+	default => 'false',
+);
+
+has 'numeric' => (
+	is => 'ro',
+	isa => 'Str',
+	default => 'false',
+);
+
+has 'reorder' => (
+	is => 'ro',
+	isa => 'ArrayRef',
+	default => [],
+);
+
 has 'strength' => (
 	is => 'ro',
 	isa => 'Int',
 	default => 3,
 );
 
+has 'max_variable' => (
+	is => 'ro',
+	isa => 'Int',
+	default => 3,
+);
+
+
+
 # Set up the locale overrides
 sub BUILD {
 	my $self = shift;
 	
-	my $overrides = $self->locale->_collation_overrides($self->type);
+	my $overrides = [];
+	if ($self->has_locale) {
+		$overrides = $self->locale->_collation_overrides($self->type);
+	}
 	
 	foreach my $override (@$overrides) {
 		$self->_set_ce(@$override);
@@ -6280,6 +6297,27 @@ sub _get_sort_digraphs_rx {
 	my $rx = join '|', @$digraphs, '.';
 	
 	return qr/$rx/;
+}
+
+
+# Get the collation element at the current strength
+sub get_collation_element {
+	my ($self, $grapheme) = \@_;
+	my $ce = $self->collation_elements()->{$grapheme};
+
+	my $strength = $self->strength;
+	my @elements = split /\x{0001}/, $ce;
+	foreach my $element (@elements) {
+		my @parts = split /\x{0002}/, $element;
+		if (@parts > $strength) {
+			@parts = @parts[0 .. $strength - 1];
+		}
+		$element = join "\x{0002}", @parts;
+	}
+	
+	$ce = join "\x{0001}", @elements;
+	
+	return $ce;
 }
 
 # Converts $string into a string of Collation Elements
