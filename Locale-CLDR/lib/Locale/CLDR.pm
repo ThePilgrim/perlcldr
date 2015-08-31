@@ -4251,7 +4251,7 @@ sub collation {
 	$params{backwards} = $self->_collation_backwards;
 	$params{case_level} = $self->_collation_case_level;
 	$params{case_ordering} = $self->_collation_case_ordering;
-	$params{normalization} = $self->_collation_normalizeation;
+	$params{normalization} = $self->_collation_normalization;
 	$params{numeric} = $self->_collation_numeric;
 	$params{reorder} = $self->_collation_reorder;
 	$params{strength} = $self->_collation_strength;
@@ -4282,7 +4282,7 @@ sub _collation_overrides {
 sub _collation_type {
 	my $self = shift;
 	
-	return $self->extentions()->{co} if $self->extentions()->{co};
+	return $self->extensions()->{co} if ref $self->extensions() && $self->extensions()->{co};
 	my @bundles = reverse $self->_find_bundle('collation_type');
 	my $collation_type = '';
 	
@@ -4296,7 +4296,7 @@ sub _collation_type {
 sub _collation_alternate {
 	my $self = shift;
 	
-	return $self->extentions()->{ka} if $self->extentions()->{ka};
+	return $self->extentions()->{ka} if ref $self->extensions() && $self->extentions()->{ka};
 	my @bundles = reverse $self->_find_bundle('collation_alternate');
 	my $collation_alternate = '';
 	
@@ -4310,7 +4310,7 @@ sub _collation_alternate {
 sub _collation_backwards {
 	my $self = shift;
 	
-	return $self->extentions()->{kb} if $self->extentions()->{kb};
+	return $self->extensions()->{kb} if ref $self->extensions() && $self->extensions()->{kb};
 	my @bundles = reverse $self->_find_bundle('collation_backwards');
 	my $collation_backwards = '';
 	
@@ -4324,7 +4324,7 @@ sub _collation_backwards {
 sub _collation_case_level {
 	my $self = shift;
 	
-	return $self->extentions()->{kc} if $self->extentions()->{kc};
+	return $self->extensions()->{kc} if ref $self->extensions() && $self->extensions()->{kc};
 	my @bundles = reverse $self->_find_bundle('collation_case_level');
 	my $collation_case_level = '';
 	
@@ -4338,7 +4338,7 @@ sub _collation_case_level {
 sub _collation_case_ordering {
 	my $self = shift;
 	
-	return $self->extentions()->{kf} if $self->extentions()->{kf};
+	return $self->extensions()->{kf} if ref $self->extensions() && $self->extensions()->{kf};
 	my @bundles = reverse $self->_find_bundle('collation_case_ordering');
 	my $collation_case_ordering = '';
 	
@@ -4352,7 +4352,7 @@ sub _collation_case_ordering {
 sub _collation_normalization {
 	my $self = shift;
 	
-	return $self->extentions()->{kk} if $self->extentions()->{kk};
+	return $self->extensions()->{kk} if ref $self->extensions() && $self->extensions()->{kk};
 	my @bundles = reverse $self->_find_bundle('collation_normalization');
 	my $collation_normalization = '';
 	
@@ -4366,7 +4366,7 @@ sub _collation_normalization {
 sub _collation_numeric {
 	my $self = shift;
 	
-	return $self->extentions()->{kn} if $self->extentions()->{kn};
+	return $self->extensions()->{kn} if ref $self->extensions() && $self->extensions()->{kn};
 	my @bundles = reverse $self->_find_bundle('collation_numeric');
 	my $collation_numeric = '';
 	
@@ -4380,7 +4380,7 @@ sub _collation_numeric {
 sub _collation_reorder {
 	my $self = shift;
 	
-	return $self->extentions()->{kr} if $self->extentions()->{kr};
+	return $self->extensions()->{kr} if ref $self->extensions() && $self->extensions()->{kr};
 	my @bundles = reverse $self->_find_bundle('collation_reorder');
 	my $collation_reorder = [];
 	
@@ -4394,7 +4394,7 @@ sub _collation_reorder {
 sub _collation_strength {
 	my $self = shift;
 	
-	my $collation_strength = $self->extentions()->{ks};
+	my $collation_strength = ref $self->extensions() && $self->extensions()->{ks};
 	if ($collation_strength) {
 		$collation_strength =~ s/^level//;
 		$collation_strength = 5 unless ($collation_strength + 0);
@@ -4414,7 +4414,7 @@ sub _collation_strength {
 sub _collation_max_variable {
 	my $self = shift;
 	
-	return $self->extentions()->{kv} if $self->extentions()->{kv};
+	return $self->extensions()->{kv} if ref $self->extensions() && $self->extensions()->{kv};
 	my @bundles = reverse $self->_find_bundle('collation_max_variable');
 	my $collation_max_variable = '';
 	
@@ -4422,7 +4422,7 @@ sub _collation_max_variable {
 		last if $collation_max_variable = $bundle->collation_max_variable();
 	}
 	
-	return $collation_max_variable || 'punct';
+	return $collation_max_variable || 3;
 }
 
 =head1 Locales

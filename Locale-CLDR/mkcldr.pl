@@ -806,6 +806,7 @@ sub process_collation_base {
 		if (my ($character, $collation_element) = $line =~ /^(\p{hex}{4,6}(?: \| \p{hex}{4,6})*); (.*)$/) {
 			$character = join '', map {chr hex $_} split /\s* \| \s*/x, $character;
 			push @digraphs, $character if length $character > 1;
+			$characters{$character} = process_collation_element($collation_element, \%characters);
 		}
 	}
 
@@ -6251,7 +6252,7 @@ has 'case_ordering' => (
 
 has 'normalization' => (
 	is => 'ro',
-	isa => 'str',
+	isa => 'Str',
 	default => 'false',
 );
 
@@ -6311,7 +6312,7 @@ sub _get_sort_digraphs_rx {
 
 # Get the collation element at the current strength
 sub get_collation_element {
-	my ($self, $grapheme) = \@_;
+	my ($self, $grapheme) = @_;
 	my $ce;
 	if ($self->numeric && $grapheme =~/^\p{Nd}/) {
 		my $numeric_top = $self->collation_elements()->{$NUMBER_SORT_TOP};
@@ -6344,7 +6345,7 @@ sub getSortKey {
 	my $entity_rx = $self->_get_sort_digraphs_rx();
 
 	my @ce;
-	while (my ($grapheme) = $string =~ /($entity_rx)/g )
+	while (my ($grapheme) = $string =~ /($entity_rx)/g ) {
 		push @ce, $self->get_collation_element($grapheme)
 	}
 
@@ -6451,7 +6452,7 @@ sub _convert_digits_to_numbers {
 		}
 		else {
 			push @numbers, $decimal;
-			$script = $char_script;
+			$script = $chr_script;
 		}
 	}
 	return @numbers;
