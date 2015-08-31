@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.27.3
+Version 0.27.4
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.27.3');
+our $VERSION = version->declare('v0.27.4');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -4315,10 +4315,10 @@ sub _collation_backwards {
 	my $collation_backwards = '';
 	
 	foreach my $bundle (@bundles) {
-		last if $collation_alternate = $bundle->collation_alternate();
+		last if $collation_backwards = $bundle->collation_backwards();
 	}
 	
-	return $collation_alternate || 'noignore';
+	return $collation_backwards || 'noignore';
 }
 
 sub _collation_case_level {
@@ -4402,7 +4402,7 @@ sub _collation_strength {
 	}
 	
 	my @bundles = reverse $self->_find_bundle('collation_strength');
-	my $collation_strength = 0;
+	$collation_strength = 0;
 	
 	foreach my $bundle (@bundles) {
 		last if $collation_strength = $bundle->collation_strength();

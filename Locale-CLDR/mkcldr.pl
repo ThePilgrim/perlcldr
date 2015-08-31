@@ -31,13 +31,13 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '27.0.1'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 3; # This is the build number against the CLDR revision
+my $REVISION = 4; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -392,7 +392,7 @@ push @transformation_list, 'Locale::CLDR::Transformations';
 # Perl older than 5.16 can't handle all the utf8 encoded code points, so we need a version of Locale::CLDR::CollatorBase
 # that does not have the characters as raw utf8
 
-say "Copying base collation file for pre v5.16" if $verbose;
+say "Copying base collation file" if $verbose;
 open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
 process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
@@ -5359,6 +5359,7 @@ my \$builder = Module::Build->new(
         'Class::Load'               => 0,
         'DateTime::Locale'          => 0,
         'namespace::autoclean'      => 0,
+        'List::MoreUtils            => 0,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
     dist_version_from   => 'lib/Locale/CLDR.pm',
@@ -6201,10 +6202,15 @@ no Moose::Role;
 # vim: tabstop=4
 __DATA__
 use Unicode::Normalize('NFD');
-
+use Unicode::UCD qw( charinfo );
+use List::MoreUtils qw(pairwise);
 use Moose;
 
 with 'Locale::CLDR::CollatorBase';
+
+my $NUMBER_SORT_TOP = "\x{FD00}\x{0034}";
+my $LEVEL_SEPARATOR = "\x{0001}";
+my $FIELD_SEPARATOR = "\x{0002}";
 
 has 'type' => (
 	is => 'ro',
@@ -6231,10 +6237,10 @@ has 'backwards' => (
 	default => 'false',
 );
 
-kas 'case_level' => (
+has 'case_level' => (
 	is => 'ro',
 	isa => 'Str',
-	default => 'No',
+	default => 'false',
 );
 
 has 'case_ordering' => (
@@ -6258,7 +6264,7 @@ has 'numeric' => (
 has 'reorder' => (
 	is => 'ro',
 	isa => 'ArrayRef',
-	default => [],
+	default => sub { [] },
 );
 
 has 'strength' => (
@@ -6269,11 +6275,9 @@ has 'strength' => (
 
 has 'max_variable' => (
 	is => 'ro',
-	isa => 'Int',
-	default => 3,
+	isa => 'Str',
+	default => 'punct',
 );
-
-
 
 # Set up the locale overrides
 sub BUILD {
@@ -6296,6 +6300,11 @@ sub _get_sort_digraphs_rx {
 	
 	my $rx = join '|', @$digraphs, '.';
 	
+	# Fix numeric sorting here
+	if ($self->numeric eq 'true') {
+		$rx = "\\p{Nd}+|$rx";
+	}
+	
 	return qr/$rx/;
 }
 
@@ -6303,34 +6312,43 @@ sub _get_sort_digraphs_rx {
 # Get the collation element at the current strength
 sub get_collation_element {
 	my ($self, $grapheme) = \@_;
-	my $ce = $self->collation_elements()->{$grapheme};
+	my $ce;
+	if ($self->numeric && $grapheme =~/^\p{Nd}/) {
+		my $numeric_top = $self->collation_elements()->{$NUMBER_SORT_TOP};
+		my @numbers = $self->_convert_digits_to_numbers($grapheme);
+		$ce = join '', map { "$numeric_top${LEVEL_SEPARATOR}№$_" } @numbers;
+	}
+	else {
+		$ce = $self->collation_elements()->{$grapheme};
+	}
 
 	my $strength = $self->strength;
-	my @elements = split /\x{0001}/, $ce;
+	my @elements = split /$LEVEL_SEPARATOR/, $ce;
 	foreach my $element (@elements) {
-		my @parts = split /\x{0002}/, $element;
+		my @parts = split /$FIELD_SEPARATOR/, $element;
 		if (@parts > $strength) {
 			@parts = @parts[0 .. $strength - 1];
 		}
-		$element = join "\x{0002}", @parts;
+		$element = join $FIELD_SEPARATOR, @parts;
 	}
 	
-	$ce = join "\x{0001}", @elements;
-	
-	return $ce;
+	return @elements;
 }
 
 # Converts $string into a string of Collation Elements
 sub getSortKey {
 	my ($self, $string) = @_;
 
-	$string = NFD($string);
+	$string = NFD($string) if $self->normalization eq 'true';
 	
 	my $entity_rx = $self->_get_sort_digraphs_rx();
 
-	(my $ce = $string) =~ s/($entity_rx)/ $self->get_collation_element($1) /eg;
+	my @ce;
+	while (my ($grapheme) = $string =~ /($entity_rx)/g )
+		push @ce, $self->get_collation_element($grapheme)
+	}
 
-	return $ce;
+	return \@ce;
 }
 
 sub generate_ce {
@@ -6398,20 +6416,18 @@ sub le {
 sub gt {
 	my ($self, $a, $b) = @_;
 	
-	return $self->getSortKey($a) lt $self->getSortKey($b);
+	return $self->getSortKey($a) gt $self->getSortKey($b);
 }
 
 sub ge {
 	my ($self, $a, $b) = @_;
 	
-	return $self->getSortKey($a) le $self->getSortKey($b);
+	return $self->getSortKey($a) ge $self->getSortKey($b);
 }
 
 # Get Human readable sort key
 sub viewSortKey {
 	my ($self, $sort_key) = @_;
-	
-#	my $sort_key = $self->getSortKey($a);
 	
 	my @levels = split/\x0/, $sort_key;
 	
@@ -6420,6 +6436,25 @@ sub viewSortKey {
 	}
 	
 	return '[ ' . join (' | ', @levels) . ' ]';
+}
+
+sub _convert_digits_to_numbers {
+	my ($self, $digits) = @_;
+	my @numbers = ();
+	my $script = '';
+	foreach my $number (split //, $digits) {
+		my $char_info = charinfo(ord($number));
+		my ($decimal, $chr_script) = @{$char_info}{qw( decimal script )};
+		if ($chr_script eq $script) {
+			$numbers[-1] *= 10;
+			$numbers[-1] += $decimal;
+		}
+		else {
+			push @numbers, $decimal;
+			$script = $char_script;
+		}
+	}
+	return @numbers;
 }
 
 no Moose;
