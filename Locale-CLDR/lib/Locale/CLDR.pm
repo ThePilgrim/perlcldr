@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.27.4
+Version 0.28.0
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10;
 use version;
-our $VERSION = version->declare('v0.27.4');
+our $VERSION = version->declare('v0.28.0');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -1214,15 +1214,15 @@ sub BUILD {
 		&& ! first { $args->{language_id} eq $_ } $self->valid_languages;
 
 	die "Invalid script" if $args->{script_id} 
-		&& ! first { ucfirst lc $args->{script_id} eq $_ } $self->valid_scripts;
+		&& ! first { ucfirst lc $args->{script_id} eq ucfirst lc $_ } $self->valid_scripts;
 
 	die "Invalid territory" if $args->{territory_id} 
-		&&  ( !  ( first { uc $args->{territory_id} eq $_ } $self->valid_territories )
+		&&  ( !  ( first { uc $args->{territory_id} eq uc $_ } $self->valid_territories )
 			&& ( ! $self->territory_aliases->{$self->{territory_id}} )
 		);
     
 	die "Invalid variant" if $args->{variant_id}
-		&&  ( !  ( first { uc $args->{variant_id} eq $_ } $self->valid_variants )
+		&&  ( !  ( first { uc $args->{variant_id} eq uc $_ } $self->valid_variants )
 			&& ( ! $self->variant_aliases->{lc $self->{variant_id}} )
 	);
 	
@@ -3108,6 +3108,10 @@ sub get_day_period {
 	my $day_period = $bundle->day_period_data;
 	$day_period = $self->$day_period($default_calendar, $time, $type);
 	
+	# The day period for root is commented out but I need that data so will 
+	# fix up here as a default
+	$day_period ||= $time < 1200 ? 'am' : 'pm';
+	
 	my $am_pm = $self->am_pm_format_abbreviated;
 	
 	return $am_pm->{$day_period};
@@ -3136,7 +3140,9 @@ sub _build_any_am_pm {
 			}
 			
 			if (exists $am_pm->{$default_calendar}{$type}{$width}{alias}) {
-				$width = $am_pm->{$default_calendar}{$type}{$width}{alias};
+				my $original_width = $width;
+				$width = $am_pm->{$default_calendar}{$type}{$width}{alias}{width};
+				$type = $am_pm->{$default_calendar}{$type}{$original_width}{alias}{context};
 				redo BUNDLES;
 			}
 			

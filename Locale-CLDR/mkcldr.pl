@@ -30,8 +30,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '27.0.1'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 4; # This is the build number against the CLDR revision
+my $CLDR_VERSION = '28'; # This needs to match the revision number of the CLDR revision being generated against
+my $REVISION = 0; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -236,8 +236,120 @@ process_plural_ranges($file, $plural_ranges_xml);
 process_footer($file, 1);
 close $file;
 
+open $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
+
+$file_name = File::Spec->catfile($base_directory,
+    'supplemental',
+    'supplementalMetadata.xml'
+);
+
+say "Processing file $file_name" if $verbose;
+
+# Note: The order of these calls is important
+process_header($file, 'Locale::CLDR::ValidCodes', $CLDR_VERSION, $xml, $file_name, 1);
+
+$xml = XML::XPath->new(
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
+        'validity',
+        'language.xml',
+    )
+);
+
+process_valid_languages($file, $xml);
+
+$xml = XML::XPath->new(
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
+        'validity',
+        'script.xml',
+    )
+);
+
+process_valid_scripts($file, $xml);
+
+$xml = XML::XPath->new(
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
+        'validity',
+        'region.xml',
+    )
+);
+
+process_valid_territories($file, $xml);
+
+$xml = XML::XPath->new(
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
+        'validity',
+        'variant.xml',
+    )
+);
+
+process_valid_variants($file, $xml);
+
+
+$xml = XML::XPath->new(
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
+        'validity',
+        'currency.xml',
+    )
+);
+
+process_valid_currencies($file, $xml);
+
+$xml = XML::XPath->new(
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
+        'validity',
+        'subdivision.xml',
+    )
+);
+
+process_valid_subdivisions($file, $xml);
+
+$xml = XML::XPath->new(
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+	filename => File::Spec->catfile($base_directory,
+        'validity',
+        'unit.xml',
+    )
+);
+
+process_valid_units($file, $xml);
+
 # The supplemental/supplementalMetaData.xml file contains a list of all valid
-# locale codes
+# aliases and keys
+
 
 $xml = XML::XPath->new(
 	parser => XML::Parser->new(
@@ -251,21 +363,6 @@ $xml = XML::XPath->new(
     )
 );
 
-open $file, '>', File::Spec->catfile($lib_directory, 'ValidCodes.pm');
-
-$file_name = File::Spec->catfile($base_directory,
-    'supplemental',
-    'supplementalMetadata.xml'
-);
-
-say "Processing file $file_name" if $verbose;
-
-# Note: The order of these calls is important
-process_header($file, 'Locale::CLDR::ValidCodes', $CLDR_VERSION, $xml, $file_name, 1);
-process_valid_languages($file, $xml);
-process_valid_scripts($file, $xml);
-process_valid_territories($file, $xml);
-process_valid_variants($file, $xml);
 process_valid_keys($file, $base_directory);
 process_valid_language_aliases($file,$xml);
 process_valid_territory_aliases($file,$xml);
@@ -396,7 +493,7 @@ say "Copying base collation file" if $verbose;
 open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
 process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
-process_collation_base($Allkeys_in, $Allkeys_out, sub { return sprintf '"\\x{%0.4X}"', ord $_[0] });
+process_collation_base($Allkeys_in, $Allkeys_out);
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
 close $Allkeys_out;
@@ -714,14 +811,6 @@ sub process_header {
 
     $xml_name =~s/^.*(Data.*)$/$1/;
     my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
-    my $xml_generated = $xpath
-		? ( findnodes($xpath, '/ldml/identity/generation')
-			|| findnodes($xpath, '/supplementalData/generation')
-			)->get_node->getAttribute('date')
-		: '';
-
-    $xml_generated=~s/^\$Date: (.*) \$$/$1/;
-	$xml_generated = "# XML file generated $xml_generated" if $xml_generated;
 
 	my $header = '';
 	if ($language) {
@@ -739,7 +828,6 @@ EOT
 package $class;
 # This file auto generated from $xml_name
 #\ton $now GMT
-$xml_generated
 
 use version;
 
@@ -763,7 +851,7 @@ EOT
 }
 
 sub process_collation_base {
-	my ($Allkeys_in, $Allkeys_out, $filter) = @_;
+	my ($Allkeys_in, $Allkeys_out) = @_;
 	
 	my @unified_ideographs = ();
 	my @han_order = ();
@@ -823,7 +911,7 @@ has han_order => (
 		return {
 EOT
 	foreach my $character (sort keys %han_order) {
-		my $character_out = $filter ? $filter->($character) : $character;
+		my $character_out = sprintf '"\\x{%0.4X}"', ord $character;
 		print $Allkeys_out "\t\t\t$character_out => $han_order{$character},\n";
 	}
 	print $Allkeys_out <<EOT;
@@ -843,8 +931,7 @@ has collation_elements => (
 EOT
 	foreach my $character (sort (@unified_ideographs, keys %characters)) {
 		my $character_out = $character;
-		$character_out =~ s/([\\'])/\\$1/ unless $filter;
-		$character_out = $filter ? $filter->($character_out) : "'$character_out'";
+		$character_out = sprintf '"\\x{%0.4X}"', ord $character_out;
 		print $Allkeys_out "\t\t\t$character_out => '";
 		my @ce = @{$characters{$character} || generate_waight_from($character) };
 		foreach my $ce (@ce) {
@@ -1044,14 +1131,35 @@ sub divideAndRoundUp {
 	}
 }
  
+sub expand_text {
+	my $string = shift;
+	my @elements = grep {length} split /\s+/, $string;
+	foreach my $element (@elements) {
+		next unless $element =~ /~/;
+		my $base = '';
+		if ($element =~ /-/ ) {
+			($base, $element) = $element =~ /^(.*-)(.*$)/;
+		}
+		my ($start, $end) = split /~/, $element;
+		$end = $start =~ s/.$/$end/r;
+		$element = [ map { "$base$_" } ($start .. $end) ]
+	}
+	
+	return map { ref $_ ? @$_ : $_ } @elements;
+}
+ 
 sub process_valid_languages {
     my ($file, $xpath) = @_;
     say "Processing Valid Languages"
         if $verbose;
 
-    my $languages = findnodes($xpath,'/supplementalData/metadata/validity/variable[@id="$language"]');
-    
-    my @languages = map {"$_\n"} split /\s+/, $languages->get_node->string_value;
+    my $languages = findnodes($xpath,'/supplementalData/idValidity/id[@type="language"][@idStatus!="deprecated"]');
+
+    my @languages = 
+		map {"$_\n"}
+		map { expand_text($_) } 
+		map {$_->string_value } 
+		$languages->get_nodelist;
 
     print $file <<EOT
 has 'valid_languages' => (
@@ -1071,9 +1179,13 @@ sub process_valid_scripts {
     say "Processing Valid Scripts"
         if $verbose;
 
-    my $scripts = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$script"');
+    my $scripts = findnodes($xpath,'/supplementalData/idValidity/id[@type="script"][@idStatus!="deprecated"]');
 
-    my @scripts = map {"$_\n"} split /\s+/, $scripts->get_node->string_value;
+    my @scripts =
+		map {"$_\n"}
+		map { expand_text($_) } 
+		map {$_->string_value } 
+		$scripts->get_nodelist;
     
     print $file <<EOT
 has 'valid_scripts' => (
@@ -1093,9 +1205,13 @@ sub process_valid_territories {
     say "Processing Valid Territories"
         if $verbose;
 
-    my $territories = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$territory"');
+    my $territories = findnodes($xpath, '/supplementalData/idValidity/id[@type="region"][@idStatus!="deprecated"]');
 
-    my @territories = map {"$_\n"} split /\s+/, $territories->get_node->string_value;
+    my @territories = 
+		map {"$_\n"}
+		map { expand_text($_) } 
+		map {$_->string_value } 
+		$territories->get_nodelist;
 
     print $file <<EOT
 has 'valid_territories' => (
@@ -1115,10 +1231,14 @@ sub process_valid_variants {
     say "Processing Valid Variants"
         if $verbose;
 
-    my $variants = findnodes($xpath, '/supplementalData/metadata/validity/variable[@id="$variant"');
+    my $variants = findnodes($xpath, '/supplementalData/idValidity/id[@type="variant"][@idStatus!="deprecated"]');
 
-    my @variants = map {"$_\n" } split /\s+/, $variants->get_node->string_value;
-
+    my @variants =
+		map {"$_\n"}
+		map { expand_text($_) } 
+		map {$_->string_value } 
+		$variants->get_nodelist;
+		
     print $file <<EOT
 has 'valid_variants' => (
 \tis\t\t\t=> 'ro',
@@ -1126,6 +1246,84 @@ has 'valid_variants' => (
 \tinit_arg\t=> undef,
 \tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @variants \t)]},
+);
+
+EOT
+}
+
+sub process_valid_currencies {
+    my ($file, $xpath) = @_;
+
+    say "Processing Valid Currencies"
+        if $verbose;
+
+    my $currencies = findnodes($xpath, '/supplementalData/idValidity/id[@type="currency"][@idStatus!="deprecated"]');
+
+    my @currencies =
+		map {"$_\n"}
+		map { expand_text($_) } 
+		map {$_->string_value } 
+		$currencies->get_nodelist;
+		
+    print $file <<EOT
+has 'valid_currencies' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub {[qw( @currencies \t)]},
+);
+
+EOT
+}
+
+sub process_valid_subdivisions {
+    my ($file, $xpath) = @_;
+
+    say "Processing Valid Subdivisions"
+        if $verbose;
+
+    my $sub_divisions = findnodes($xpath, '/supplementalData/idValidity/id[@type="subdivision"][@idStatus!="deprecated"]');
+
+    my @sub_divisions =
+		map {"$_\n"}
+		map { expand_text($_) } 
+		map {$_->string_value } 
+		$sub_divisions->get_nodelist;
+		
+    print $file <<EOT
+has 'valid_subdivisions' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub {[qw( @sub_divisions \t)]},
+);
+
+EOT
+}
+
+sub process_valid_units {
+    my ($file, $xpath) = @_;
+
+    say "Processing Valid Units"
+        if $verbose;
+
+    my $units = findnodes($xpath, '/supplementalData/idValidity/id[@type="unit"][@idStatus!="deprecated"]');
+
+    my @units =
+		map {"$_\n"}
+		map { expand_text($_) } 
+		map {$_->string_value } 
+		$units->get_nodelist;
+		
+    print $file <<EOT
+has 'valid_units' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef',
+\tinit_arg\t=> undef,
+\tauto_deref\t=> 1,
+\tdefault\t=> sub {[qw( @units \t)]},
 );
 
 EOT
@@ -2297,7 +2495,7 @@ sub process_units {
 			my $patten = $duration_unit->getChildNode(1)->getValue;
 			$duration_units{$length} = $patten;
 		}
-			
+		
 		my $unit_alias = findnodes($xpath, qq(/ldml/units/unitLength[\@type="$length"]/alias));
 		if ($unit_alias->size) {
 			my ($node) = $unit_alias->get_nodelist;
@@ -2308,12 +2506,25 @@ sub process_units {
 		
 		foreach my $unit_type ($units->get_nodelist) {
 			my $unit_type_name = $unit_type->getAttribute('type');
+			my $unit_type_alias = findnodes($xpath, qq(/ldml/units/unitLength[\@type="$length"]/unit[\@type="$unit_type_name"]/alias));
+			if ($unit_type_alias->size) {
+				my ($node) = $unit_type_alias->get_nodelist;
+				my $path = $node->getAttribute('path');
+				my ($type) = $path =~ /\[\@type=['"](.*)['"]\]/;
+				$aliases{$length}{$unit_type_name} = $type;
+				next;
+			}
 			$unit_type_name =~ s/^[^\-]+-//;
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
+
 				my $count = $unit_pattern->getAttribute('count');
 				$count = 'name' if $unit_pattern->getLocalName eq 'displayName';
 				$count = 'per' if $unit_pattern->getLocalName eq 'perUnitPattern';
+				if ($unit_pattern->getLocalName eq 'coordinateUnitPattern') {
+					$unit_type_name = 'coordinate';
+					$count = $unit_pattern->getAttribute('type');
+				}
 				my $pattern = $unit_pattern->getChildNode(1)->getValue;
 				$units{$length}{$unit_type_name}{$count} = $pattern;
 			}
@@ -2343,12 +2554,21 @@ EOT
 		print $file <<EOT;
 has 'unit_alias' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
 		foreach my $from (sort keys %aliases) {
-			say $file "\t\t\t\t$from => '$aliases{$from}',";
+			if (ref $aliases{$from}) {
+				say $file "\t\t\t\t$from => {";
+				foreach my $old_unit (sort keys %{$aliases{$from}}) {
+					say $file "\t\t\t\t\t'$old_unit' => '$aliases{$from}{$old_unit}',";
+				}
+				say $file "\t\t\t\t},";
+			}
+			else {
+				say $file "\t\t\t\t$from => '$aliases{$from}',";
+			}
 		}
 	
 		print $file <<EOT;
@@ -3256,7 +3476,10 @@ EOT
                 foreach my $width (keys %{$calendars{day_periods}{$ctype}{$type}}) {
                     say $file "\t\t\t\t'$width' => {";
 					if (exists $calendars{day_periods}{$ctype}{$type}{$width}{alias}) {
-						say $file "\t\t\t\t\t'alias' => '$calendars{day_periods}{$ctype}{$type}{$width}{alias}',";
+						say $file "\t\t\t\t\t'alias' => {";
+						say $file "\t\t\t\t\t\t'context' => '$calendars{day_periods}{$ctype}{$type}{$width}{alias}{context}',";
+						say $file "\t\t\t\t\t\t'width' => '$calendars{day_periods}{$ctype}{$type}{$width}{alias}{width}',";
+						say $file "\t\t\t\t\t},";
 						say $file "\t\t\t\t},";
 						next;
 					}
@@ -3861,7 +4084,9 @@ sub process_day_periods {
 				if ($width_alias_nodes->size) {
                     my $path = ($width_alias_nodes->get_nodelist)[0]->getAttribute('path');
                     my ($new_width_type) = $path =~ /dayPeriodWidth\[\@type='([^']+)'\]/;
-					$dayPeriods{$context_type}{$width_type}{alias} = $new_width_type;
+					my ($new_context_type) = $path =~ /dayPeriodContext\[\@type='([^']+)'\]/;
+					$dayPeriods{$context_type}{$width_type}{alias}{width} = $new_width_type;
+					$dayPeriods{$context_type}{$width_type}{alias}{context} = $new_context_type || $context_type;
 					next;
                 }
                 
@@ -5360,7 +5585,7 @@ my \$builder = Module::Build->new(
         'Class::Load'               => 0,
         'DateTime::Locale'          => 0,
         'namespace::autoclean'      => 0,
-        'List::MoreUtils            => 0,
+        'List::MoreUtils'           => 0,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
     dist_version_from   => 'lib/Locale/CLDR.pm',

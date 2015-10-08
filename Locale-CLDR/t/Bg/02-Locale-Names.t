@@ -13,14 +13,14 @@ use ok 'Locale::CLDR';
 
 my $locale = Locale::CLDR->new('bg');
 is ($locale->locale_name('fr'), 'френски', 'Name without territory');
-is ($locale->locale_name('fr_CA'), 'канадски френски', 'Name with known territory') ;
-is ($locale->locale_name('fr_BE'), 'френски (Белгия)', 'Name with unknown territory') ;
-is ($locale->locale_name('fr_BE'), 'френски (Белгия)', 'Cached method') ;
+is ($locale->locale_name('nl_BE'), 'фламандски', 'Name with known territory');
+is ($locale->locale_name('fr_BE'), 'френски (Белгия)', 'Name with unknown territory');
+is ($locale->locale_name('fr_BE'), 'френски (Белгия)', 'Cached method');
 is ($locale->language_name, 'български', 'Language name');
 is ($locale->language_name('wibble'), 'неопределен', 'Unknown Language name');
 is ($locale->script_name('Cher'), 'Чероки', 'Script name');
 is ($locale->script_name('wibl'), 'непозната писменост', 'Invalid Script name');
-is ($locale->territory_name('GB'), 'Великобритания', 'Territory name');
+is ($locale->territory_name('GB'), 'Обединеното кралство', 'Territory name');
 is ($locale->territory_name('wibble'), 'непознат регион', 'Invalid Territory name');
 is ($locale->variant_name('AREVMDA'), 'Западно арменски', 'Variant name');
 throws_ok { $locale->variant_name('WIBBLE') } qr{ \A Invalid \s variant }xms, 'Invalid Variant name';

@@ -18,14 +18,14 @@ is ($locale->locale_name('fr_BE'), 'galleg (Belgia)', 'Name with unknown territo
 is ($locale->locale_name('fr_BE'), 'galleg (Belgia)', 'Cached method') ;
 is ($locale->language_name, 'brezhoneg', 'Language name');
 is ($locale->language_name('wibble'), 'yezh dianav', 'Unknown Language name');
-is ($locale->script_name('Cyrs'), 'kirillek henslavonek', 'Script name');
+is ($locale->script_name('Cyrs'), 'skritur dianav', 'Script name');
 is ($locale->script_name('wibl'), 'skritur dianav', 'Invalid Script name');
 is ($locale->territory_name('GB'), 'Rouantelezh-Unanet', 'Territory name');
 is ($locale->territory_name('wibble'), 'Rannved dianav', 'Invalid Territory name');
 is ($locale->variant_name('AREVMDA'), 'armenianeg ar Cʼhornôg', 'Variant name');
 throws_ok { $locale->variant_name('WIBBLE') } qr{ \A Invalid \s variant }xms, 'Invalid Variant name';
 is ($locale->language_name('i_klingon'), 'klingon', 'Language alias');
-is ($locale->territory_name('BQ'), 'Nederlandat Karib', 'Territory alias');
+is ($locale->territory_name('BQ'), 'Karib Nederlandat', 'Territory alias');
 is ($locale->territory_name('830'), 'Rannved dianav', 'Territory alias');
 is ($locale->variant_name('BOKMAL'), '', 'Variant alias');
 is ($locale->key_name('ca'), 'deiziadur', 'Key name');

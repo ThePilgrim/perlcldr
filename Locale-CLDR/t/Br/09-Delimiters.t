@@ -15,6 +15,6 @@ my $locale = Locale::CLDR->new('br_FR');
 my $quoted = $locale->quote('abc');
 is($quoted, '«abc»', 'Quote Breton');
 $quoted = $locale->quote("z $quoted z");
-is($quoted, '«z ‹abc› z»', 'Quote Breton');
+is($quoted, '«z “abc” z»', 'Quote Breton');
 $quoted = $locale->quote("dd 'z $quoted z dd");
-is($quoted, '«dd \'z ‹z «abc» z› z dd»', 'Quote Breton');
+is($quoted, '«dd \'z “z «abc» z” z dd»', 'Quote Breton');

@@ -32,9 +32,9 @@ is_deeply ($days, [qw( lun. mar. mer. jeu. ven. sam. dim. )], 'Islamic Day forma
 $days = $locale->day_format_narrow();
 is_deeply ($days, [qw( L M M J V S D )], 'Islamic Day format narrow');
 $days = $locale->day_stand_alone_wide();
-is_deeply ($days, [qw( Lundi Mardi Mercredi Jeudi Vendredi Samedi Dimanche )], 'Islamic Day stand alone wide');
+is_deeply ($days, [qw( lundi mardi mercredi jeudi vendredi samedi dimanche )], 'Islamic Day stand alone wide');
 $days = $locale->day_stand_alone_abbreviated();
-is_deeply ($days, [qw( Lun. Mar. Mer. Jeu. Ven. Sam. Dim. )], 'Islamic Day stand alone abbreviated');
+is_deeply ($days, [qw( lun. mar. mer. jeu. ven. sam. dim. )], 'Islamic Day stand alone abbreviated');
 $days = $locale->day_stand_alone_narrow();
 is_deeply ($days, [qw( L M M J V S D )], 'Islamic Day stand alone narrow');
 
@@ -56,19 +56,19 @@ is_deeply ($am_pm, [qw( AM PM )], 'Islamic AM PM wide');
 $am_pm = $locale->am_pm_abbreviated();
 is_deeply ($am_pm, [qw( AM PM )], 'Islamic AM PM abbreviated');
 $am_pm = $locale->am_pm_narrow();
-is_deeply ($am_pm, [qw( a p )], 'Islamic AM PM narrow');
+is_deeply ($am_pm, [qw( AM PM )], 'Islamic AM PM narrow');
 $am_pm = $locale->am_pm_format_wide();
-is_deeply ($am_pm, { am => 'AM', noon => 'midi', pm => 'PM', morning => 'matin', afternoon => 'après-midi', night => 'soir' }, 'Islamic AM PM format wide');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{du matin}, afternoon1 => q{de l’après-midi}, evening1 => q{du soir}, night1 => q{de nuit}, midnight => q{minuit} }, 'Islamic AM PM format wide');
 $am_pm = $locale->am_pm_format_abbreviated();
-is_deeply ($am_pm, { am => 'AM', noon => 'midi', pm => 'PM', morning => 'matin', afternoon => 'ap.m.', night => 'soir' }, 'Islamic AM PM format abbreviated');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi},  pm => q{PM}, morning1 => q{mat.}, afternoon1 => q{ap.m.}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{min.} }, 'Islamic AM PM format abbreviated');
 $am_pm = $locale->am_pm_format_narrow();
-is_deeply ($am_pm, { am => 'a', noon => 'midi', pm => 'p', morning => 'matin', afternoon => 'ap.-m.', night => 'soir' }, 'Islamic AM PM format narrow');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{mat.}, afternoon1 => q{ap.m.}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{min.} }, 'Islamic AM PM format narrow');
 $am_pm = $locale->am_pm_stand_alone_wide();
-is_deeply ($am_pm, { am => 'avant-midi', noon => 'midi', pm => 'après-midi', morning => 'matin', afternoon => 'après-midi', night => 'soir' }, 'Islamic AM PM stand alone wide');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{matin}, afternoon1 => q{après-midi}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{minuit} }, 'Islamic AM PM stand alone wide');
 $am_pm = $locale->am_pm_stand_alone_abbreviated();
-is_deeply ($am_pm, { am => 'av.m.', noon => 'midi', pm => 'ap.m.', morning => 'matin', afternoon => 'ap.m.', night => 'soir' }, 'Islamic AM PM stand alone abbreviated');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{mat.}, afternoon1 => q{ap.m.}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{min.} }, 'Islamic AM PM stand alone abbreviated');
 $am_pm = $locale->am_pm_stand_alone_narrow();
-is_deeply ($am_pm, { am => 'a', noon => 'midi', pm => 'p', morning => 'matin', afternoon => 'ap.-m.', night => 'soir' }, 'Islamic AM PM stand alone narrow');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{mat.}, afternoon1 => q{ap.m.}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{min.} }, 'Islamic AM PM stand alone narrow');
 
 my $era = $locale->era_wide();
 is_deeply ($era, [ 'AH', undef() ], 'Islamic Era wide');

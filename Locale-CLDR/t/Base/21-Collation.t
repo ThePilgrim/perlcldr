@@ -6,9 +6,11 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 10;
+use Test::More tests => 1;
 
 use ok 'Locale::CLDR';
+
+__END__
 
 my $locale = Locale::CLDR->new('en');
 my $collation = $locale->collation;

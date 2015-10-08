@@ -113,3 +113,10 @@ All dates are in ISO 8601 Format
 	Added dummy code for building Bundles
 	Removed code to generate a Makefile.PL
 	Fixed incorrect name for data pack distributions
+	
+0.28.0
+	Removed generated data from the header of each file as this has been removed from the CLDR data
+	Updated valid languages etc to use the new file format
+	Added alias to unit names
+	Added coordinate unit types
+	Updated Unit tests

@@ -40,8 +40,7 @@ else {
 		"adf543., Tiếng Viết",
 		"\n",
 		"\r",
-		"45dfr.",
-		"A new sentence",
+		"45dfr.A new sentence",
 	], 'Split sentences');
 
 	my @lines=$locale->split_lines($text);

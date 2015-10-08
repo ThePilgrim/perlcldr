@@ -19,9 +19,9 @@ is_deeply ($months, [qw( janv. févr. mars avr. mai juin juil. août sept. oct. 
 $months = $locale->month_format_narrow();
 is_deeply ($months, [qw( J F M A M J J A S O N D )], 'Month format narrow');
 $months = $locale->month_stand_alone_wide();
-is_deeply ($months, [qw( Janvier Février Mars Avril Mai Juin Juillet Août Septembre Octobre Novembre Décembre )], 'Month stand alone wide');
+is_deeply ($months, [qw( janvier février mars avril mai juin juillet août septembre octobre novembre décembre )], 'Month stand alone wide');
 $months = $locale->month_stand_alone_abbreviated();
-is_deeply ($months, [qw( Janv. Févr. Mars Avr. Mai Juin Juil. Août Sept. Oct. Nov. Déc. )], 'Month stand alone abbreviated');
+is_deeply ($months, [qw( janv. févr. mars avr. mai juin juil. août sept. oct. nov. déc. )], 'Month stand alone abbreviated');
 $months = $locale->month_stand_alone_narrow();
 is_deeply ($months, [qw( J F M A M J J A S O N D )], 'Month stand alone narrow');
 
@@ -32,9 +32,9 @@ is_deeply ($days, [qw( lun. mar. mer. jeu. ven. sam. dim. )], 'Day format abbrev
 $days = $locale->day_format_narrow();
 is_deeply ($days, [qw( L M M J V S D )], 'Day format narrow');
 $days = $locale->day_stand_alone_wide();
-is_deeply ($days, [qw( Lundi Mardi Mercredi Jeudi Vendredi Samedi Dimanche )], 'Day stand alone wide');
+is_deeply ($days, [qw( lundi mardi mercredi jeudi vendredi samedi dimanche )], 'Day stand alone wide');
 $days = $locale->day_stand_alone_abbreviated();
-is_deeply ($days, [qw( Lun. Mar. Mer. Jeu. Ven. Sam. Dim. )], 'Day stand alone abbreviated');
+is_deeply ($days, [qw( lun. mar. mer. jeu. ven. sam. dim. )], 'Day stand alone abbreviated');
 $days = $locale->day_stand_alone_narrow();
 is_deeply ($days, [qw( L M M J V S D )], 'Day stand alone narrow');
 
@@ -56,19 +56,19 @@ is_deeply ($am_pm, [qw( AM PM )], 'AM PM wide');
 $am_pm = $locale->am_pm_abbreviated();
 is_deeply ($am_pm, [qw( AM PM )], 'AM PM abbreviated');
 $am_pm = $locale->am_pm_narrow();
-is_deeply ($am_pm, [qw( a p )], 'AM PM narrow');
+is_deeply ($am_pm, [qw( AM PM )], 'AM PM narrow');
 $am_pm = $locale->am_pm_format_wide();
-is_deeply ($am_pm, { pm => q{PM}, noon => q{midi}, am => q{AM}, afternoon => q{après-midi}, morning => q{matin}, night => q{soir} }, 'AM PM format wide');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{du matin}, afternoon1 => q{de l’après-midi}, evening1 => q{du soir}, night1 => q{de nuit}, midnight => q{minuit} }, 'AM PM format wide');
 $am_pm = $locale->am_pm_format_abbreviated();
-is_deeply ($am_pm, { afternoon => q{ap.m.}, pm => q{PM}, noon => q{midi}, am => q{AM}, morning => q{matin}, night => q{soir} }, 'AM PM format abbreviated');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi},  pm => q{PM}, morning1 => q{mat.}, afternoon1 => q{ap.m.}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{min.} }, 'AM PM format abbreviated');
 $am_pm = $locale->am_pm_format_narrow();
-is_deeply ($am_pm, { pm => q{p}, noon => q{midi}, am => q{a}, afternoon => q{ap.-m.}, morning => q{matin}, night => q{soir} }, 'AM PM format narrow');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{mat.}, afternoon1 => q{ap.m.}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{min.} }, 'AM PM format narrow');
 $am_pm = $locale->am_pm_stand_alone_wide();
-is_deeply ($am_pm, { pm => q{après-midi}, noon => q{midi}, am => q{avant-midi}, afternoon => q{après-midi}, morning => q{matin}, night => q{soir} }, 'AM PM stand alone wide');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{matin}, afternoon1 => q{après-midi}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{minuit} }, 'AM PM stand alone wide');
 $am_pm = $locale->am_pm_stand_alone_abbreviated();
-is_deeply ($am_pm, { pm => q{ap.m.}, noon => q{midi}, am => q{av.m.}, afternoon => q{ap.m.}, morning => q{matin}, night => q{soir} }, 'AM PM stand alone abbreviated');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{mat.}, afternoon1 => q{ap.m.}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{min.} }, 'AM PM stand alone abbreviated');
 $am_pm = $locale->am_pm_stand_alone_narrow();
-is_deeply ($am_pm, { pm => q{p}, noon => q{midi}, am => q{a}, afternoon => q{ap.-m.}, morning => q{matin}, night => q{soir} }, 'AM PM stand alone narrow');
+is_deeply ($am_pm, { am => q{AM}, noon => q{midi}, pm => q{PM}, morning1 => q{mat.}, afternoon1 => q{ap.m.}, evening1 => q{soir}, night1 => q{nuit}, midnight => q{min.} }, 'AM PM stand alone narrow');
 
 my $era = $locale->era_wide();
 is_deeply ($era, ['avant Jésus-Christ', 'après Jésus-Christ'], 'Era wide');
@@ -117,11 +117,11 @@ $time_format = $locale->time_format_short;
 is($time_format, 'HH:mm', 'Time Format Short');
 
 my $date_time_format = $locale->datetime_format_full;
-is($date_time_format, "EEEE d MMMM y HH:mm:ss zzzz", 'Date Time Format Full');
+is($date_time_format, "EEEE d MMMM y 'à' HH:mm:ss zzzz", 'Date Time Format Full');
 $date_time_format = $locale->datetime_format_long;
-is($date_time_format, "d MMMM y HH:mm:ss z", 'Date Time Format Long');
+is($date_time_format, "d MMMM y 'à' HH:mm:ss z", 'Date Time Format Long');
 $date_time_format = $locale->datetime_format_medium;
-is($date_time_format, 'd MMM y HH:mm:ss', 'Date Time Format Medium');
+is($date_time_format, "d MMM y 'à' HH:mm:ss", 'Date Time Format Medium');
 $date_time_format = $locale->datetime_format_short;
 is($date_time_format, 'dd/MM/y HH:mm', 'Date Time Format Short');
 

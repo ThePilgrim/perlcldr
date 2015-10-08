@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 57;
+use Test::More tests => 60;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -15,13 +15,13 @@ my $locale = Locale::CLDR->new('br_FR');
 my $months = $locale->month_format_wide();
 is_deeply ($months, [qw( Genver Cʼhwevrer Meurzh Ebrel Mae Mezheven Gouere Eost Gwengolo Here Du Kerzu )], 'Month format wide');
 $months = $locale->month_format_abbreviated();
-is_deeply ($months, [qw( Gen Cʼhwe Meur Ebr Mae Mezh Goue Eost Gwen Here Du Ker )], 'Month format abbreviated');
+is_deeply ($months, [qw( Gen. Cʼhwe. Meur. Ebr. Mae Mezh. Goue. Eost Gwen. Here Du Kzu. )], 'Month format abbreviated');
 $months = $locale->month_format_narrow();
 is_deeply ($months, [qw( 01 02 03 04 05 06 07 08 09 10 11 12 )], 'Month format narrow');
 $months = $locale->month_stand_alone_wide();
 is_deeply ($months, [qw( Genver Cʼhwevrer Meurzh Ebrel Mae Mezheven Gouere Eost Gwengolo Here Du Kerzu )], 'Month stand alone wide');
 $months = $locale->month_stand_alone_abbreviated();
-is_deeply ($months, [qw( Gen Cʼhwe Meur Ebr Mae Mezh Goue Eost Gwen Here Du Ker )], 'Month stand alone abbreviated');
+is_deeply ($months, [qw( Gen. Cʼhwe. Meur. Ebr. Mae Mezh. Goue. Eost Gwen. Here Du Ker. )], 'Month stand alone abbreviated');
 $months = $locale->month_stand_alone_narrow();
 is_deeply ($months, [qw( 01 02 03 04 05 06 07 08 09 10 11 12 )], 'Month stand alone narrow');
 
@@ -58,46 +58,43 @@ is_deeply ($am_pm, [qw( A.M. G.M. )], 'AM PM abbreviated');
 $am_pm = $locale->am_pm_narrow();
 is_deeply ($am_pm, [qw( am gm )], 'AM PM narrow');
 $am_pm = $locale->am_pm_format_wide();
-is_deeply ($am_pm, { am => 'A.M.', noon => 'kreisteiz', pm => 'G.M.' }, 'AM PM format wide');
+is_deeply ($am_pm, { am => 'A.M.', pm => 'G.M.' }, 'AM PM format wide');
 $am_pm = $locale->am_pm_format_abbreviated();
-is_deeply ($am_pm, { am => 'A.M.', noon => 'kreisteiz', pm => 'G.M.' }, 'AM PM format abbreviated');
+is_deeply ($am_pm, { am => 'A.M.', pm => 'G.M.' }, 'AM PM format abbreviated');
 $am_pm = $locale->am_pm_format_narrow();
-is_deeply ($am_pm, { am => 'am', noon => 'k', pm => 'gm' }, 'AM PM format narrow');
+is_deeply ($am_pm, { am => 'am', pm => 'gm' }, 'AM PM format narrow');
 $am_pm = $locale->am_pm_stand_alone_wide();
-is_deeply ($am_pm, { am => 'A.M.', noon => 'kreisteiz', pm => 'G.M.' }, 'AM PM stand alone wide');
+is_deeply ($am_pm, { am => 'a-raok merenn', pm => 'goude merenn' }, 'AM PM stand alone wide');
 $am_pm = $locale->am_pm_stand_alone_abbreviated();
-is_deeply ($am_pm, { am => 'A.M.', noon => 'kreisteiz', pm => 'G.M.' }, 'AM PM stand alone abbreviated');
+is_deeply ($am_pm, { am => 'A.M.', pm => 'G.M.' }, 'AM PM stand alone abbreviated');
 $am_pm = $locale->am_pm_stand_alone_narrow();
-is_deeply ($am_pm, { am => 'am', noon => 'k', pm => 'gm' }, 'AM PM stand alone narrow');
+is_deeply ($am_pm, { am => 'A.M.', pm => 'G.M.' }, 'AM PM stand alone narrow');
 
 my $era = $locale->era_wide();
-is_deeply ($era, [qw( BCE CE )], 'Era wide');
+is_deeply ($era, [ 'a-raok Jezuz-Krist', 'goude Jezuz-Krist' ], 'Era wide');
 $era = $locale->era_abbreviated();
-is_deeply ($era, [qw( BCE CE )], 'Era abbreviated');
+is_deeply ($era, [ 'a-raok J.K.', 'goude J.K.' ], 'Era abbreviated');
 $era = $locale->era_narrow();
-is_deeply ($era, [qw( BCE CE )], 'Era narrow');
+is_deeply ($era, [ 'a-raok J.K.', 'goude J.K.' ], 'Era narrow');
 $era = $locale->era_format_wide();
-is_deeply ($era, [qw( BCE CE )], 'Era format wide');
+is_deeply ($era, [ 'a-raok Jezuz-Krist', 'goude Jezuz-Krist' ], 'Era format wide');
 $era = $locale->era_format_abbreviated();
-is_deeply ($era, [qw( BCE CE )], 'Era format abbreviated');
+is_deeply ($era, [ 'a-raok J.K.', 'goude J.K.' ], 'Era format abbreviated');
 $era = $locale->era_format_narrow();
-is_deeply ($era, [qw( BCE CE )], 'Era format narrow');
+is_deeply ($era, [ 'a-raok J.K.', 'goude J.K.' ], 'Era format narrow');
 $era = $locale->era_stand_alone_wide();
-is_deeply ($era, [qw( BCE CE )], 'Era stand alone wide');
+is_deeply ($era, [ 'a-raok Jezuz-Krist', 'goude Jezuz-Krist' ], 'Era stand alone wide');
 $era = $locale->era_stand_alone_abbreviated();
-is_deeply ($era, [qw( BCE CE )], 'Era stand alone abbreviated');
+is_deeply ($era, [ 'a-raok J.K.', 'goude J.K.' ], 'Era stand alone abbreviated');
 $era = $locale->era_stand_alone_narrow();
-is_deeply ($era, [qw( BCE CE )], 'Era stand alone narrow');
+is_deeply ($era, [ 'a-raok J.K.', 'goude J.K.' ], 'Era stand alone narrow');
 
-=for comment
-Skipping These as the data set is wrong
 my $day_period_data = $locale->get_day_period('0000');
 is($day_period_data, 'A.M.', 'Day period data AM');
 $day_period_data = $locale->get_day_period('1200');
 is($day_period_data, 'G.M.', 'Day period data Noon');
 $day_period_data = $locale->get_day_period('1210');
 is($day_period_data, 'G.M.', 'Day period data PM');
-=cut
 
 my $date_format = $locale->date_format_full;
 is($date_format, 'y MMMM d, EEEE', 'Date Format Full');
@@ -118,9 +115,9 @@ $time_format = $locale->time_format_short;
 is($time_format, 'HH:mm', 'Time Format Short');
 
 my $date_time_format = $locale->datetime_format_full;
-is($date_time_format, "y MMMM d, EEEE HH:mm:ss zzzz", 'Date Time Format Full');
+is($date_time_format, "y MMMM d, EEEE 'da' HH:mm:ss zzzz", 'Date Time Format Full');
 $date_time_format = $locale->datetime_format_long;
-is($date_time_format, "y MMMM d HH:mm:ss z", 'Date Time Format Long');
+is($date_time_format, "y MMMM d 'da' HH:mm:ss z", 'Date Time Format Long');
 $date_time_format = $locale->datetime_format_medium;
 is($date_time_format, 'y MMM d HH:mm:ss', 'Date Time Format Medium');
 $date_time_format = $locale->datetime_format_short;
