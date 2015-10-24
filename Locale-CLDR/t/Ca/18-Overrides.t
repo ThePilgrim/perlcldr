@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 53;
+use Test::More tests => 56;
 
 use ok 'Locale::CLDR';
 
@@ -89,14 +89,12 @@ is_deeply ($era, [ 'AH' ], 'Islamic Era stand alone abbreviated');
 $era = $locale->era_stand_alone_narrow();
 is_deeply ($era, [ 'AH' ], 'Islamic Era stand alone narrow');
 
-=for comment
 my $day_period_data = $locale->get_day_period('0000');
 is($day_period_data, 'a. m.', 'Islamic Day period data AM');
 $day_period_data = $locale->get_day_period('1200');
 is($day_period_data, 'p. m.', 'Islamic Day period data Noon');
 $day_period_data = $locale->get_day_period('1800');
 is($day_period_data, 'p. m.', 'Islamic Day period data PM');
-=cut
 
 my $date_format = $locale->date_format_full;
 is($date_format, "EEEE, d MMMM 'de' y", 'Islamic Date Format Full');

@@ -16,4 +16,4 @@ my $locale = Locale::CLDR->new('cy_GB');
 my $test = Locale::CLDR->new('en_latn_US');
 is ($locale->code_pattern('language', $test), 'Iaith: Saesneg', 'Code pattern Language');
 is ($locale->code_pattern('script', $test), 'Sgript: Lladin', 'Code pattern script');
-is ($locale->code_pattern('territory', $test), 'Rhanbarth: Yr Unol Daleithiau', 'Code pattern territory');
+is ($locale->code_pattern('region', $test), 'Rhanbarth: Yr Unol Daleithiau', 'Code pattern region');

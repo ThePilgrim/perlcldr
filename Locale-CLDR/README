@@ -1,6 +1,6 @@
 Locale-CLDR
 
-Please note that this code requires Perl 5.10 and above in the main. There are some parts that require
+Please note that this code requires Perl 5.10.1 and above in the main. There are some parts that require
 Perl 5.18 and if you are using Unicode in Perl you really should be using Perl 5.18 or later
 
 The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
@@ -31,7 +31,7 @@ https://github.com/ThePilgrim/perlcldr either clone or get hold of the zip
 file and extract it to a new directory on your system.
 
 The mkcldr.pl script is in the Locale-CLDR directory. Run the script with the
-optional -v (verbose) flag and come back in 4 hours or so and you will have 
+optional -v (verbose) flag and come back in 40 minuites or so and you will have 
 a Distributions directory with each of the language cpan distributions in it.
 
 In the lib directory you will also find a Bundle directory that bundles the 

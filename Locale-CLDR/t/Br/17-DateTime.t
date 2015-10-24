@@ -13,7 +13,7 @@ use ok 'Locale::CLDR';
 
 use DateTime;
 
-my $br_fr = Locale::CLDR->new('br_FR');
+my $locale = Locale::CLDR->new('br_FR');
 
 my $dt_br_fr = DateTime->new(
 	year => 1966,
@@ -22,8 +22,8 @@ my $dt_br_fr = DateTime->new(
     hour       => 7,
     minute     => 15,
     second     => 47,
-    locale 	   => $br_fr,
+    locale 	   => $locale,
 	time_zone  => 'Europe/London',
 );
 
-is ($dt_br_fr->format_cldr($br_fr->datetime_format_full), '1966 Here 25, Meurzh da 07:15:47 Europe/London', 'Date Time Format Full Breton');
+is ($dt_br_fr->format_cldr($locale->datetime_format_full), '1966 Here 25, Meurzh da 07:15:47 Europe/London', 'Date Time Format Full Breton');

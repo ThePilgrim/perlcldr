@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('en');
+my $locale = Locale::CLDR->new('en_GB');
 
 if ($^V lt v5.18.0) {
 	dies_ok {$locale->is_exemplar_character("A")} "Can't call is_exemplar_character() with a Perl version less than 5.18";

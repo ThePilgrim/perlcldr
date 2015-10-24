@@ -13,7 +13,7 @@ use ok 'Locale::CLDR';
 
 use DateTime;
 
-my $ca_fr = Locale::CLDR->new('ca_FR');
+my $locale = Locale::CLDR->new('ca_FR');
 
 my $dt_ca_fr = DateTime->new(
 	year => 1966,
@@ -22,8 +22,8 @@ my $dt_ca_fr = DateTime->new(
     hour       => 7,
     minute     => 15,
     second     => 47,
-    locale 	   => $ca_fr,
+    locale 	   => $locale,
 	time_zone  => 'Europe/London',
 );
 
-is ($dt_ca_fr->format_cldr($ca_fr->datetime_format_full), 'dimarts, 25 d’octubre de 1966 a les 7:15:47 Europe/London', 'Date Time Format Full US English ');
+is ($dt_ca_fr->format_cldr($locale->datetime_format_full), 'dimarts, 25 d’octubre de 1966 a les 7:15:47 Europe/London', 'Date Time Format Full US English ');

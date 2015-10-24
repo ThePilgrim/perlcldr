@@ -13,7 +13,7 @@ use ok 'Locale::CLDR';
 
 use DateTime;
 
-my $bg = Locale::CLDR->new('bg');
+my $locale = Locale::CLDR->new('bg');
 
 my $dt_bg = DateTime->new(
 	year => 1966,
@@ -22,8 +22,8 @@ my $dt_bg = DateTime->new(
     hour       => 7,
     minute     => 15,
     second     => 47,
-    locale 	   => $bg,
+    locale 	   => $locale,
 	time_zone  => 'Europe/London',
 );
 
-is ($dt_bg->format_cldr($bg->datetime_format_full), 'вторник, 25 октомври 1966 г., 7:15:47 Europe/London', 'Date Time Format Full British Bg ');
+is ($dt_bg->format_cldr($locale->datetime_format_full), 'вторник, 25 октомври 1966 г., 7:15:47 Europe/London', 'Date Time Format Full British Bg ');

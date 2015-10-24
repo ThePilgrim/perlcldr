@@ -120,3 +120,18 @@ All dates are in ISO 8601 Format
 	Added alias to unit names
 	Added coordinate unit types
 	Updated Unit tests
+
+0.28.1
+	Change all references of territories to regions to match the CLDR documentation. This includes method names.
+	Change minimum Perl version to 5.10.1 as tests for 5.10.0 won't run
+	Added currency_format() method to get the currency format for the locale
+	Added default currency format and locale id override
+	Added tests for currency formats
+	Added format_currency() to the number formatter to supply all the defaults for the locale to format_number()
+	Fix Number Formatter to corectly handle the - sign on negative numbers
+	Fix Number Formatter to corectly handle the + sign on posative numbers
+	Fix Number formatter to corectly split the number format into negative and positive
+	Removed the generation of negative number formats in the Locale data whern the negative format is 
+		simpley -<posative format>.
+	Updated tests to feflect the above change
+	Cleaned up variable names in test files

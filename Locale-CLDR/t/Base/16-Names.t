@@ -824,10 +824,10 @@ my $all_scripts = {
 
 is_deeply($locale->all_scripts, $all_scripts, 'All scripts');
 
-is($locale->territory_name(), 'United States', 'Territory name from current locale');
-is($locale->territory_name('fr'), 'France', 'Territory name from string');
+is($locale->region_name(), 'United States', 'Region name from current locale');
+is($locale->region_name('fr'), 'France', 'Region name from string');
 
-my $all_territories = {
+my $all_regions = {
 	'001' => 'World',
 	'002' => 'Africa',
 	'003' => 'North America',
@@ -1133,7 +1133,7 @@ my $all_territories = {
 	'ZZ' => 'Unknown Region',
 };
 
-is_deeply($locale->all_territories(), $all_territories, 'All Territories');
+is_deeply($locale->all_regions(), $all_regions, 'All Regions');
 
 is($locale->variant_name(), '', 'Variant name from current locale');
 is($locale->variant_name('BOHORIC'), 'Bohorič alphabet', 'Variant name from string');

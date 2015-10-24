@@ -8,13 +8,13 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.28.0
+Version 0.28.1
 
 =head1 SYNOPSIS
 
 This module provides a locale object you can use to localise your output.
 The localisation data comes from the Unicode Common Locale Data Repository.
-Most of this code can be used with Perl version 5.10 or above. There are a
+Most of this code can be used with Perl version 5.10.1 or above. There are a
 few parts of the code that require version 5.18 or above.
 
 =head1 USAGE
@@ -23,33 +23,33 @@ few parts of the code that require version 5.18 or above.
 
 or
 
- my $locale = Locale::CLDR->new(language_id => 'en', territory_id => 'us');
+ my $locale = Locale::CLDR->new(language_id => 'en', region_id => 'us');
  
 A full locale identifier is
  
-C<language>_C<script>_C<territory>_C<variant>_u_C<extension name>_C<extension value>
+C<language>_C<script>_C<region>_C<variant>_u_C<extension name>_C<extension value>
  
  my $locale = Locale::CLDR->new('en_latn_US_SCOUSE_u_nu_traditional');
  
 or
  
- my $locale = Locale::CLDR->new(language_id => 'en', script_id => 'latn', territory_id => 'US', variant => 'SCOUSE', extensions => { nu => 'traditional' } );
+ my $locale = Locale::CLDR->new(language_id => 'en', script_id => 'latn', region_id => 'US', variant => 'SCOUSE', extensions => { nu => 'traditional' } );
  
 =cut
 
-use v5.10;
+use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.28.0');
+our $VERSION = version->declare('v0.28.1');
 
 use open ':encoding(utf8)';
 use utf8;
-use if ($^V ge v5.12.0), (feature => 'unicode_strings');
+use if $^V ge v5.12.0, feature => 'unicode_strings';
 
 use Moose;
 use MooseX::ClassAttribute;
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
 	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
-	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::TerritoryContainment', 'Locale::CLDR::CalendarPreferences',
+	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::RegionContainment', 'Locale::CLDR::CalendarPreferences',
 	'Locale::CLDR::Currencies', 'Locale::CLDR::Plurals';
 	
 use Class::Load;
@@ -111,24 +111,24 @@ has 'script_id' => (
 	predicate	=> 'has_script',
 );
 
-=item territory_id
+=item region_id
 
-A valid territory id or territory alias such as C<GB>
+A valid region id or region alias such as C<GB>
 
 =cut
 
-has 'territory_id' => (
+has 'region_id' => (
 	is			=> 'ro',
 	isa			=> 'Str',
 	default		=> '',
-	predicate	=> 'has_territory',
+	predicate	=> 'has_region',
 );
 
-# territory aliases
-around 'territory_id' => sub {
+# region aliases
+around 'region_id' => sub {
 	my ($orig, $self) = @_;
 	my $value = $self->$orig;
-	my $alias = $self->territory_aliases->{$value};
+	my $alias = $self->region_aliases->{$value};
 	return $value if ! defined $alias;
 	return (split /\s+/, $alias)[0];
 };
@@ -524,7 +524,7 @@ stringify a locale object.
 =item likely_language()
 
 Given a locale with no language passed in or with the explicit language
-code of C<und>, this method attempts to use the script and territory
+code of C<und>, this method attempts to use the script and region
 data to guess the locale's language.
 
 =cut
@@ -550,7 +550,7 @@ sub _build_likely_language {
 =item likely_script()
 
 Given a locale with no script passed in this method attempts to use the
-language and territory data to guess the locale's script.
+language and region data to guess the locale's script.
 
 =cut
 
@@ -572,31 +572,31 @@ sub _build_likely_script {
 	return $self->likely_subtag->script || '';
 }
 
-=item likely_territory()
+=item likely_region()
 
-Given a locale with no territory passed in this method attempts to use the
-language and script data to guess the locale's territory.
+Given a locale with no region passed in this method attempts to use the
+language and script data to guess the locale's region.
 
 =back
 
 =cut
 
-has 'likely_territory' => (
+has 'likely_region' => (
 	is			=> 'ro',
 	isa			=> 'Str',
 	init_arg	=> undef,
 	lazy		=> 1,
-	builder		=> '_build_likely_territory',
+	builder		=> '_build_likely_region',
 );
 
-sub _build_likely_territory {
+sub _build_likely_region {
 	my $self = shift;
 	
-	my $territory = $self->territory();
+	my $region = $self->region();
 	
-	return $territory if $territory;
+	return $region if $region;
 	
-	return $self->likely_subtag->territory || '';
+	return $self->likely_subtag->region || '';
 }
 
 has 'module' => (
@@ -615,14 +615,14 @@ sub _build_module {
 		map { $_ ? $_ : 'Any' } (
 			$self->language_id,
 			$self->script_id,
-			$self->territory_id,
+			$self->region_id,
 		);
 
 	my @likely_path = 
 		map { ucfirst lc } (
 			$self->has_likely_subtag ? $self->likely_subtag->language_id : 'Any',
 			$self->has_likely_subtag ? $self->likely_subtag->script_id : 'Any',
-			$self->has_likely_subtag ? $self->likely_subtag->territory_id : 'Any',
+			$self->has_likely_subtag ? $self->likely_subtag->region_id : 'Any',
 		);
 	
 	for (my $i = 0; $i < @path; $i++) {
@@ -713,7 +713,7 @@ for the language.
 =item name
 
 The locale's name. This is usually built up out of the language, 
-script, territory and variant of the locale
+script, region and variant of the locale
 
 =item language
 
@@ -723,9 +723,9 @@ The name of the locale's language
 
 The name of the locale's script
 
-=item territory
+=item region
 
-The name of the locale's territory
+The name of the locale's region
 
 =item variant
 
@@ -746,7 +746,7 @@ C<français> for the language.
 =item native_name
 
 The locale's name. This is usually built up out of the language, 
-script, territory and variant of the locale. Returned in the locale's
+script, region and variant of the locale. Returned in the locale's
 language and script
 
 =item native_language
@@ -757,9 +757,9 @@ The name of the locale's language in the locale's language and script.
 
 The name of the locale's script in the locale's language and script.
 
-=item native_territory
+=item native_region
 
-The name of the locale's territory in the locale's language and script.
+The name of the locale's region in the locale's language and script.
 
 =item native_variant
 
@@ -769,7 +769,7 @@ The name of the locale's variant in the locale's language and script.
 
 =cut
 
-foreach my $property (qw( name language script territory variant)) {
+foreach my $property (qw( name language script region variant)) {
 	has $property => (
 		is => 'ro',
 		isa => 'Str',
@@ -1154,7 +1154,7 @@ sub BUILDARGS {
 	}
 
 	if (1 == @_ && ! ref $_[0]) {
-		my ($language, $script, $territory, $variant, $extensions)
+		my ($language, $script, $region, $variant, $extensions)
 		 	= $_[0]=~/^
 				([a-zA-Z]+)
 				(?:[-_]([a-zA-Z]{4}))?
@@ -1163,14 +1163,14 @@ sub BUILDARGS {
 				(?:[-_]u[_-](.+))?
 			$/x;
 
-		foreach ($language, $script, $territory, $variant) {
+		foreach ($language, $script, $region, $variant) {
 			$_ = '' unless defined $_;
 		}
 
 		%args = (
 			language_id		=> $language,
 			script_id		=> $script,
-			territory_id	=> $territory,
+			region_id	=> $region,
 			variant_id		=> $variant,
 			extensions		=> $extensions,
 		);
@@ -1193,7 +1193,7 @@ sub BUILDARGS {
 	# Fix casing of args
 	$args{language_id}	= lc $args{language_id}			if defined $args{language_id};
 	$args{script_id}	= ucfirst lc $args{script_id}	if defined $args{script_id};
-	$args{territory_id}	= uc $args{territory_id}		if defined $args{territory_id};
+	$args{region_id}	= uc $args{region_id}		if defined $args{region_id};
 	$args{variant_id}	= uc $args{variant_id}			if defined $args{variant_id};
 	
 	# Set up undefined language
@@ -1216,9 +1216,9 @@ sub BUILD {
 	die "Invalid script" if $args->{script_id} 
 		&& ! first { ucfirst lc $args->{script_id} eq ucfirst lc $_ } $self->valid_scripts;
 
-	die "Invalid territory" if $args->{territory_id} 
-		&&  ( !  ( first { uc $args->{territory_id} eq uc $_ } $self->valid_territories )
-			&& ( ! $self->territory_aliases->{$self->{territory_id}} )
+	die "Invalid region" if $args->{region_id} 
+		&&  ( !  ( first { uc $args->{region_id} eq uc $_ } $self->valid_regions )
+			&& ( ! $self->region_aliases->{$self->{region_id}} )
 		);
     
 	die "Invalid variant" if $args->{variant_id}
@@ -1267,13 +1267,13 @@ after 'BUILD' => sub {
 	
 	my $likely_subtags = $self->likely_subtags;
 	my $likely_subtag;
-	my ($language_id, $script_id, $territory_id) = ($self->language_id, $self->script_id, $self->territory_id);
+	my ($language_id, $script_id, $region_id) = ($self->language_id, $self->script_id, $self->region_id);
 	
-	unless ($language_id ne 'und' && $script_id && $territory_id ) {
-		$likely_subtag = $likely_subtags->{join '_', grep { length() } ($language_id, $script_id, $territory_id)};
+	unless ($language_id ne 'und' && $script_id && $region_id ) {
+		$likely_subtag = $likely_subtags->{join '_', grep { length() } ($language_id, $script_id, $region_id)};
 		
 		if (! $likely_subtag ) {
-			$likely_subtag = $likely_subtags->{join '_', $language_id, $territory_id};
+			$likely_subtag = $likely_subtags->{join '_', $language_id, $region_id};
 		}
 	
 		if (! $likely_subtag ) {
@@ -1289,26 +1289,86 @@ after 'BUILD' => sub {
 		}
 	}
 	
-	my ($likely_language_id, $likely_script_id, $likely_territory_id);
+	my ($likely_language_id, $likely_script_id, $likely_region_id);
 	if ($likely_subtag) {
-		($likely_language_id, $likely_script_id, $likely_territory_id) = split /_/, $likely_subtag;
+		($likely_language_id, $likely_script_id, $likely_region_id) = split /_/, $likely_subtag;
 		$likely_language_id		= $language_id 	unless $language_id eq 'und';
 		$likely_script_id		= $script_id	if length $script_id;
-		$likely_territory_id	= $territory_id	if length $territory_id;
-		$self->_set_likely_subtag(__PACKAGE__->new(join '_',$likely_language_id, $likely_script_id, $likely_territory_id));
+		$likely_region_id	= $region_id	if length $region_id;
+		$self->_set_likely_subtag(__PACKAGE__->new(join '_',$likely_language_id, $likely_script_id, $likely_region_id));
 	}
 	
 	# Fix up extension overrides
 	my $extensions = $self->extensions;
 	if (exists $extensions->{ca}) {
-		$self->_set_default_ca(($territory_id // $likely_territory_id) => $extensions->{ca});
+		$self->_set_default_ca($extensions->{ca});
 	}
 
+	if (exists $extensions->{cf}) {
+		$self->_set_default_cf($extensions->{cf});
+	}
+	
 	if (exists $extensions->{nu}) {
 		$self->_clear_default_nu;
 		$self->_set_default_nu($extensions->{nu});
 	}
 };
+
+# Defaults
+# Calendar, currency format
+foreach my $default (qw( ca cf )) {
+	has "default_$default" => (
+		is			=> 'ro',
+		isa			=> 'Str',
+		init_arg	=> undef,
+		default		=> '',
+		traits		=> ['String'],
+		handles		=> {
+			"_set_default_$default"  => 'append',
+			"_test_default_$default" => 'length',
+		},
+	);
+}
+
+sub default_calendar {
+	my ($self, $region) = @_;
+
+	my $default = '';
+	if ($self->_test_default_ca) {
+		$default = $self->default_ca();
+	}
+	else {
+		my $calendar_preferences = $self->calendar_preferences();
+		$region //= ( $self->region_id() || $self->likely_subtag->region_id );
+		my $current_region = $region;
+
+		while (! $default) {
+			$default = $calendar_preferences->{$current_region};
+			if ($default) {
+				$default = $default->[0];
+			}
+			else {
+				$current_region = $self->region_contained_by()->{$current_region}
+			}
+		}
+		$self->_set_default_ca($default);
+	}
+	return $default;
+}
+
+sub default_currency_format {
+	my $self = shift;
+	
+	my $default = 'standard';
+	if ($self->_test_default_cf) {
+		$default = $self->default_cf();
+	}
+	else {
+		$self->_set_default_cf($default);
+	}
+	
+	return $default;
+}
 
 use overload 
   'bool'	=> sub { 1 },
@@ -1322,8 +1382,8 @@ sub _build_id {
 		$string.= '_' . ucfirst lc $self->script_id;
 	}
 
-	if ($self->territory_id) {
-		$string.= '_' . uc $self->territory_id;
+	if ($self->region_id) {
+		$string.= '_' . uc $self->region_id;
 	}
 
 	if ($self->variant_id) {
@@ -1391,16 +1451,16 @@ sub _build_native_script {
 	return $self->script_name($for);
 }
 
-sub _build_territory {
+sub _build_region {
 	my $self = shift;
 
-	return $self->_get_english->native_territory($self);
+	return $self->_get_english->native_region($self);
 }
 
-sub _build_native_territory {
+sub _build_native_region {
 	my ($self, $for) = @_;
 
-	return $self->territory_name($for);
+	return $self->region_name($for);
 }
 
 sub _build_variant {
@@ -1465,7 +1525,7 @@ sub locale_name {
 	$name //= $self;
 
 	my $code = ref $name
-		? join ( '_', $name->language_id, $name->territory_id ? $name->territory_id : () )
+		? join ( '_', $name->language_id, $name->region_id ? $name->region_id : () )
 		: $name;
 	
 	my @bundles = $self->_find_bundle('display_name_language');
@@ -1484,12 +1544,12 @@ sub locale_name {
 	# to pass to the display name pattern
 	my $language = $self->language_name($name);
 	my $script = $self->script_name($name);
-	my $territory = $self->territory_name($name);
+	my $region = $self->region_name($name);
 	my $variant = $self->variant_name($name);
 
 	my $bundle = $self->_find_bundle('display_name_pattern');
 	return $bundle
-		->display_name_pattern($language, $territory, $script, $variant);
+		->display_name_pattern($language, $region, $script, $variant);
 }
 
 =item language_name($language)
@@ -1626,72 +1686,72 @@ sub all_scripts {
 	return \%scripts;
 }
 
-=item territory_name($territory)
+=item region_name($region)
 
-Returns the territory name in the current locale's format. The territory can be
-a locale territory id or a locale object or non existent. If a territory is not
-passed in then the territory name of the current locale is returned.
+Returns the region name in the current locale's format. The region can be
+a locale region id or a locale object or non existent. If a region is not
+passed in then the region name of the current locale is returned.
 
 =cut
 
-sub territory_name {
+sub region_name {
 	my ($self, $name) = @_;
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = eval { __PACKAGE__->new(language_id => 'und', territory_id => $name); };
+		$name = eval { __PACKAGE__->new(language_id => 'und', region_id => $name); };
 	}
 
-	if ( ref $name && ! $name->territory_id) {
+	if ( ref $name && ! $name->region_id) {
 		return '';
 	}
 
-	my $territory = undef;
-	my @bundles = $self->_find_bundle('display_name_territory');
+	my $region = undef;
+	my @bundles = $self->_find_bundle('display_name_region');
 	if ($name) {
 		foreach my $bundle (@bundles) {
-			$territory = $bundle->display_name_territory->{$name->territory_id};
-			if (defined $territory) {
+			$region = $bundle->display_name_region->{$name->region_id};
+			if (defined $region) {
 				last;
 			}
 		}
 	}
 
-	if (! defined $territory) {
+	if (! defined $region) {
 		foreach my $bundle (@bundles) {
-			$territory = $bundle->display_name_territory->{'ZZ'};
-			if (defined $territory) {
+			$region = $bundle->display_name_region->{'ZZ'};
+			if (defined $region) {
 				last;
 			}
 		}
 	}
 
-	return $territory;
+	return $region;
 }
 
-=item all_territories
+=item all_regions
 
-Returns a hash ref keyed on territory id of all the territory the system 
-knows about. The values are the territory names for the corresponding ids 
+Returns a hash ref keyed on region id of all the region the system 
+knows about. The values are the region names for the corresponding ids 
 
 =cut
 
-sub all_territories {
+sub all_regions {
 	my $self = shift;
 
-	my @bundles = $self->_find_bundle('display_name_territory');
-	my %territories;
+	my @bundles = $self->_find_bundle('display_name_region');
+	my %regions;
 	foreach my $bundle (@bundles) {
-		my $territories = $bundle->display_name_territory;
+		my $regions = $bundle->display_name_region;
 
-		# Remove existing territories
-		delete @{$territories}{keys %territories};
+		# Remove existing regions
+		delete @{$regions}{keys %regions};
 
 		# Assign new ones to the hash
-		@territories{keys %$territories} = values %$territories;
+		@regions{keys %$regions} = values %$regions;
 	}
 
-	return \%territories;
+	return \%regions;
 }
 
 =item variant_name($variant)
@@ -1836,7 +1896,7 @@ sub transform_name {
 
 =item code_pattern($type, $locale)
 
-This method formats a language, script or territory name, given as C<$type>
+This method formats a language, script or region name, given as C<$type>
 from C<$locale> in a way expected by the current locale. If $locale is
 not passed in or is undef() the method uses the current locale.
 
@@ -1852,7 +1912,7 @@ sub code_pattern {
 	# If locale is not an object then inflate it
 	$locale = __PACKAGE__->new($locale) unless blessed $locale;
 
-	return '' unless $type =~ m{ \A (?: language | script | territory ) \z }xms;
+	return '' unless $type =~ m{ \A (?: language | script | region ) \z }xms;
 
 	my $method = $type . '_name';
 	my $substitute = $self->$method($locale);
@@ -2314,13 +2374,13 @@ sub measurement {
 	my $self = shift;
 	
 	my $measurement_data = $self->measurement_system;
-	my $territory = $self->territory_id || '001';
+	my $region = $self->region_id || '001';
 	
-	my $data = $measurement_data->{$territory};
+	my $data = $measurement_data->{$region};
 	
 	until (defined $data) {
-		$territory = $self->territory_contained_by->{$territory};
-		$data = $measurement_data->{$territory};
+		$region = $self->region_contained_by->{$region};
+		$data = $measurement_data->{$region};
 	}
 	
 	return $data;
@@ -2336,13 +2396,13 @@ sub paper {
 	my $self = shift;
 	
 	my $paper_size = $self->paper_size;
-	my $territory = $self->territory_id || '001';
+	my $region = $self->region_id || '001';
 	
-	my $data = $paper_size->{$territory};
+	my $data = $paper_size->{$region};
 	
 	until (defined $data) {
-		$territory = $self->territory_contained_by->{$territory};
-		$data = $paper_size->{$territory};
+		$region = $self->region_contained_by->{$region};
+		$data = $paper_size->{$region};
 	}
 	
 	return $data;
@@ -3730,9 +3790,9 @@ This method returns a list containing all the valid language codes
 
 This method returns a list containing all the valid script codes
 
-=item valid_territories()
+=item valid_regions()
 
-This method returns a list containing all the valid territory codes
+This method returns a list containing all the valid region codes
 
 =item valid_variants()
 
@@ -3755,9 +3815,9 @@ can have with each key
 
 This method returns a hash that maps valid language codes to their valid aliases
 
-=item territory_aliases()
+=item region_aliases()
 
-This method returns a hash that maps valid territory codes to their valid aliases
+This method returns a hash that maps valid region codes to their valid aliases
 
 =item variant_aliases()
 
@@ -3805,79 +3865,79 @@ Saturday
 =cut
 
 sub _week_data {
-	my ($self, $territory_id, $week_data_hash) = @_;
+	my ($self, $region_id, $week_data_hash) = @_;
 	
-	$territory_id //= ( $self->territory_id || $self->likely_subtag->territory_id );
+	$region_id //= ( $self->region_id || $self->likely_subtag->region_id );
 	
-	return $week_data_hash->{$territory_id} if exists $week_data_hash->{$territory_id};
+	return $week_data_hash->{$region_id} if exists $week_data_hash->{$region_id};
 	
 	while (1) {
-		$territory_id = $self->territory_contained_by()->{$territory_id};
-		return unless defined $territory_id;
-		return $week_data_hash->{$territory_id} if exists $week_data_hash->{$territory_id};
+		$region_id = $self->region_contained_by()->{$region_id};
+		return unless defined $region_id;
+		return $week_data_hash->{$region_id} if exists $week_data_hash->{$region_id};
 	}
 }
 
 =over 4
 
-=item week_data_min_days($territory_id)
+=item week_data_min_days($region_id)
 
-This method takes an optional territory id and returns a the minimum number of days
+This method takes an optional region id and returns a the minimum number of days
 a week must have to count as the starting week of the new year. It uses the current
-locale's territory if no territory id is passed in.
+locale's region if no region id is passed in.
 
 =cut
 
 sub week_data_min_days {
-	my ($self, $territory_id) = @_;
+	my ($self, $region_id) = @_;
 	
 	my $week_data_hash = $self->_week_data_min_days();
-	return _week_data($self, $territory_id, $week_data_hash);
+	return _week_data($self, $region_id, $week_data_hash);
 }
 
-=item week_data_first_day($territory_id)
+=item week_data_first_day($region_id)
 
-This method takes an optional territory id and returns the three letter code of the 
-first day of the week for that territory. If no territory id is passed in then it
-uses the current locale's territory.
+This method takes an optional region id and returns the three letter code of the 
+first day of the week for that region. If no region id is passed in then it
+uses the current locale's region.
 
 =cut
 
 sub week_data_first_day {
-	my ($self, $territory_id) = @_;
+	my ($self, $region_id) = @_;
 	
 	my $week_data_hash = $self->_week_data_first_day();
-	return _week_data($self, $territory_id, $week_data_hash);
+	return _week_data($self, $region_id, $week_data_hash);
 }
 
 =item week_data_weekend_start()
 
-This method takes an optional territory id and returns the three letter code of the 
-first day of the week end for that territory. If no territory id is passed in then it
-uses the current locale's territory.
+This method takes an optional region id and returns the three letter code of the 
+first day of the week end for that region. If no region id is passed in then it
+uses the current locale's region.
 
 =cut
 
 sub week_data_weekend_start {
-	my ($self, $territory_id) = @_;
+	my ($self, $region_id) = @_;
 	my $week_data_hash = $self->_week_data_weekend_start();
 	
-	return _week_data($self, $territory_id, $week_data_hash);
+	return _week_data($self, $region_id, $week_data_hash);
 }
 
 =item week_data_weekend_end()
 
-This method takes an optional territory id and returns the three letter code of the 
-first day of the week end for that territory. If no territory id is passed in then it
-uses the current locale's territory.
+This method takes an optional region id and returns the three letter code of the 
+first day of the week end for that region. If no region id is passed in then it
+uses the current locale's region.
 
 =cut
 
 sub week_data_weekend_end {
-	my ($self, $territory_id) = @_;
+	my ($self, $region_id) = @_;
 	my $week_data_hash = $self->_week_data_weekend_end();
 	
-	return _week_data($self, $territory_id, $week_data_hash);
+	return _week_data($self, $region_id, $week_data_hash);
 }
 
 =item month_patterns($context, $width, $type)
@@ -4009,20 +4069,20 @@ sub cyclic_name_sets {
 
 =back
 
-=head2 Territory Containment
+=head2 region Containment
 
 =over 4
 
-=item territory_contains()
+=item region_contains()
 
-This method returns a hash ref keyed on territory id. The value is an array ref.
-Each element of the array ref is a territory id of a territory immediately 
-contained in the territory used as the key
+This method returns a hash ref keyed on region id. The value is an array ref.
+Each element of the array ref is a region id of a region immediately 
+contained in the region used as the key
 
-=item territory_contained_by()
+=item region_contained_by()
 
-This method returns a hash ref keyed on territory id. The value of the hash
-is the territory id of the immediately containing territory.
+This method returns a hash ref keyed on region id. The value of the hash
+is the region id of the immediately containing region.
 
 =back
 
@@ -4052,8 +4112,8 @@ the currency symbol C<¤> then the currency symbol for the currency code in $cur
 will be used. If $currency is undef() then the default currency code for the locale 
 will be used. 
 
-Note that currency codes are based on territory so if you do not pass in a currency 
-and your locale did not get passed a territory in the constructor you are going
+Note that currency codes are based on region so if you do not pass in a currency 
+and your locale did not get passed a region in the constructor you are going
 to end up with the L<likely sub tag's|/likely_subtags> idea of the currency. This
 functionality may be removed or at least changed to emit a warning in future 
 releases.
@@ -4064,6 +4124,17 @@ will be used otherwise financial rounding will be used.
 This function also handles rule based number formatting. If $format is string equivalent
 to one of the current locale's public rule based number formats then $number will be 
 formatted according to that rule. 
+
+=item format_currency($number, $for_cash)
+
+This method formats the number $number using the default currency and currency format for the locale.
+If $for_cash is a true value then cash rounding will be used otherwise financial rounding will be used. 
+
+=item default_currency_formt
+
+This method returns the currency format for the current locale
+
+It takes no paramaters
 
 =item add_currency_symbol($format, $symbol)
 
@@ -4101,6 +4172,60 @@ will return C<[0,1,2,3,4,5,6,7,8,9]>
 
 This method returns the numbering system id for the locale.
 
+=item default_currency_format()
+
+This method returns the locale's currenc format. This can be used by the number formatting code to 
+correctly format the locale's currency
+
+=item currency_format($format_type)
+
+This method returns the format string for the currencies for the locale
+
+There are two types of formatting I<standard> and I<accounting> you can
+pass C<standard> or C<account> as the paramater to the method to pick one of
+these ot it will use the locales default
+
+=cut
+
+sub currency_format {
+	my ($self, $default_currency_format) = @_;
+	
+	die "Invalid Currency format: must be one of 'standard' or 'account'"
+		if defined $default_currency_format
+			&& $default_currency_format ne 'standard'
+			&& $default_currency_format ne 'account';
+	
+	$default_currency_format //= $self->default_currency_format;
+	my @bundles = $self->_find_bundle('number_currency_formats');
+	
+	my $format = {};
+	my $default_numbering_system = $self->default_numbering_system();
+	foreach my $bundle (@bundles) {
+		NUMBER_SYSTEM: {
+			$format = $bundle->number_currency_formats();
+			if (exists $format->{$default_numbering_system}{alias}) {
+				$default_numbering_system = $format->{$default_numbering_system}{alias};
+				redo NUMBER_SYSTEM;
+			}
+			
+			if (exists $format->{$default_numbering_system}{pattern}{default}{$default_currency_format}{alias}) {
+				$default_currency_format = $format->{$default_numbering_system}{pattern}{default}{$default_currency_format}{alias};
+				redo NUMBER_SYSTEM;
+			}
+		}
+		
+		last if exists $format->{$default_numbering_system}{pattern}{default}{$default_currency_format}
+	}
+	
+	$default_currency_format = 'accounting' if $default_currency_format eq 'account';
+	
+	return join ';',
+		$format->{$default_numbering_system}{pattern}{default}{$default_currency_format}{positive},
+		defined $format->{$default_numbering_system}{pattern}{default}{$default_currency_format}{negative}
+			? $format->{$default_numbering_system}{pattern}{default}{$default_currency_format}{negative}
+			: ();
+}
+
 =back
 
 =head2 Measurement Information
@@ -4109,15 +4234,15 @@ This method returns the numbering system id for the locale.
 
 =item measurement_system()
 
-This method returns a hash ref keyed on territory, the value being the measurement system
-id for the territory. If the territory you are interested in is not listed use the
-territory_contained_by() method until you find an entry.
+This method returns a hash ref keyed on region, the value being the measurement system
+id for the region. If the region you are interested in is not listed use the
+region_contained_by() method until you find an entry.
 
 =item paper_size()
 
-This method returns a hash ref keyed on territory, the value being the paper size used
-in that territory. If the territory you are interested in is not listed use the
-territory_contained_by() method until you find an entry.
+This method returns a hash ref keyed on region, the value being the paper size used
+in that region. If the region you are interested in is not listed use the
+region_contained_by() method until you find an entry.
 
 =back
 
@@ -4127,14 +4252,14 @@ territory_contained_by() method until you find an entry.
 
 =item likely_subtags()
 
-A full locale tag requires, as a minimum, a language, script and territory code. However for
+A full locale tag requires, as a minimum, a language, script and region code. However for
 some locales it is possible to infer the missing element if the other two are given, e.g.
 given C<en_GB> you can infer the script will be latn. It is also possible to fill in the 
 missing elements of a locale with sensible defaults given sufficient knowledge of the layout
 of the CLDR data and usage patterns of locales around the world.
 
 This function returns a hash ref keyed on partial locale id's with the value being the locale
-id for the most likely language, script and territory code for the key.
+id for the most likely language, script and region code for the key.
 
 =back
 
@@ -4168,31 +4293,31 @@ The cash rounding increment, in units of 10^-cashdigits.
 
 =back
 
-=item default_currency($territory_id)
+=item default_currency($region_id)
 
-This method returns the default currency id for the territory id.
-If no territory id is given then the current locale's is used
+This method returns the default currency id for the region id.
+If no region id is given then the current locale's is used
 
 =cut
 
 sub default_currency {
-	my ($self, $territory_id) = @_;
+	my ($self, $region_id) = @_;
 	
-	$territory_id //= $self->territory_id;
+	$region_id //= $self->region_id;
 	
-	if (! $territory_id) {
-		 $territory_id = $self->likely_subtag->territory_id;
-		 warn "Locale::CLDR::default_currency:- No territory given using $territory_id at ";
+	if (! $region_id) {
+		 $region_id = $self->likely_subtag->region_id;
+		 warn "Locale::CLDR::default_currency:- No region given using $region_id at ";
 	}
 	
 	my $default_currencies = $self->_default_currency;
 	
-	return $default_currencies->{$territory_id} if exists $default_currencies->{$territory_id};
+	return $default_currencies->{$region_id} if exists $default_currencies->{$region_id};
 	
 	while (1) {
-		$territory_id = $self->territory_contained_by($territory_id);
-		last unless $territory_id;
-		return $default_currencies->{$territory_id} if exists $default_currencies->{$territory_id};
+		$region_id = $self->region_contained_by($region_id);
+		last unless $region_id;
+		return $default_currencies->{$region_id} if exists $default_currencies->{$region_id};
 	}
 }
 
@@ -4225,13 +4350,13 @@ sub currency_symbol {
 
 =item calendar_preferences()
 
-This method returns a hash ref keyed on territory id. The values are array refs containing the preferred
+This method returns a hash ref keyed on region id. The values are array refs containing the preferred
 calendar id's in order of preference.
 
-=item  default_calendar($territory)
+=item  default_calendar($region)
 
-This method returns the default calendar id for the given territory. If no territory id given it 
-used the territory of the current locale.
+This method returns the default calendar id for the given region. If no region id given it 
+used the region of the current locale.
 
 =back
 
@@ -4435,7 +4560,7 @@ sub _collation_max_variable {
 
 Other locales can be found on CPAN. You can install Language packs from the 
 Locale::CLDR::Locales::* packages. You will in future be able to install language
-packs for a given territory by looking for a Bundle::Locale::CLDR::* package.
+packs for a given region by looking for a Bundle::Locale::CLDR::* package.
 
 If you are looking for a language pack that is not yet published then get hold of
 the version 0.25.4 from http://search.cpan.org/CPAN/authors/id/J/JG/JGNI/Locale-CLDR-v0.25.4.tar.gz

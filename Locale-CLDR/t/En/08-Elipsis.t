@@ -11,7 +11,7 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('en');
+my $locale = Locale::CLDR->new('en_GB');
 
 is ($locale->truncated_beginning('abc'), '…abc','Truncated beginning');
 is ($locale->truncated_between('abc','def'), 'abc…def','Truncated between');

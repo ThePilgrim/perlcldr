@@ -644,11 +644,11 @@ my $all_scripts = {
 
 is_deeply($locale->all_scripts, $all_scripts, 'All scripts');
 
-is($locale->territory_name(), '', 'Territory name from current locale');
-is($locale->territory_name('fr'), 'Франция', 'Territory name from string');
-is($locale->territory_name($other_locale), 'Съединени щати', 'Territory name from other locale object');
+is($locale->region_name(), '', 'Region name from current locale');
+is($locale->region_name('fr'), 'Франция', 'Region name from string');
+is($locale->region_name($other_locale), 'Съединени щати', 'Region name from other locale object');
 
-my $all_territories = {
+my $all_regions = {
 	'001' => 'Свят',
 	'002' => 'Африка',
 	'003' => 'Северноамерикански континент',
@@ -951,7 +951,7 @@ my $all_territories = {
 	'ZZ' => 'непознат регион',
 };
 
-is_deeply($locale->all_territories(), $all_territories, 'All Territories');
+is_deeply($locale->all_regions(), $all_regions, 'All Regions');
 
 is($locale->variant_name(), '', 'Variant name from current locale');
 is($locale->variant_name('BISKE'), 'Диалект Сан Джорджио/Била', 'Variant name from string');

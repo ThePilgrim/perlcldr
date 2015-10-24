@@ -872,11 +872,11 @@ my $all_scripts = {
 
 is_deeply($locale->all_scripts, $all_scripts, 'All scripts');
 
-is($locale->territory_name(), 'France', 'Territory name from current locale');
-is($locale->territory_name('GB'), 'Royaume-Uni', 'Territory name from string');
-is($locale->territory_name($other_locale), 'Belgique', 'Territory name from other locale object');
+is($locale->region_name(), 'France', 'Region name from current locale');
+is($locale->region_name('GB'), 'Royaume-Uni', 'Region name from string');
+is($locale->region_name($other_locale), 'Belgique', 'Region name from other locale object');
 
-my $all_territories = {
+my $all_regions = {
 	'001' => 'Monde',
 	'002' => 'Afrique',
 	'003' => 'Amérique du Nord',
@@ -1179,7 +1179,7 @@ my $all_territories = {
 	'ZZ' => 'région indéterminée',
 };
 
-is_deeply($locale->all_territories(), $all_territories, 'All Territories');
+is_deeply($locale->all_regions(), $all_regions, 'All Regions');
 
 is($locale->variant_name(), '', 'Variant name from current locale');
 is($locale->variant_name('BOHORIC'), 'alphabet Bohorič', 'Variant name from string');

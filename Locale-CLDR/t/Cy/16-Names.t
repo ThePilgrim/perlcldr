@@ -568,11 +568,11 @@ my $all_scripts = {
 
 is_deeply($locale->all_scripts, $all_scripts, 'All scripts');
 
-is($locale->territory_name(), 'Y Deyrnas Unedig', 'Territory name from current locale');
-is($locale->territory_name('GB'), 'Y Deyrnas Unedig', 'Territory name from string');
-is($locale->territory_name($other_locale), 'Yr Unol Daleithiau', 'Territory name from other locale object');
+is($locale->region_name(), 'Y Deyrnas Unedig', 'Region name from current locale');
+is($locale->region_name('GB'), 'Y Deyrnas Unedig', 'Region name from string');
+is($locale->region_name($other_locale), 'Yr Unol Daleithiau', 'Region name from other locale object');
 
-my $all_territories = {
+my $all_regions = {
 	'001' => 'Y Byd',
 	'002' => 'Affrica',
 	'003' => 'Gogledd America',
@@ -876,7 +876,7 @@ my $all_territories = {
 	'ZZ' => 'Rhanbarth Anhysbys',
 };
 
-is_deeply($locale->all_territories(), $all_territories, 'All Territories');
+is_deeply($locale->all_regions(), $all_regions, 'All Regions');
 
 is($locale->variant_name(), '', 'Variant name from current locale');
 is($locale->variant_name('BOHORIC'), 'Gwyddor Bohorič', 'Variant name from string');

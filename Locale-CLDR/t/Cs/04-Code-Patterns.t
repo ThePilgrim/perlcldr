@@ -16,4 +16,4 @@ my $locale = Locale::CLDR->new('cs');
 my $test = Locale::CLDR->new('en_latn_US');
 is ($locale->code_pattern('language', $test), 'Jazyk: angličtina', 'Code pattern Language');
 is ($locale->code_pattern('script', $test), 'Písmo: latinka', 'Code pattern script');
-is ($locale->code_pattern('territory', $test), 'Region: Spojené státy', 'Code pattern territory');
+is ($locale->code_pattern('region', $test), 'Region: Spojené státy', 'Code pattern region');

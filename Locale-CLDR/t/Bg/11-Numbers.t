@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 12;
+use Test::More tests => 16;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -41,7 +41,7 @@ my $format_data = {
 		pad_character				=> undef,
 		pad_length					=> 0,
 		pad_location				=> 'none',
-		prefix						=> '',
+		prefix						=> '\-',
 		multiplier					=> 1,
 		rounding					=> 0,
 		suffix						=> '',
@@ -53,11 +53,18 @@ $format_data->{negative}{pad_character} = 'x';
 $format_data->{negative}{pad_length} = 19;
 $format_data->{negative}{pad_location}	= 'after suffix';
 $format_data->{negative}{suffix} = " food ";
+$format_data->{negative}{prefix} = "";
 is_deeply($locale->parse_number_format('###,##0.###;###,##0.### \'food\' *x'), $format_data, 'A more complex Number format');
 is($locale->format_number(12345.6, '###,##0.###'), '12 345,6', 'Format a number');
 is($locale->format_number(12345.6, '###,#00%'), '1 234 560%', 'Format a percent');
 is($locale->format_number(12345.6, '###,#00‰'), '12 345 600‰', 'Format a per thousand' );
 is($locale->format_number(12345678, '#,####,00%'), '1234 5678 00%', 'Format percent with different grouping');
+
+# Negative numbers
+is($locale->format_number(-12345.6, '###,##0.###'), '-12 345,6', 'Format a negative number');
+is($locale->format_number(-12345.6, '###,#00%'), '-1 234 560%', 'Format a negative percent');
+is($locale->format_number(-12345.6, '###,#00‰'), '-12 345 600‰', 'Format a negative per thousand' );
+is($locale->format_number(-12345678, '#,####,00%'), '-1234 5678 00%', 'Format negative percent with different grouping');
 
 # RBNF
 is($locale->format_number(0, 'spellout-numbering-year'), 'нула', 'RBNF: Spell out year 0');

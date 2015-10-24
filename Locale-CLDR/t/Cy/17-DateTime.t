@@ -6,37 +6,24 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 3;
+use Test::More tests => 2;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
 
 use DateTime;
 
-my $fr_fr = Locale::CLDR->new('cy_GB');
-my $fr_be = Locale::CLDR->new('en_US');
+my $locale = Locale::CLDR->new('cy_GB');
 
-my $dt_fr_fr = DateTime->new(
+my $dt_cy_gb = DateTime->new(
 	year => 1966,
 	month => 10,
 	day        => 25,
     hour       => 7,
     minute     => 15,
     second     => 47,
-    locale     => $fr_fr,
+    locale     => $locale,
 	time_zone  => 'Europe/London',
 );
 
-my $dt_fr_be = DateTime->new(
-	year => 1966,
-	month => 10,
-	day        => 25,
-    hour       => 7,
-    minute     => 15,
-    second     => 47,
-    locale     => $fr_be,
-	time_zone  => 'Europe/London',
-);
-
-is ($dt_fr_fr->format_cldr($fr_fr->datetime_format_full), 'Dydd Mawrth, 25 Hydref 1966 am 07:15:47 Europe/London', 'Date Time Format Full Welsh');
-is ($dt_fr_be->format_cldr($fr_be->datetime_format_full), 'Tuesday, October 25, 1966 at 7:15:47 am Europe/London', 'Date Time Format Full US English');
+is ($dt_cy_gb->format_cldr($locale->datetime_format_full), 'Dydd Mawrth, 25 Hydref 1966 am 07:15:47 Europe/London', 'Date Time Format Full Welsh');
