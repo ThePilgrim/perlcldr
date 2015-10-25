@@ -121,7 +121,7 @@ All dates are in ISO 8601 Format
 	Added coordinate unit types
 	Updated Unit tests
 
-0.28.1
+0.28.1 2015-10-25
 	Change all references of territories to regions to match the CLDR documentation. This includes method names.
 	Change minimum Perl version to 5.10.1 as tests for 5.10.0 won't run
 	Added currency_format() method to get the currency format for the locale
