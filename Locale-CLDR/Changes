@@ -135,3 +135,11 @@ All dates are in ISO 8601 Format
 		simpley -<posative format>.
 	Updated tests to feflect the above change
 	Cleaned up variable names in test files
+
+0.28.2
+	Some SEO work on the build scripts
+	Fixed incorrectly named Unicode block in collation code
+	Added default currency override
+	Added tests for default currency override
+	Fixed not numeric in == warning for Plural Rules
+	Added Danish language pack

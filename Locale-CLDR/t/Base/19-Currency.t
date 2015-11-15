@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 14;
+use Test::More tests => 24;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -24,9 +24,23 @@ is($locale->format_currency(123456.78, 'cash'), 'US$123,456.78', 'Format currenc
 is($locale->format_currency(-123456.78), '-US$123,456.78', 'Format currency with standard format, negitive number and financial rounding');
 is($locale->format_currency(-123456.78, 'cash'), '-US$123,456.78', 'Format currency with standard format, negitive number and cash rounding');
 
+$locale = Locale::CLDR->new('en_US_u_cf_standard_cu_eur');
+is($locale->currency_format(), '¤#,##0.00', 'Currency format with standard default and euro currency');
+is($locale->format_currency(123456.78), '€123,456.78', 'Format currency with standard format, positive number and financial rounding and euro currency');
+is($locale->format_currency(123456.78, 'cash'), '€123,456.78', 'Format currency with standard format, positive number and cash rounding and euro currency');
+is($locale->format_currency(-123456.78), '-€123,456.78', 'Format currency with standard format, negitive number and financial rounding and euro currency');
+is($locale->format_currency(-123456.78, 'cash'), '-€123,456.78', 'Format currency with standard format, negitive number and cash rounding and euro currency');
+
 $locale = Locale::CLDR->new('en_US_u_cf_account');
 is($locale->currency_format(), '¤#,##0.00;(¤#,##0.00)', 'Currency format with account default');
 is($locale->format_currency(123456.78), 'US$123,456.78', 'Format currency with accountancy format, positive number and financial rounding');
 is($locale->format_currency(123456.78, 'cash'), 'US$123,456.78', 'Format currency with accountancy format, positive number and cash rounding');
 is($locale->format_currency(-123456.78), '(US$123,456.78)', 'Format currency with accountancy format, negitive number and financial rounding');
 is($locale->format_currency(-123456.78, 'cash'), '(US$123,456.78)', 'Format currency with accountancy format, negitive number and cash rounding');
+
+$locale = Locale::CLDR->new('en_US_u_cf_account_cu_eur');
+is($locale->currency_format(), '¤#,##0.00;(¤#,##0.00)', 'Currency format with account default');
+is($locale->format_currency(123456.78), '€123,456.78', 'Format currency with accountancy format, positive number, financial rounding and euro currency');
+is($locale->format_currency(123456.78, 'cash'), '€123,456.78', 'Format currency with accountancy format, positive number, cash rounding and euro currency');
+is($locale->format_currency(-123456.78), '(€123,456.78)', 'Format currency with accountancy format, negitive number, financial rounding and euro currency');
+is($locale->format_currency(-123456.78, 'cash'), '(€123,456.78)', 'Format currency with accountancy format, negitive number, cash rounding and euro currency');

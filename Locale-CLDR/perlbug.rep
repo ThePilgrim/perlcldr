@@ -1,0 +1,81 @@
+From: john.imrie1@gmail.com
+Message-Id: <5.18.2_14928_1446306730@John-Games>
+Subject: missing unicode block
+Reply-To: john.imrie1@gmail.com
+To: perlbug@perl.org
+
+
+This is a bug report for perl from john.imrie1@gmail.com,
+generated with the help of perlbug 1.39 running under perl 5.18.2.
+
+
+-----------------------------------------------------------------
+[Please describe your issue here]
+Bug in Perl 5.23.4
+
+Unicode property Block=CJK_Unified_Ideograph will not compile.
+This has been found by the CPAN testers see 
+http://www.cpantesters.org/cpan/report/e9ac4ed2-7e10-11e5-b3a0-9c9ddfbfc7aa
+
+[Please do not change anything below this line]
+-----------------------------------------------------------------
+---
+Flags:
+    category=core
+    severity=high
+---
+Site configuration information for perl 5.18.2:
+
+Configured by strawberry-perl at Tue Apr 15 14:38:14 2014.
+
+Summary of my perl5 (revision 5 version 18 subversion 2) configuration:
+   
+  Platform:
+    osname=MSWin32, osvers=6.2, archname=MSWin32-x64-multi-thread
+    uname='Win32 strawberry-perl 5.18.2.2 #1 Tue Apr 15 14:36:23 2014 x64'
+    config_args='undef'
+    hint=recommended, useposix=true, d_sigaction=undef
+    useithreads=define, usemultiplicity=define
+    useperlio=define, d_sfio=undef, uselargefiles=define, usesocks=undef
+    use64bitint=define, use64bitall=undef, uselongdouble=undef
+    usemymalloc=n, bincompat5005=undef
+  Compiler:
+    cc='gcc', ccflags =' -s -O2 -DWIN32 -DWIN64 -DCONSERVATIVE  -DPERL_TEXTMODE_SCRIPTS -DPERL_IMPLICIT_CONTEXT -DPERL_IMPLICIT_SYS -DUSE_PERLIO -fno-strict-aliasing -mms-bitfields',
+    optimize='-s -O2',
+    cppflags='-DWIN32'
+    ccversion='', gccversion='4.7.3', gccosandvers=''
+    intsize=4, longsize=4, ptrsize=8, doublesize=8, byteorder=12345678
+    d_longlong=define, longlongsize=8, d_longdbl=define, longdblsize=12
+    ivtype='long long', ivsize=8, nvtype='double', nvsize=8, Off_t='long long', lseeksize=8
+    alignbytes=8, prototype=define
+  Linker and Libraries:
+    ld='g++', ldflags ='-s -L"D:\strawberry\perl\lib\CORE" -L"D:\strawberry\c\lib"'
+    libpth=D:\strawberry\c\lib D:\strawberry\c\x86_64-w64-mingw32\lib D:\strawberry\c\lib\gcc\x86_64-w64-mingw32\4.7.3
+    libs=-lmoldname -lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -lnetapi32 -luuid -lws2_32 -lmpr -lwinmm -lversion -lodbc32 -lodbccp32 -lcomctl32
+    perllibs=-lmoldname -lkernel32 -luser32 -lgdi32 -lwinspool -lcomdlg32 -ladvapi32 -lshell32 -lole32 -loleaut32 -lnetapi32 -luuid -lws2_32 -lmpr -lwinmm -lversion -lodbc32 -lodbccp32 -lcomctl32
+    libc=, so=dll, useshrplib=true, libperl=libperl518.a
+    gnulibc_version=''
+  Dynamic Linking:
+    dlsrc=dl_win32.xs, dlext=dll, d_dlsymun=undef, ccdlflags=' '
+    cccdlflags=' ', lddlflags='-mdll -s -L"D:\strawberry\perl\lib\CORE" -L"D:\strawberry\c\lib"'
+
+Locally applied patches:
+    
+
+---
+@INC for perl 5.18.2:
+    D:/strawberry/perl/site/lib
+    D:/strawberry/perl/vendor/lib
+    D:/strawberry/perl/lib
+    .
+
+---
+Environment for perl 5.18.2:
+    HOME (unset)
+    LANG (unset)
+    LANGUAGE (unset)
+    LD_LIBRARY_PATH (unset)
+    LOGDIR (unset)
+    PATH=C:\Windows\system32;C:\Windows;C:\Windows\system32\wbem;C:\Program Files (x86)\Intel\iCLS Client;C:\Program Files\Intel\iCLS Client;C:\Program Files\Common Files\Microsoft Shared\Windows Live;C:\Program Files (x86)\Common Files\Microsoft Shared\Windows Live;C:\Windows\System32\WindowsPowerShell\v1.0;C:\Program Files (x86)\Windows Live\Shared;C:\Program Files\Intel\Intel(R) Management Engine Components\DAL;C:\Program Files\Intel\Intel(R) Management Engine Components\IPT;C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\DAL;C:\Program Files (x86)\Intel\Intel(R) Management Engine Components\IPT;D:\strawberry\c\bin;D:\strawberry\perl\site\bin;D:\strawberry\perl\bin;C:\strawberry\c\bin;C:\strawberry\perl\bin;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files (x86)\GNU\GnuPG\pub
+    PERL_BADLANG (unset)
+    SHELL (unset)

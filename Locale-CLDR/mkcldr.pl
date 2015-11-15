@@ -31,7 +31,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '28'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 1; # This is the build number against the CLDR revision
+my $REVISION = 2; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -2972,7 +2972,7 @@ EOT
 	
 	if (keys %currencies) {
 		print $file <<EOT;
-has 'curriencies' => (
+has 'currencies' => (
 \tis\t\t\t=> 'ro',
 \tisa\t\t\t=> 'HashRef',
 \tinit_arg\t=> undef,
@@ -4606,6 +4606,7 @@ sub process_plurals {
 				my $t = length $f ? $f + 0 : '';
 				my $v = length $f;
 				my $w = length $t;
+				$t ||= 0;
 
 EOT
 				say $file "\t\t\t\t", get_format_rule( $plurals{$type}{$region}{$count});
@@ -5601,6 +5602,11 @@ sub build_text {
 		$file =~ s/::/\//g;
 	}
 	
+	my $language = lc $module;
+	$language =~ s/^.*::([^:]+)$/$1/;
+	my $name = '';
+	$name = " ( localization data for $languages->{$language} )" if exists $languages->{$language};
+	
 	my $build_text = <<EOT;
 use strict;
 use warnings;
@@ -5627,7 +5633,7 @@ my \$builder = Module::Build->new(
     add_to_cleanup      => [ 'Locale-CLDR-$cleanup-*' ],
 	configure_requires => { 'Module::Build' => '0.40' },
 	release_status => '$RELEASE_STATUS',
-	dist_abstract => 'Locale::CLDR - Data Package $module',
+	dist_abstract => 'Locale::CLDR - Data Package $module$name',
 	meta_add => {
 		keywords => [ qw( locale CLDR locale-data-pack ) ],
 		resources => {
@@ -6560,7 +6566,7 @@ sub generate_ce {
 	my $base;
 	
 	if ($character =~ /\p{Unified_Ideograph}/) {
-		if ($character =~ /\p{Block=CJK_Unified_Ideograph}/ || $character =~ /\p{Block=CJK_Compatibility_Ideographs}/) {
+		if ($character =~ /\p{Block=CJK_Unified_Ideographs}/ || $character =~ /\p{Block=CJK_Compatibility_Ideographs}/) {
 			$base = 0xFB40;
 		}
 		else {

@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.28.1
+Version 0.28.2
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.28.1');
+our $VERSION = version->declare('v0.28.2');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -1232,7 +1232,7 @@ sub BUILD {
 		my @keys = keys %{$args->{extensions}};
 
 		foreach my $key ( @keys ) {
-			my $canonical_key = $key_aliases{$key} if exists $key_aliases{$key};
+			my $canonical_key = exists $key_aliases{$key} ? $key_aliases{$key} : undef;
 			$canonical_key //= $key;
 			if ($canonical_key ne $key) {
 				$args->{extensions}{$canonical_key} = delete $args->{extensions}{$key};
@@ -1242,9 +1242,9 @@ sub BUILD {
 			die "Invalid extension name" unless exists $valid_keys{$key};
 			die "Invalid extension value" unless 
 				first { $_ eq $args->{extensions}{$key} } @{$valid_keys{$key}};
-
-			$self->_set_extensions($args->{extensions})
 		}
+
+		$self->_set_extensions($args->{extensions});
 	}
 
 	# Check for variant aliases
@@ -1312,11 +1312,15 @@ after 'BUILD' => sub {
 		$self->_clear_default_nu;
 		$self->_set_default_nu($extensions->{nu});
 	}
+	
+	if (exists $extensions->{cu}) {
+		$self->_set_default_cu($extensions->{cu});
+	}
 };
 
 # Defaults
 # Calendar, currency format
-foreach my $default (qw( ca cf )) {
+foreach my $default (qw( ca cf cu)) {
 	has "default_$default" => (
 		is			=> 'ro',
 		isa			=> 'Str',
@@ -4303,6 +4307,8 @@ If no region id is given then the current locale's is used
 sub default_currency {
 	my ($self, $region_id) = @_;
 	
+	return $self->default_cu if $self->_test_default_cu();
+	
 	$region_id //= $self->region_id;
 	
 	if (! $region_id) {
@@ -4317,7 +4323,10 @@ sub default_currency {
 	while (1) {
 		$region_id = $self->region_contained_by($region_id);
 		last unless $region_id;
-		return $default_currencies->{$region_id} if exists $default_currencies->{$region_id};
+		if (exists $default_currencies->{$region_id}) {
+			$self->_set_default_cu($default_currencies->{$region_id});
+			return $default_currencies->{$region_id};
+		}
 	}
 }
 
@@ -4333,9 +4342,9 @@ sub currency_symbol {
 	
 	$currency_id //= $self->default_currency;
 	
-	my @bundles = reverse $self->_find_bundle('curriencies');
+	my @bundles = reverse $self->_find_bundle('currencies');
 	foreach my $bundle (@bundles) {
-		my $symbol = $bundle->curriencies()->{$currency_id}{symbol};
+		my $symbol = $bundle->currencies()->{uc $currency_id}{symbol};
 		return $symbol if $symbol;
 	}
 	
@@ -4427,7 +4436,7 @@ sub _collation_type {
 sub _collation_alternate {
 	my $self = shift;
 	
-	return $self->extentions()->{ka} if ref $self->extensions() && $self->extentions()->{ka};
+	return $self->extensions()->{ka} if ref $self->extensions() && $self->extensions()->{ka};
 	my @bundles = reverse $self->_find_bundle('collation_alternate');
 	my $collation_alternate = '';
 	
