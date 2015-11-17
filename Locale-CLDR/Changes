@@ -136,7 +136,7 @@ All dates are in ISO 8601 Format
 	Updated tests to feflect the above change
 	Cleaned up variable names in test files
 
-0.28.2
+0.28.2 2015-11-19
 	Some SEO work on the build scripts
 	Fixed incorrectly named Unicode block in collation code
 	Added default currency override
