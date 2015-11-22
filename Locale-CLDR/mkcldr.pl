@@ -5605,7 +5605,7 @@ sub build_text {
 	my $language = lc $module;
 	$language =~ s/^.*::([^:]+)$/$1/;
 	my $name = '';
-	$name = " ( localization data for $languages->{$language} )" if exists $languages->{$language};
+	$name = "Perl localization data for $languages->{$language}" if exists $languages->{$language};
 	
 	my $build_text = <<EOT;
 use strict;
@@ -5633,7 +5633,7 @@ my \$builder = Module::Build->new(
     add_to_cleanup      => [ 'Locale-CLDR-$cleanup-*' ],
 	configure_requires => { 'Module::Build' => '0.40' },
 	release_status => '$RELEASE_STATUS',
-	dist_abstract => 'Locale::CLDR - Data Package $module$name',
+	dist_abstract => 'Locale::CLDR - Data Package ( $name )',
 	meta_add => {
 		keywords => [ qw( locale CLDR locale-data-pack ) ],
 		resources => {
