@@ -11,10 +11,10 @@ use Test::Exception;
 
 use ok 'Locale::CLDR';
 
-my $locale = Locale::CLDR->new('en_GB');
+my $locale = Locale::CLDR->new('de_DE');
 my $quoted = $locale->quote('abc');
-is($quoted, '“abc”', 'Quote English');
+is($quoted, '„abc“', 'Quote German');
 $quoted = $locale->quote("z $quoted z");
-is($quoted, '“z ‘abc’ z”', 'Quote English');
+is($quoted, '„z ‚abc‘ z“', 'Quote German');
 $quoted = $locale->quote("dd 'z $quoted z dd");
-is($quoted, '“dd \'z ‘z “abc” z’ z dd”', 'Quote English');
+is($quoted, '„dd \'z ‚z „abc“ z‘ z dd“', 'Quote German');

@@ -143,3 +143,8 @@ All dates are in ISO 8601 Format
 	Added tests for default currency override
 	Fixed not numeric in == warning for Plural Rules
 	Added Danish language pack
+
+0.28.3
+	Added first day of week override
+	Added tests for above
+	Added maketext emulation and tests

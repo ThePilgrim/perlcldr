@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 60;
+use Test::More tests => 61;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -129,7 +129,11 @@ is ($locale->first_day_of_week(), 7, 'First day of week recoded for DateTime');
 is($locale->era_boundry( gregorian => -12 ), 0, 'Gregorian era');
 is($locale->era_boundry( japanese => 9610217 ), 38, 'Japanese era');
 
-is($locale->week_data_min_days(), 4, 'Number of days a week must have in FR before it counts as the first week of a year');
-is($locale->week_data_first_day(), 'sun', 'First day of the week in FR when displaying calendars');
-is($locale->week_data_weekend_start(), 'sat', 'First day of the week end in FR');
-is($locale->week_data_weekend_end(), 'sun', 'Last day of the week end in FR');
+is($locale->week_data_min_days(), 4, 'Number of days a week must have in wales before it counts as the first week of a year');
+is($locale->week_data_first_day(), 'sun', 'First day of the week in wales when displaying calendars');
+is($locale->week_data_weekend_start(), 'sat', 'First day of the week end in wales');
+is($locale->week_data_weekend_end(), 'sun', 'Last day of the week end in wales');
+
+# Overrides for week data
+$locale=Locale::CLDR->new('cy_GB_u_fw_thu');
+is($locale->week_data_first_day(), 'thu', 'Override first day of the week in wales when displaying calendars');

@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.28.2
+Version 0.28.3
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.28.2');
+our $VERSION = version->declare('v0.28.3');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -494,6 +494,35 @@ Persian Calendar
 =item roc
 
 Minguo Calendar
+
+=back
+
+=item cu
+
+=item currency
+
+This extention overrides the default currency symbol for the locale.
+It's value is any valid currency identifyer.
+
+=item cf
+
+This overrides the default currency format. It can be set to one of
+C<standard> or C<account>
+
+=item fw
+
+This extention overrides the first day of the week. It can be set to 
+one of
+
+=over 12
+
+=item mon
+=item tue
+=item wed
+=item thu
+=item fri
+=item sat
+=item sun
 
 =back
 
@@ -1300,27 +1329,38 @@ after 'BUILD' => sub {
 	
 	# Fix up extension overrides
 	my $extensions = $self->extensions;
+	
+	# Calendar
 	if (exists $extensions->{ca}) {
 		$self->_set_default_ca($extensions->{ca});
 	}
 
+	# Currency format
 	if (exists $extensions->{cf}) {
 		$self->_set_default_cf($extensions->{cf});
 	}
 	
+	# Currency type
+	if (exists $extensions->{cu}) {
+		$self->_set_default_cu($extensions->{cu});
+	}
+	
+	# First day of week
+	if (exists $extensions->{fw}) {
+		$self->_set_default_fw($extensions->{fw});
+	}
+	
+	# Number type
 	if (exists $extensions->{nu}) {
 		$self->_clear_default_nu;
 		$self->_set_default_nu($extensions->{nu});
 	}
-	
-	if (exists $extensions->{cu}) {
-		$self->_set_default_cu($extensions->{cu});
-	}
+
 };
 
 # Defaults
-# Calendar, currency format
-foreach my $default (qw( ca cf cu)) {
+# Calendar, currency format, currency type, first day of week
+foreach my $default (qw( ca cf cu fw)) {
 	has "default_$default" => (
 		is			=> 'ro',
 		isa			=> 'Str',
@@ -3910,8 +3950,14 @@ uses the current locale's region.
 sub week_data_first_day {
 	my ($self, $region_id) = @_;
 	
+	if ($self->_test_default_fw) {
+		return $self->default_fw;
+	}
+	
 	my $week_data_hash = $self->_week_data_first_day();
-	return _week_data($self, $region_id, $week_data_hash);
+	my $first_day = _week_data($self, $region_id, $week_data_hash);
+	$self->_set_default_fw($first_day);
+	return $first_day;
 }
 
 =item week_data_weekend_start()
@@ -4366,6 +4412,284 @@ calendar id's in order of preference.
 
 This method returns the default calendar id for the given region. If no region id given it 
 used the region of the current locale.
+
+=back
+
+=cut
+
+has 'Lexicon' => (
+	isa => 'HashRef',
+	traits => ['Hash'],
+	init_arg => undef,
+	is => 'ro',
+	handles => {
+		'reset_lexicon' => 'clear',
+		'_add_to_lexicon' => 'set',
+		'_get_from_lexicon' => 'get',
+	},
+);
+
+=head2 Make text emulation
+
+Locale::CLDR has a Locle::Maketext alike system called LocaleText
+
+=head3 The Lexicon
+
+The Lexicon stores the items that will be localized by the localetext method. You 
+can manipulate it by the following methods
+
+=over 4
+
+=item reset_lexicon()
+
+This method empties the lexicon
+
+=item add_to_lexicon($identifier => $localized_text, ...)
+
+This method adds data to the locales lexicon.
+
+$identifier is the string passed to localetext() to get the localised version of the text. Each identfier is unique
+
+$localized_text is the value that is used to create the current locales version of the string. It uses L<Locale::Maketext|Locale::Maketext's>
+bracket formatting syntax with some additional methods and some changes to how numerate() works. See below
+
+Multiple entries can be added by one call to add_to_lexicon()
+
+=item add_plural_to_lexicon( $identifier => { $pluralform => $localized_text, ... }, ... )
+
+$identifier is the string passed to localetext() to get the localised version of the text. Each identfier is unique and must be different
+from the identifiers given to add_to_lexicon()
+
+$pluralform is one of the CLDR's plural forms, these are C<zero, one, two, few, many> and C<other>
+
+$localized_text is the value that is used to create the current locales version of the string. It uses L<Locale::Maketext|Locale::Maketext's>
+bracket formatting syntax with some additional methods and some changes to how numerate() works. See below
+
+=back
+
+=head3 Format of maketext strings
+
+The make text emulation uses the same bracket and escape mecanism as Locale::Maketext. ie ~ is used 
+to turn a [ from a metta character into a normal one and you need to doubble up the ~ if you want it to appear in
+your output. This allows you to embed into you output constructs that will change depending on the locale.
+
+=head4 Examples of output strings
+
+Due to the way macro expantion works in localetext any element of the [ ... ] construct except the first may be 
+substutied by a _1 marker
+
+=over 4
+
+=item You scored [numf,_1]
+
+localetext() will replace C<[numf,_1]> with the correctly formatted version of the number you passed in as the first paramater
+after the identifier.
+
+=item You have [plural,_1,coins]
+
+This will substutite the correct plural form of the coins text into the string
+
+=item This is [gnum,gender,_1]
+
+This will substute the correctly gendered spellout rule for the number given in _1
+
+=cut
+
+sub add_to_lexicon {
+	my $self = shift;
+	die "Incorrect number of peramaters to add_to_lexicon()\n" if @_ % 2;
+	my %parameters = @_;
+
+	foreach my $identifier (keys %parameters) {
+		$self->_add_to_lexicon( $identifier => { default => $self->_parse_localetext_text($parameters{$identifier})});
+	}
+}
+
+sub add_plural_to_lexicon {
+	my $self = shift;
+	die "Incorrect number of peramaters to add_to_lexicon()\n" if @_ % 2;
+	my %parameters = @_;
+
+	foreach my $identifier (keys %parameters) {
+		my %plurals;
+		foreach my $plural ( keys %{$parameters{$identifier}} ) {
+			die "Invalid plural form $plural for $identifier\n" 
+				unless grep { $_ eq $plural } qw(zero one two few many other);
+
+			$plurals{$plural} = $self->_parse_localetext_text($parameters{$identifier}{$plural}, 1);
+		}
+		
+		$self->_add_to_lexicon( $identifier => \%plurals );
+	}
+}
+
+# This method converts the string passed in into a sub ref and parsed out the bracketed
+# elements into method calls on the locale object
+my %methods = (
+	gnum => '_make_text_gnum',
+	numf => '_make_text_numf',
+	plural => '_make_text_plural',
+	expand => '_make_text_expand',
+);
+
+sub _parse_localetext_text {
+	my ($self, $text, $is_plural) = @_;
+	
+	my $original = $text;
+	# Short circuit if no [ in text
+	$text //= '';
+	return sub { $text } if $text !~ /\[/;
+	my $in_group = 0;
+	
+	my $sub = 'sub { join \'\' ';
+	# loop over text to find the first bracket group
+	while (length $text) {
+		my ($raw) = $text =~ /^ ( (?: (?: ~~ )*+ ~ \[ | [^\[] )++ ) /x;
+		if (length $raw) {
+			$text =~ s/^ ( (?: (?: ~~ )*+ ~ \[ | [^\[] )++ ) //gx;
+			# Fix up escapes
+			$raw =~ s/(?:~~)*+\K~\[/[/g;
+			$raw =~ s/(?:~~)*+\K~,/,/g;
+			$raw =~ s/~~/~/g;
+			
+			# Escape stuff for perl
+			$raw =~ s/\\/\\\\/g;
+			$raw =~ s/'/\\'/g;
+			
+			$sub .= ", '$raw'";
+		}
+		
+		last unless length $text; # exit loop if nothing left to do
+		my ($method) = $text =~ /^( \[ [^\]]+? \] )/x;
+		$text =~ s/^( \[ [^\]]+? \] )//xg;
+		
+		# check for no method but have text left
+		die "Malformatted make text data '$original'"
+			if ! length $method && length $text;
+			
+		# Check for a [ in the method as this is an error
+		die "Malformatted make text data '$original'"
+			if $method =~ /^\[.*\[/;
+		
+		# check for [_\d+] This just adds a stringified version of the params
+		if ( my ($number) = $method =~ / \[ \s* _ [0-9]+ \s* \] /x ) {
+			if ($number == 0) {# Special case
+				$sub .= ', "@_[1 .. @_ -1 ]"';
+			}
+			else {
+				$sub .= ', "$_[$number]"';
+			}
+			next;
+		}
+		
+		# now we should have [ method, param, ... ]
+		# strip of the [ and ]
+		$method =~ s/ \[ \s* (.*?) \s* \] /$1/x;
+		
+		# sort out ~, and ~~
+		$method =~ s/(?:~~)*+\K~,/\x{00}/g;
+		$method =~ s/~~/~/g;
+		($method, my @params) = split /,/, $method;
+		
+		# if $is_plural is true we wont have a method
+		if ($is_plural) {
+			$params[0] = $method;
+			$method = 'expand';
+		}
+		
+		die "Unknown method $method in make text data '$original'"
+			unless exists $methods{lc $method};
+
+		@params = 
+			map { s/([\\'])/\\$1/g; $_ }
+			map { s/_([0-9])+/\$_[$1]/gx; $_ }
+			map { s/\x{00}/,/g; $_ }
+			@params;
+		
+		$sub .= ", \$_[0]->$methods{lc $method}("
+			. (scalar @params ? '"' : '')
+			. join('","', @params)
+			. (scalar @params ? '"' : '')
+			. '), ';
+	}
+	
+	$sub .= '}';
+	
+	return eval "$sub";
+}
+
+sub _make_text_gnum {
+	my ($self, $number, $type, $gender, $declention) = @_;
+	no warnings "experimental::smartmatch";
+	$type //= 'ordinal';
+	$gender //= 'neuter';
+	
+	die "Invalid number type ($type) in makelocale\n"
+		unless $type ~~ [qw(ordinal cardinal)];
+	
+	die "Invalid gender ($gender) in makelocale\n"
+		unless $gender ~~ [qw(masculine feminine nuter)];
+
+	my @names = (
+		( defined $declention ? "spellout-$type-$gender-$declention" : ()),
+		"spellout-$type-$gender",
+		"spellout-$type",
+	);
+	
+	my %formats;
+	@formats{ grep { /^spellout-$type/ } $self->_get_valid_algorithmic_formats() } = ();
+	
+	foreach my $name (@names) {
+		return $self->format_number($number, $name) if exists $formats{$name};
+	}
+	
+	return $self->format_number($number);
+}
+
+sub _make_text_numf {
+	my ( $self, $number ) = @_;
+	
+	return $self->format_number($number);
+}
+
+sub _make_text_plural {
+	my ($self, $number, $identifier) = @_;
+	
+	my $plural = $self->plural($number);
+	
+	my $text = $self->_get_from_lexicon($identifier)->{$plural};
+	$number = $self->_make_text_numf($number);
+	
+	return $self->$text($number);
+}
+
+sub _make_text_expand {
+	shift;
+	return @_;
+}
+
+=over 4
+
+=item localetext($identifer, @parameters)
+
+This method looks up the identifier in the current locals lexicon and then formats the returned text
+as part in the current locale the identifier is the same as the identifier passed into the 
+add_to_lexicon() metod. The parameters are the values required by the [ ... ] expantions in the 
+localised text.
+
+=cut
+
+sub localetext {
+	my ($self, $identifier, @params) = @_;
+	
+	my $text = $self->_get_from_lexicon($identifier);
+	
+	if ( ref $params[-1] eq 'HASH' ) {
+		my $plural = $params[-1]{plural};
+		return $text->{$plural}($self, @params[0 .. @params -1]);
+	}
+	return $text->{default}($self, @params);
+}
 
 =back
 

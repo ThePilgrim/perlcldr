@@ -6,7 +6,7 @@ use warnings;
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Test::More tests => 60;
+use Test::More tests => 61;
 use Test::Exception;
 
 use ok 'Locale::CLDR';
@@ -134,6 +134,10 @@ is($locale->week_data_min_days(), 1, 'Number of days a week must have in en befo
 is($locale->week_data_first_day(), 'sun', 'First day of the week in en when displaying calendars');
 is($locale->week_data_weekend_start(), 'sat', 'First day of the week end in en');
 is($locale->week_data_weekend_end(), 'sun', 'Last day of the week end in en');
+
+# Overrides for week data
+$locale=Locale::CLDR->new('en_US_u_fw_thu');
+is($locale->week_data_first_day(), 'thu', 'Override first day of the week in US when displaying calendars');
 
 $locale = Locale::CLDR->new('en_US_u_ca_chinese');
 is_deeply($locale->month_patterns('stand-alone', 'abbreviated', 'leap'), [
