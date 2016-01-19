@@ -28,7 +28,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0;
 my $CLDR_VERSION = 25;
-my $REVISION = 4;
+my $REVISION = 5;
 our $VERSION = version->parse(join '.', $API_VERSION, $CLDR_VERSION, $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -1871,6 +1871,7 @@ sub process_posix {
     $no  .= ':no:n'  unless (grep /^n/i, split /:/, "$yes:$no");
 
     s/:/|/g foreach ($yes, $no);
+	s/'/\\'/g foreach ($yes, $no);
 
     print $file <<EOT if defined $yes;
 has 'yesstr' => (
@@ -2479,7 +2480,7 @@ EOT
                     say $file join ",\n\t\t\t\t\t\t\t",
                         map {
                             my $month = $_;
-                            $month =~ s/'/\\'/;
+                            $month =~ s/'/\\'/g;
                             $month = "'$month'";
                         } @{$calendars{months}{$type}{$context}{$width}{nonleap}};
                     print $file "\t\t\t\t\t\t],\n\t\t\t\t\t\tleap => [\n\t\t\t\t\t\t\t";
@@ -2487,7 +2488,7 @@ EOT
                     say $file join ",\n\t\t\t\t\t\t\t",
                         map {
                             my $month = $_;
-                            $month =~ s/'/\\'/;
+                            $month =~ s/'/\\'/g;
                             $month = "'$month'";
                         } @{$calendars{months}{$type}{$context}{$width}{leap}};
                     say $file "\t\t\t\t\t\t],";
