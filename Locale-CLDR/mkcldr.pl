@@ -93,7 +93,11 @@ my $xml_parser = XML::Parser->new(
 );
 
 my $vf = XML::XPath->new(
-    parser => $xml_parser,
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
     filename => File::Spec->catfile($base_directory, 
     'main',
     'root.xml'),
@@ -116,7 +120,12 @@ my $file_name = File::Spec->catfile($base_directory,
 );
 
 my $xml = XML::XPath->new(
-    File::Spec->catfile($file_name)
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name)
 );
 
 # Number Formatter
@@ -142,7 +151,12 @@ $file_name = File::Spec->catfile($base_directory,
 );
 
 $xml = XML::XPath->new(
-    File::Spec->catfile($file_name));
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name));
 
 open my $file, '>', File::Spec->catfile($lib_directory, 'NumberingSystems.pm');
 
@@ -161,7 +175,12 @@ $file_name = File::Spec->catfile($base_directory,
 );
 
 my $plural_xml = XML::XPath->new(
-    File::Spec->catfile($file_name));
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name));
 	
 $file_name = File::Spec->catfile($base_directory,
     'supplemental',
@@ -169,7 +188,12 @@ $file_name = File::Spec->catfile($base_directory,
 );
 
 my $ordanal_xml = XML::XPath->new(
-    File::Spec->catfile($file_name));
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name));
 
 open my $file, '>', File::Spec->catfile($lib_directory, 'Plurals.pm');
 
@@ -185,7 +209,12 @@ $file_name = File::Spec->catfile($base_directory,
 );
 
 my $plural_ranges_xml = XML::XPath->new(
-    File::Spec->catfile($file_name));
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name));
 
 process_plural_ranges($file, $plural_ranges_xml);
 process_footer($file, 1);
@@ -194,7 +223,12 @@ close $file;
 # The supplemental/supplementalMetaData.xml file contains a list of all valid
 # locale codes
 $xml = XML::XPath->new(
-    File::Spec->catfile($base_directory,
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($base_directory,
         'supplemental',
         'supplementalMetadata.xml',
     )
@@ -225,7 +259,12 @@ close $file;
 
 # File for era boundaries
 $xml = XML::XPath->new(
-    File::Spec->catfile($base_directory,
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($base_directory,
         'supplemental',
         'supplementalData.xml',
     )
@@ -300,7 +339,14 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $percent = ++$count_files / $num_files * 100;
     my $full_file_name = File::Spec->catfile($transform_directory, $file_name);
     say sprintf("Processing Transformation File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent) if $verbose;
-	$xml = XML::XPath->new($full_file_name);
+	$xml = XML::XPath->new(
+		parser => XML::Parser->new(
+			NoLWP => 1,
+			ErrorContext => 2,
+			ParseParamEnt => 1,
+		),
+		filename => $full_file_name
+	);
     process_transforms($transformations_directory, $xml, $full_file_name);
 }
 
@@ -332,20 +378,35 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
         next unless grep {$file_name eq $_} @ARGV;
     }
     $xml = XML::XPath->new(
-        File::Spec->catfile($main_directory, $file_name)
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($main_directory, $file_name)
     );
 
     my $segment_xml = undef;
     if (-f File::Spec->catfile($segmentation_directory, $file_name)) {
         $segment_xml = XML::XPath->new(
-            File::Spec->catfile($segmentation_directory, $file_name)
+            parser => XML::Parser->new(
+				NoLWP => 1,
+				ErrorContext => 2,
+				ParseParamEnt => 1,
+			),
+			filename => File::Spec->catfile($segmentation_directory, $file_name)
         );
     }
 
 	my $rbnf_xml = undef;
 	if (-f File::Spec->catfile($rbnf_directory, $file_name)) {
         $rbnf_xml = XML::XPath->new(
-            File::Spec->catfile($rbnf_directory, $file_name)
+            parser => XML::Parser->new(
+				NoLWP => 1,
+				ErrorContext => 2,
+				ParseParamEnt => 1,
+			),
+			filename => File::Spec->catfile($rbnf_directory, $file_name)
         );
     }
 
@@ -617,7 +678,12 @@ sub process_valid_keys {
     my %keys;
     foreach my $file_name (@files) {
         my $xml = XML::XPath->new(
-            $file_name
+            parser => XML::Parser->new(
+				NoLWP => 1,
+				ErrorContext => 2,
+				ParseParamEnt => 1,
+			),
+			filename => $file_name
         );
 
         my @keys = findnodes($xml, '/ldmlBCP47/keyword/key')->get_nodelist;
@@ -3092,7 +3158,12 @@ sub process_day_period_data {
 	# The supplemental/dayPeriods.xml file contains a list of all valid
 	# day periods
         my $xml = XML::XPath->new(
-            File::Spec->catfile(
+            parser => XML::Parser->new(
+				NoLWP => 1,
+				ErrorContext => 2,
+				ParseParamEnt => 1,
+			),
+			filename => File::Spec->catfile(
 				$base_directory,
 				'supplemental',
 				'dayPeriods.xml',
