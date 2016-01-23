@@ -1002,6 +1002,46 @@ sub process_collation_element {
 	return \@collation_elements;
 }
 
+{
+	my $CJK_BASE = 0x4E00;
+	my $CJK_LIMIT = 0x9FCC+1;
+
+	my $CJK_COMPAT_USED_BASE = 0xFA0E;
+	my $CJK_COMPAT_USED_LIMIT = 0xFA2F+1;
+
+	my $CJK_A_BASE = 0x3400;
+	my $CJK_A_LIMIT = 0x4DB5+1;
+	my $CJK_B_BASE = 0x20000;
+	my $CJK_B_LIMIT = 0x2A6D6+1;
+
+	my $CJK_C_BASE = 0x2A700;
+	my $CJK_C_LIMIT = 0x2B734+1;
+
+	my $CJK_D_BASE = 0x2B740;
+	my $CJK_D_LIMIT = 0x2B81D+1;
+
+	my $NON_CJK_OFFSET = 0x110000;
+
+	sub swapCJK {
+		my $i = shift;
+		if ($i >= $CJK_BASE) {
+			return $i - $CJK_BASE if ($i < $CJK_LIMIT);
+			return $i + $NON_CJK_OFFSET if ($i < $CJK_COMPAT_USED_BASE);
+			return $i - $CJK_COMPAT_USED_BASE + ($CJK_LIMIT - $CJK_BASE) if ($i < $CJK_COMPAT_USED_LIMIT);
+			return $i + $NON_CJK_OFFSET if ($i < $CJK_B_BASE);
+			return $i if ($i < $CJK_B_LIMIT); # non-BMP-CJK
+			return $i + $NON_CJK_OFFSET if ($i < $CJK_C_BASE);
+			return $i if ($i < $CJK_C_LIMIT); # non-BMP-CJK
+            return $i + $NON_CJK_OFFSET if ($i < $CJK_D_BASE);
+            return $i if ($i < $CJK_D_LIMIT); # non-BMP-CJK
+			return $i + $NON_CJK_OFFSET;  # non-CJK
+		}
+		return $i + $NON_CJK_OFFSET if ($i < $CJK_A_BASE);
+		return $i - $CJK_A_BASE + ($CJK_LIMIT - $CJK_BASE) + ($CJK_COMPAT_USED_LIMIT - $CJK_COMPAT_USED_BASE) if ($i < $CJK_A_LIMIT);
+		return $i + $NON_CJK_OFFSET; # non-CJK
+	}
+}
+
 sub generate_waight_from {
 	my ($character) = @_;
 	my $code_point = ord $character;
@@ -1092,45 +1132,7 @@ sub divideAndRoundUp {
 	return int (1 + ($_[0]-1)/$_[1]);
 }
 
-{
-	my $CJK_BASE = 0x4E00;
-	my $CJK_LIMIT = 0x9FCC+1;
 
-	my $CJK_COMPAT_USED_BASE = 0xFA0E;
-	my $CJK_COMPAT_USED_LIMIT = 0xFA2F+1;
-
-	my $CJK_A_BASE = 0x3400;
-	my $CJK_A_LIMIT = 0x4DB5+1;
-	my $CJK_B_BASE = 0x20000;
-	my $CJK_B_LIMIT = 0x2A6D6+1;
-
-	my $CJK_C_BASE = 0x2A700;
-	my $CJK_C_LIMIT = 0x2B734+1;
-
-	my $CJK_D_BASE = 0x2B740;
-	my $CJK_D_LIMIT = 0x2B81D+1;
-
-	my $NON_CJK_OFFSET = 0x110000;
-
-	sub swapCJK {
-		my $i = shift;
-		if ($i >= $CJK_BASE) {
-			return $i - $CJK_BASE if ($i < $CJK_LIMIT);
-			return $i + $NON_CJK_OFFSET if ($i < $CJK_COMPAT_USED_BASE);
-			return $i - $CJK_COMPAT_USED_BASE + ($CJK_LIMIT - $CJK_BASE) if ($i < $CJK_COMPAT_USED_LIMIT);
-			return $i + $NON_CJK_OFFSET if ($i < $CJK_B_BASE);
-			return $i if ($i < $CJK_B_LIMIT); # non-BMP-CJK
-			return $i + $NON_CJK_OFFSET if ($i < $CJK_C_BASE);
-			return $i if ($i < $CJK_C_LIMIT); # non-BMP-CJK
-            return $i + $NON_CJK_OFFSET if ($i < $CJK_D_BASE);
-            return $i if ($i < $CJK_D_LIMIT); # non-BMP-CJK
-			return $i + $NON_CJK_OFFSET;  # non-CJK
-		}
-		return $i + $NON_CJK_OFFSET if ($i < $CJK_A_BASE);
-		return $i - $CJK_A_BASE + ($CJK_LIMIT - $CJK_BASE) + ($CJK_COMPAT_USED_LIMIT - $CJK_COMPAT_USED_BASE) if ($i < $CJK_A_LIMIT);
-		return $i + $NON_CJK_OFFSET; # non-CJK
-	}
-}
  
 sub expand_text {
 	my $string = shift;
