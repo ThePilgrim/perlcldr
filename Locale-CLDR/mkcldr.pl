@@ -468,8 +468,9 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 }
 
 # Write out a dummy transformation module to keep CPAN happy
-open my $file, '>', File::Spec->catfile($lib_directory, 'Transformations.pm');
-print $file <<EOT;
+{
+	open my $file, '>', File::Spec->catfile($lib_directory, 'Transformations.pm');
+	print $file <<EOT;
 package Locale::CLDR::Transformations;
 
 =head1 Locale::CLDR::Transformations - Dummy base class to keep CPAN happy
@@ -482,6 +483,7 @@ our $VERSION = version->declare('v$VERSION');
 
 1;
 EOT
+}
 
 push @transformation_list, 'Locale::CLDR::Transformations';
 
@@ -5509,11 +5511,14 @@ sub copy_tests {
 	my $destination_directory = File::Spec->catdir($distributions_directory, $distribution, 't');
 	make_path($destination_directory) unless -d $destination_directory;
 	
-	opendir my $dir, $source_directory;
+	my $files = 0;
+	opendir( my ($dir), $source_directory );
 	while (my $file = readdir($dir)) {
 		next if $file =~/^\./;
 		copy(File::Spec->catfile($source_directory, $file), $destination_directory);
+		$files++;
 	}
+	return $files;
 }
 
 sub make_distribution {
@@ -5712,7 +5717,9 @@ sub build_language_distributions {
 		make_path($distribution)
 			unless -d $distribution;
 
-		copy_tests($language);
+		unless (copy_tests($language)) {
+			create_default_tests($language);
+		}
 	
 		open my $build_file, '>', File::Spec->catfile($distributions_directory, $language,'Build.PL');
 		print $build_file build_text("Locales::$file");
@@ -5739,6 +5746,62 @@ sub build_language_distributions {
 		make_distribution(File::Spec->catdir($distributions_directory, $language));
 	}
 }
+
+sub create_default_tests {
+	my $distribution = shift;
+	my $destination_directory = File::Spec->catdir($distributions_directory, $distribution, 't');
+	make_path($destination_directory) unless -d $destination_directory;
+	
+	my $test_file_contents = <<EOT;
+#!perl -T
+use Test::More tests => 2;
+use Test::Exception;
+use ok( 'Locale::CLDR' );
+my \$locale;
+lives_ok { \$locale = Locale::CLDR->new('$distribution') } 'Can create locale for $distribution';
+
+diag( "Testing Locale::CLDR $Locale::CLDR::VERSION, Perl $], $^X" );
+EOT
+	
+	open my $file, '>', File::Spec->catfile($destination_directory, '00-load.t');
+	
+	print $file $test_file_contents;
+	
+	$destination_directory = File::Spec->catdir($distributions_directory, $distribution);
+	open my $readme, '>', File::Spec->catfile($destination_directory, 'README');
+	
+	print $readme <<EOT;
+Locale-CLDR
+
+Please note that this code requires Perl 5.10.1 and above in the main. There are some parts that require
+Perl 5.18 and if you are using Unicode in Perl you really should be using Perl 5.18 or later
+
+The general overview of the project is to convert the XML of the CLDR into a large number of small Perl
+modules that can be loaded from the main Local::CLDR when needed to do what ever localisation is required.
+
+Note that the API is not yet fixed. I'll try and keep things that have tests stable but any thing else 
+is at your own risk.
+
+INSTALLATION
+
+To install this module, run the following commands:
+
+	perl Build.PL
+	./Build
+	./Build test
+	./Build install
+
+Locale Data
+This is a locale data package, you will need the Locale::CLDR package to get it to work, which if you are using the 
+CPAN client should have been installed for you.
+
+WARNING
+This package has inceficient tests. If you feel like helping get hold of the Locale::CLDR::Locales::En package from CPAN
+or use the git repository at https://github.com/ThePilgrim/perlcldr and use the tests from that to create a propper test 
+suite for this language. Please send me a copy of the tests, either by a git pull request, which will get your name into
+the git history or by emailing me using me email address on CPAN.
+EOT
+}	
 
 sub build_region_distributions{
 }
