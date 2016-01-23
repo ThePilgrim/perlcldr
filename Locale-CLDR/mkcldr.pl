@@ -145,6 +145,11 @@ close $file;
 open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
 write_out_collator($file);
 close $file;
+{# Collator
+	open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
+	write_out_collator($file);
+	close $file;
+}
 
 # Likely sub-tags
 open $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
@@ -1619,17 +1624,18 @@ EOT
             if (length $start) {
                 my ($y, $m, $d) = split /-/, $start;
 				die $start unless length "$y$m$d";
-                $m //= 0;
-                $d //= 0;
-				$y //= 0;
+                $m ||= 0;
+                $d ||= 0;
+				$y ||= 0;
                 $start = sprintf('%d%0.2d%0.2d',$y,$m,$d);
 				$start =~ s/^0+//;
                 say $file "\t\t\t\t\$return = $type if \$date >= $start;";
             }
             if (length $end) {
                 my ($y, $m, $d) = split /-/, $end;
-                $m //= '0';
-                $d //= '0';
+                $m ||= 0;
+                $d ||= 0;
+				$y ||= 0;
                 $end = sprintf('%d%0.2d%0.2d',$y,$m,$d);
 				$end =~ s/^0+//;
                 say $file "\t\t\t\t\$return = $type if \$date <= $end;";

@@ -4489,7 +4489,7 @@ after the identifier.
 
 This will substutite the correct plural form of the coins text into the string
 
-=item This is [gnum,gender,_1]
+=item This is [gnum,_1,type,gender,declention]
 
 This will substute the correctly gendered spellout rule for the number given in _1
 
