@@ -141,10 +141,6 @@ open my $file, '>', File::Spec->catfile($lib_directory, 'NumberFormatter.pm');
 write_out_number_formatter($file);
 close $file;
 
-# Collator
-open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
-write_out_collator($file);
-close $file;
 {# Collator
 	open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
 	write_out_collator($file);
