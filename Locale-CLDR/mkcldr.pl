@@ -2,7 +2,11 @@
 
 use v5.18;
 use strict;
+use warnings;
+
 use warnings 'FATAL';
+no warnings "experimental::regex_sets";
+
 use open ':encoding(utf8)', ':std';
 
 use FindBin;
@@ -19,8 +23,6 @@ use Text::ParseWords;
 use List::MoreUtils qw( any );
 use List::Util qw( min max );
 use Unicode::Normalize('NFD');
- 
-no warnings "experimental::regex_sets";
 
 my $start_time = time();
 
@@ -853,6 +855,46 @@ EOT
 	}
 }
 
+
+use constant CJK_BASE => 0x4E00;
+use constant CJK_LIMIT => 0x9FCC+1;
+
+use constant CJK_COMPAT_USED_BASE => 0xFA0E;
+use constant CJK_COMPAT_USED_LIMIT => 0xFA2F+1;
+
+use constant CJK_A_BASE => 0x3400;
+use constant CJK_A_LIMIT => 0x4DB5+1;
+use constant CJK_B_BASE => 0x20000;
+use constant CJK_B_LIMIT => 0x2A6D6+1;
+
+use constant CJK_C_BASE => 0x2A700;
+use constant CJK_C_LIMIT => 0x2B734+1;
+
+use constant CJK_D_BASE => 0x2B740;
+use constant CJK_D_LIMIT => 0x2B81D+1;
+
+use constant NON_CJK_OFFSET => 0x110000;
+
+sub swapCJK {
+	my $i = shift;
+	if ($i >= CJK_BASE) {
+		return $i - CJK_BASE if ($i < CJK_LIMIT);
+		return $i + NON_CJK_OFFSET if ($i < CJK_COMPAT_USED_BASE);
+		return $i - CJK_COMPAT_USED_BASE + (CJK_LIMIT - CJK_BASE) if ($i < CJK_COMPAT_USED_LIMIT);
+		return $i + NON_CJK_OFFSET if ($i < CJK_B_BASE);
+		return $i if ($i < CJK_B_LIMIT); # non-BMP-CJK
+		return $i + NON_CJK_OFFSET if ($i < CJK_C_BASE);
+		return $i if ($i < CJK_C_LIMIT); # non-BMP-CJK
+        return $i + NON_CJK_OFFSET if ($i < CJK_D_BASE);
+        return $i if ($i < CJK_D_LIMIT); # non-BMP-CJK
+		return $i + NON_CJK_OFFSET;  # non-CJK
+	}
+	return $i + NON_CJK_OFFSET if ($i < CJK_A_BASE);
+	return $i - CJK_A_BASE + (CJK_LIMIT - CJK_BASE) + (CJK_COMPAT_USED_LIMIT - CJK_COMPAT_USED_BASE) if ($i < CJK_A_LIMIT);
+	return $i + NON_CJK_OFFSET; # non-CJK
+}
+
+
 sub process_collation_base {
 	my ($Allkeys_in, $Allkeys_out) = @_;
 	
@@ -938,7 +980,7 @@ EOT
 		print $Allkeys_out "\t\t\t$character_out => '";
 		my @ce = @{$characters{$character} || generate_waight_from($character) };
 		foreach my $ce (@ce) {
-			$ce = join "\x{0002}", @$ce;
+			$ce = join "\x{0002}", map { defined $_ ? $_ : '' } @$ce;
 		}
 		my $ce = join("\x{0001}", @ce) =~ s/([\\'])/\\$1/r;
 		print $Allkeys_out $ce, "',\n";
@@ -965,7 +1007,7 @@ EOT
 sub process_collation_element_from_character {
 	my ($original, $levels) = @_;
 	my @collation_elements = @$original;
-	$levels =~ tr/ //d;
+	$levels =~ tr/ //d if defined $levels;
 	if ($levels) {
 		my @levels = map {chr hex } split/,/, $levels;
 		if (@levels == 1) {
@@ -1002,46 +1044,6 @@ sub process_collation_element {
 	}
 	
 	return \@collation_elements;
-}
-
-{
-	my $CJK_BASE = 0x4E00;
-	my $CJK_LIMIT = 0x9FCC+1;
-
-	my $CJK_COMPAT_USED_BASE = 0xFA0E;
-	my $CJK_COMPAT_USED_LIMIT = 0xFA2F+1;
-
-	my $CJK_A_BASE = 0x3400;
-	my $CJK_A_LIMIT = 0x4DB5+1;
-	my $CJK_B_BASE = 0x20000;
-	my $CJK_B_LIMIT = 0x2A6D6+1;
-
-	my $CJK_C_BASE = 0x2A700;
-	my $CJK_C_LIMIT = 0x2B734+1;
-
-	my $CJK_D_BASE = 0x2B740;
-	my $CJK_D_LIMIT = 0x2B81D+1;
-
-	my $NON_CJK_OFFSET = 0x110000;
-
-	sub swapCJK {
-		my $i = shift;
-		if ($i >= $CJK_BASE) {
-			return $i - $CJK_BASE if ($i < $CJK_LIMIT);
-			return $i + $NON_CJK_OFFSET if ($i < $CJK_COMPAT_USED_BASE);
-			return $i - $CJK_COMPAT_USED_BASE + ($CJK_LIMIT - $CJK_BASE) if ($i < $CJK_COMPAT_USED_LIMIT);
-			return $i + $NON_CJK_OFFSET if ($i < $CJK_B_BASE);
-			return $i if ($i < $CJK_B_LIMIT); # non-BMP-CJK
-			return $i + $NON_CJK_OFFSET if ($i < $CJK_C_BASE);
-			return $i if ($i < $CJK_C_LIMIT); # non-BMP-CJK
-            return $i + $NON_CJK_OFFSET if ($i < $CJK_D_BASE);
-            return $i if ($i < $CJK_D_LIMIT); # non-BMP-CJK
-			return $i + $NON_CJK_OFFSET;  # non-CJK
-		}
-		return $i + $NON_CJK_OFFSET if ($i < $CJK_A_BASE);
-		return $i - $CJK_A_BASE + ($CJK_LIMIT - $CJK_BASE) + ($CJK_COMPAT_USED_LIMIT - $CJK_COMPAT_USED_BASE) if ($i < $CJK_A_LIMIT);
-		return $i + $NON_CJK_OFFSET; # non-CJK
-	}
 }
 
 sub generate_waight_from {
@@ -1100,7 +1102,7 @@ sub generate_waight_from {
 	}
 	else {
 		my $last1 = int($last0 / $final4Count);
-		my $last0 %= $final4Count;
+		$last0 %= $final4Count;
 
 		my $last2 = int($last1 / $medialCount);
 		$last1 %= $medialCount;
@@ -2471,7 +2473,7 @@ sub process_units {
 		}
 		
 		foreach my $unit_type ($units->get_nodelist) {
-			my $unit_type_name = $unit_type->getAttribute('type');
+			my $unit_type_name = $unit_type->getAttribute('type') // '';
 			my $unit_type_alias = findnodes($xpath, qq(/ldml/units/unitLength[\@type="$length"]/unit[\@type="$unit_type_name"]/alias));
 			if ($unit_type_alias->size) {
 				my ($node) = $unit_type_alias->get_nodelist;
@@ -2484,7 +2486,7 @@ sub process_units {
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
 
-				my $count = $unit_pattern->getAttribute('count');
+				my $count = $unit_pattern->getAttribute('count') || 1;
 				$count = 'name' if $unit_pattern->getLocalName eq 'displayName';
 				$count = 'per' if $unit_pattern->getLocalName eq 'perUnitPattern';
 				if ($unit_pattern->getLocalName eq 'coordinateUnitPattern') {
@@ -2704,7 +2706,7 @@ sub process_numbers {
 	my %symbols;
 	my $symbols_nodes = findnodes($xpath, '/ldml/numbers/symbols');
 	foreach my $symbols ($symbols_nodes->get_nodelist) {
-		my $type = $symbols->getAttribute('numberSystem');
+		my $type = $symbols->getAttribute('numberSystem') // '';
 		foreach my $symbol ( qw( alias decimal group list percentSign minusSign plusSign exponential superscriptingExponent perMille infinity nan currencyDecimal currencyGroup timeSeparator) ) {
 			if ($symbol eq 'alias') {
 				my $nodes = findnodes($xpath, qq(/ldml/numbers/symbols[\@numberSystem="$type"]/$symbol/\@path));
@@ -2725,7 +2727,7 @@ sub process_numbers {
 	foreach my $format_type ( qw( decimalFormat percentFormat scientificFormat ) ) {
 		my $format_nodes = findnodes($xpath, qq(/ldml/numbers/${format_type}s));
 		foreach my $format_node ($format_nodes->get_nodelist) {
-			my $number_system = $format_node->getAttribute('numberSystem');
+			my $number_system = $format_node->getAttribute('numberSystem') // '';
 			my $format_xpath = qq(/ldml/numbers/${format_type}s[\@numberSystem="$number_system"]);
 			$format_xpath = qq(/ldml/numbers/${format_type}s[not(\@numberSystem)]) unless $number_system;
 			my $format_alias_nodes = findnodes($xpath, "$format_xpath/alias");
@@ -3121,7 +3123,7 @@ has 'region_contains' => (
 \tdefault\t\t=> sub { {
 EOT
 
-	foreach my $region ( sort { $a <=> $b || $a cmp $b } keys %contains ) {
+	foreach my $region ( sort { ($a =~ /^\d$/a && $b =~ /^\d$/a && $a <=> $b ) || $a cmp $b } keys %contains ) {
 		say $file "\t\t'$region' => [ qw( @{$contains{$region}} ) ], ";
 	}
 	
@@ -3136,7 +3138,7 @@ has 'region_contained_by' => (
 \tdefault\t\t=> sub { {
 EOT
 
-	foreach my $region ( sort { $a <=> $b || $a cmp $b } keys %contained_by ) {
+	foreach my $region ( sort { ($a =~ /^\d$/a && $b =~ /^\d$/a && $a <=> $b )  || $a cmp $b } keys %contained_by ) {
 		say $file "\t\t'$region' => '$contained_by{$region}', ";
 	}
 	
@@ -3219,7 +3221,7 @@ EOT
                     
                     say $file join ",\n\t\t\t\t\t\t\t",
                         map {
-                            my $month = $_;
+                            my $month = $_ // '';
                             $month =~ s/'/\\'/g;
                             $month = "'$month'";
                         } @{$calendars{months}{$type}{$context}{$width}{nonleap}};
@@ -3489,7 +3491,7 @@ EOT
                     my $name = $calendars{eras}{$ctype}{$type}{$_};
                     $name =~ s/'/\\'/;
                     "'$_' => '$name'";
-                } sort { $a <=> $b } keys %{$calendars{eras}{$ctype}{$type}};
+                } sort { ($a =~ /^\d+$/a ? $a : 0) <=> ($b =~ /^\d+$/a ? $b : 0) } keys %{$calendars{eras}{$ctype}{$type}};
                 say $file "\n\t\t\t},";
             }
             say $file "\t\t},";
@@ -3733,7 +3735,7 @@ EOT
 							say $file "\t\t\t\t'$width' => {";
 								foreach my $type ( sort keys %{$calendars{cyclic_name_sets}{$ctype}{$context}{$width}}) {
 								say $file "\t\t\t\t\t'$type' => {";
-								foreach my $id (sort { $a <=> $b } keys %{$calendars{cyclic_name_sets}{$ctype}{$context}{$width}{$type}} ) {
+								foreach my $id (sort { ($a =~ /^\d+$/a ? $a : 0) <=> ($b =~ /^\d+$/a ? $b : 0) } keys %{$calendars{cyclic_name_sets}{$ctype}{$context}{$width}{$type}} ) {
 									if ($id eq 'alias') {
 										print $file <<EOT;
 \t\t\t\t\t\talias => {
@@ -4861,6 +4863,7 @@ sub process_transform_data {
 		
 
         # Check for conversion rules
+		$terms[0] //= '';
         if ($terms[0] =~ s/^:://) {
             push @transforms, process_transform_conversion(\@terms, $direction);
             next;
@@ -4868,7 +4871,7 @@ sub process_transform_data {
 
         # Check for Variables
 		if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
-		    my $value = join (' ', @terms[2 .. @terms]);
+		    my $value = join (' ', map { defined $_ ? $_ : '' } @terms[2 .. @terms]);
 			$value =~ s/\[ /[/g;
 			$value =~ s/ \]/]/g;
             $vars{$terms[0]} = process_transform_substitute_var(\%vars, $value);
@@ -4888,7 +4891,11 @@ sub process_transform_data {
         }
     }
     @transforms = reverse @transforms if $direction eq "\x{2190}";
-
+	
+	# Some of these files use non character code points so turn of the 
+	# non character warning
+	no warnings "utf8";
+	
     # Print out transforms
     print $file <<EOT;
 BEGIN {
@@ -4903,7 +4910,7 @@ has 'transforms' => (
 \tinit_arg => undef,
 \tdefault => sub { [
 EOT
-    if ($transforms[0]{type} ne 'filter') {
+    if (($transforms[0]{type} // '') ne 'filter') {
         unshift @transforms, {
             type => 'filter',
             match => qr/\G./m,
@@ -4920,8 +4927,8 @@ EOT
 \t\t\tdata => [
 EOT
 	foreach my $transform (@transforms) {
-        if ($transform->{type} ne $previous) {
-			$previous = $transform->{type};
+        if (($transform->{type} // '' ) ne $previous) {
+			$previous = $transform->{type} // '';
 			print $file <<EOT;
 \t\t\t],
 \t\t},
@@ -5060,7 +5067,7 @@ sub process_transform_filter {
 sub process_transform_substitute_var {
     my ($vars, $string) = @_;
 
-    return $string =~ s/(\$\p{XID_Start}\p{XID_Continue}*)/$vars->{$1}/gr;
+    return $string =~ s!(\$\p{XID_Start}\p{XID_Continue}*)!$vars->{$1} // q()!egr;
 }
 
 sub process_transform_rule_forward {
@@ -5113,7 +5120,7 @@ sub process_transform_rule_forward {
 
 	# Strip out quotes
 	foreach my $term (@before, @after, @replace, @result, @revisit) {
-		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\\Q$1\\E/g;
+		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\Q$1\E/g;
 		$term =~ s/(["'])(?1)/$1/g;
 	}
 	
@@ -5179,7 +5186,7 @@ sub process_transform_rule_backward {
 	foreach my $term (@before, @after, @replace, @result, @revisit) {
 	    $term =~ s/(?:\\\\)*+\K\\([^\\])/\Q$1\E/g;
 		$term =~ s/\\\\/\\/g;
-		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\\Q$1\\E/g;
+		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\Q$1\E/g;
 		$term =~ s/(["'])(?1)/$1/g;
 	}
 	
@@ -5198,6 +5205,11 @@ sub unicode_to_perl {
 	my $regex = shift;
 
 	return '' unless length $regex;
+	
+		
+	# Convert Unicode escapes \u1234 to characters
+	$regex =~ s/(?:\\\\)*+\K\\u(\p{Ahex}+)/chr(hex($1))/egx;
+	
 	$regex =~ s/
 		(?:\\\\)*+               	# Pairs of \
 		(?!\\)                   	# Not followed by \
@@ -5228,9 +5240,7 @@ sub convert {
 	my $posix = qr/(?(DEFINE)
 		(?<posix> (?> \[: .+? :\] ) )
 		)/x;
-	
-	# Convert Unicode escapes \u1234 to characters
-	$set =~ s/\\u(\p{Ahex}+)/chr(hex($1))/egx;
+
 	
 	# Check to see if this is a normal character set
 	my $normal = 0;
@@ -5512,6 +5522,7 @@ sub copy_tests {
 	make_path($destination_directory) unless -d $destination_directory;
 	
 	my $files = 0;
+	return 0 unless -d $source_directory;
 	opendir( my ($dir), $source_directory );
 	while (my $file = readdir($dir)) {
 		next if $file =~/^\./;
@@ -5665,6 +5676,7 @@ sub get_files_recursive {
 	$dir_name = [$dir_name] unless ref $dir_name;
 	
 	my @files;
+	return @files unless -d File::Spec->catdir(@$dir_name);
 	opendir my $dir, File::Spec->catdir(@$dir_name);
 	while (my $file = readdir($dir)) {
 		next if $file =~ /^\./;
