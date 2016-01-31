@@ -5778,6 +5778,7 @@ EOT
 		my (undef, @names) = @$locale;
 		$names[-1] =~ s/\.pm$//;
 		my $full_name = join '_', $distribution, grep { $_ ne 'Any' } @names;
+		next if $full_name =~ /\d/a; # Don't pass through locales with numbers in the names
 		$test_file_contents .= "lives_ok { \$locale = Locale::CLDR->new('$full_name') } 'Can create locale for $full_name';\n";
 	}
 	
@@ -5816,10 +5817,10 @@ This is a locale data package, you will need the Locale::CLDR package to get it 
 CPAN client should have been installed for you.
 
 WARNING
-This package has inceficient tests. If you feel like helping get hold of the Locale::CLDR::Locales::En package from CPAN
+This package has insufficient tests. If you feel like helping get hold of the Locale::CLDR::Locales::En package from CPAN
 or use the git repository at https://github.com/ThePilgrim/perlcldr and use the tests from that to create a propper test 
-suite for this language. Please send me a copy of the tests, either by a git pull request, which will get your name into
-the git history or by emailing me using me email address on CPAN.
+suite for this language pack. Please send me a copy of the tests, either by a git pull request, which will get your name into
+the git history or by emailing me using my email address on CPAN.
 EOT
 }	
 

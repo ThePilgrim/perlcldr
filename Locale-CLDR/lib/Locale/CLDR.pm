@@ -670,21 +670,25 @@ sub _build_module {
 	# Now we go through the path loading each module
 	# And calling new on it. 
 	my $module;
-	my @errors;
+	my $errors;
 	my $module_name;
 	foreach my $name (@path) {
 		$module_name = "Locale::CLDR::Locales::$name";
 		my ($canload, $error) = Class::Load::try_load_class($module_name, { -version => $VERSION});
 		if ($canload) {
 			Class::Load::load_class($module_name, { -version => $VERSION});
-			@errors = ();
+			$errors = 0;
 			last;
 		}
 		else {
-			push @errors, $error;
+			$errors = 1;
 		}
 	}
-	die @errors if (@errors);
+
+	if ($errors) {
+		Class::Load::load_class('Locale::CLDR::Locales::Root');
+		$module_name = 'Locale::CLDR::Locales::Root';
+	}
 	
 	$module = $module_name->new;
 
@@ -1590,7 +1594,8 @@ sub locale_name {
 
 	# $name can be a string or a Locale::CLDR::Locales::*
 	if (! ref $name) {
-		$name = Locale::CLDR->new($name);
+		# Wrap in an eval to stop it dieing on unknown locales
+		$name = eval { Locale::CLDR->new($name) };
 	}
 
 	# Now we have to process each individual element
