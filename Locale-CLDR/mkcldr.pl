@@ -2508,6 +2508,8 @@ has 'duration_units' => (
 \tdefault\t\t=> sub { {
 EOT
 		foreach my $type (sort keys %duration_units) {
+			my $units = $duration_units{$type};
+			$units =~ s/'/\\'/g; # Escape a ' in unit name
 			say $file "\t\t\t\t$type => '$duration_units{$type}',";
 		}
 	
@@ -2700,6 +2702,8 @@ sub process_numbers {
 	my $minimum_grouping_digits = 0;
 	if ($minimum_grouping_digits_nodes->size) {
 		$minimum_grouping_digits = ($minimum_grouping_digits_nodes->get_nodelist)[0]->getValue;
+		# Fix for invalid data in Nepalise language data
+		$minimum_grouping_digits = $minimum_grouping_digits =~ /^[0-9]+$/ ? $minimum_grouping_digits : 1;
 	}
 	
 	# Symbols
