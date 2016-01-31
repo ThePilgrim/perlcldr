@@ -5729,10 +5729,6 @@ sub build_language_distributions {
 		make_path($distribution)
 			unless -d $distribution;
 
-		unless (copy_tests($language)) {
-			create_default_tests($language);
-		}
-	
 		open my $build_file, '>', File::Spec->catfile($distributions_directory, $language,'Build.PL');
 		print $build_file build_text("Locales::$file");
 		close $build_file;
@@ -5746,7 +5742,11 @@ sub build_language_distributions {
 		my @files = (
 			get_files_recursive(File::Spec->catdir($locales_directory, $language))
 		);
-	
+
+		unless (copy_tests($language)) {
+			create_default_tests($language, \@files);
+		}
+
 		foreach my $file (@files) {
 			my $source_name = File::Spec->catfile(@$file);
 			my $destination_name = File::Spec->catdir($distribution, qw(Locale CLDR Locales), $language, @{$file}[1 .. @$file - 2]);
@@ -5760,20 +5760,28 @@ sub build_language_distributions {
 }
 
 sub create_default_tests {
-	my $distribution = shift;
+	my ($distribution, $files) = @_;
 	my $destination_directory = File::Spec->catdir($distributions_directory, $distribution, 't');
 	make_path($destination_directory) unless -d $destination_directory;
 	
 	my $test_file_contents = <<EOT;
 #!perl -T
-use Test::More tests => 2;
+use Test::More;
 use Test::Exception;
 use ok( 'Locale::CLDR' );
 my \$locale;
-lives_ok { \$locale = Locale::CLDR->new('$distribution') } 'Can create locale for $distribution';
 
 diag( "Testing Locale::CLDR $Locale::CLDR::VERSION, Perl $], $^X" );
+
 EOT
+	foreach my $locale (@$files) {
+		my (undef, @names) = @$locale;
+		$names[-1] =~ s/\.pm$//;
+		my $full_name = join '_', $distribution, grep { $_ ne 'Any' } @names;
+		$test_file_contents .= "lives_ok { \$locale = Locale::CLDR->new('$full_name') } 'Can create locale for $full_name';\n";
+	}
+	
+	$test_file_contents .= "\ndone_testing();\n";
 	
 	open my $file, '>', File::Spec->catfile($destination_directory, '00-load.t');
 	

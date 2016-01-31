@@ -664,20 +664,29 @@ sub _build_module {
 	push @path, join '::', @likely_path[0 .. 1];
 	push @path, join '::', $likely_path[0];
 	
+	# Strip out all paths that end in ::Any
+	@path =  grep { ! /::Any$/ } @path;
+	
 	# Now we go through the path loading each module
 	# And calling new on it. 
 	my $module;
-	foreach my $module_name (@path) {
-		$module_name = "Locale::CLDR::Locales::$module_name";
-		if (Class::Load::try_load_class($module_name, { -version => $VERSION})) {
+	my @errors;
+	my $module_name;
+	foreach my $name (@path) {
+		$module_name = "Locale::CLDR::Locales::$name";
+		my ($canload, $error) = Class::Load::try_load_class($module_name, { -version => $VERSION});
+		if ($canload) {
 			Class::Load::load_class($module_name, { -version => $VERSION});
+			@errors = ();
+			last;
 		}
 		else {
-			next;
+			push @errors, $error;
 		}
-		$module = $module_name->new;
-		last;
 	}
+	die @errors if (@errors);
+	
+	$module = $module_name->new;
 
 	# If we only have the root module then we have a problem as
 	# none of the language specific data is in the root. So we
