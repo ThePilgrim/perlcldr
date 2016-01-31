@@ -4682,8 +4682,6 @@ sub _make_text_expand {
 	return @_;
 }
 
-=over 4
-
 =item localetext($identifer, @parameters)
 
 This method looks up the identifier in the current locals lexicon and then formats the returned text

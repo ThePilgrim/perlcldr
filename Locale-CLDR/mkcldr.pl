@@ -5772,14 +5772,14 @@ use ok( 'Locale::CLDR' );
 my \$locale;
 
 diag( "Testing Locale::CLDR $Locale::CLDR::VERSION, Perl $], $^X" );
-
+use ok Locale::CLDR::Locales::$distribution, 'Can use locale file Locale::CLDR::Locales::$distribution';
 EOT
 	foreach my $locale (@$files) {
 		my (undef, @names) = @$locale;
 		$names[-1] =~ s/\.pm$//;
-		my $full_name = join '_', $distribution, grep { $_ ne 'Any' } @names;
-		next if $full_name =~ /\d/a; # Don't pass through locales with numbers in the names
-		$test_file_contents .= "lives_ok { \$locale = Locale::CLDR->new('$full_name') } 'Can create locale for $full_name';\n";
+		my $full_name = join '::', $distribution, @names;
+		$full_name =~ s/\.pm$//;
+		$test_file_contents .= "use ok Locale::CLDR::Locales::$full_name, 'Can use locale file Locale::CLDR::Locales::$full_name';\n";
 	}
 	
 	$test_file_contents .= "\ndone_testing();\n";
