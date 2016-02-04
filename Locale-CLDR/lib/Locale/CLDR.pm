@@ -4634,7 +4634,7 @@ sub _parse_localetext_text {
 
 sub _make_text_gnum {
 	my ($self, $number, $type, $gender, $declention) = @_;
-	no warnings "experimental::smartmatch";
+	no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 	$type //= 'ordinal';
 	$gender //= 'neuter';
 	
