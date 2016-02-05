@@ -2510,7 +2510,7 @@ EOT
 		foreach my $type (sort keys %duration_units) {
 			my $units = $duration_units{$type};
 			$units =~ s/'/\\'/g; # Escape a ' in unit name
-			say $file "\t\t\t\t$type => '$duration_units{$type}',";
+			say $file "\t\t\t\t$type => '$units',";
 		}
 	
 		print $file <<EOT;

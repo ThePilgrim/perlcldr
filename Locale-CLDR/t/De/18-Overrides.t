@@ -58,17 +58,17 @@ is_deeply ($am_pm, [qw( vorm. nachm. )], 'Islamic AM PM abbreviated');
 $am_pm = $locale->am_pm_narrow();
 is_deeply ($am_pm, [qw( vorm. nm. )], 'Islamic AM PM narrow');
 $am_pm = $locale->am_pm_format_wide();
-is_deeply ($am_pm, { am => 'vorm.', noon => 'noon', pm => 'pm', midnight => 'Mitternacht', morning1 => 'in the morning', afternoon1 => 'Mittag', evening1 => 'abends', night1 => 'at night' }, 'Islamic AM PM format wide');
+is_deeply ($am_pm, { am => 'vorm.', pm => 'nachm.', midnight => 'Mitternacht', morning1 => 'morgens', morning2 => 'vormittags', afternoon1 => 'mittags', afternoon2 => 'nachmittags', evening1 => 'abends', night1 => 'nachts' }, 'Islamic AM PM format wide');
 $am_pm = $locale->am_pm_format_abbreviated();
-is_deeply ($am_pm, { am => 'vorm.', noon => 'noon', pm => 'pm', midnight => 'Mitternacht', morning1 => 'in the morning', afternoon1 => 'Mittag', evening1 => 'abends', night1 => 'at night' }, 'Islamic AM PM format abbreviated');
+is_deeply ($am_pm, { am => 'vorm.', pm => 'nachm.', midnight => 'Mitternacht', morning1 => 'morgens', morning2 => 'vormittags', afternoon1 => 'mittags', afternoon2 => 'nachmittags', evening1 => 'abends', night1 => 'nachts' }, 'Islamic AM PM format abbreviated');
 $am_pm = $locale->am_pm_format_narrow();
-is_deeply ($am_pm, { am => 'a', noon => 'n', pm => 'p', midnight => 'mi', morning1 => 'in the morning', afternoon1 => 'Mittag', evening1 => 'abends', night1 => 'at night' }, 'Islamic AM PM format narrow');
+is_deeply ($am_pm, { am => 'vorm.', pm => 'nm.', midnight => 'Mitternacht', morning1 => 'morgens', morning2 => 'vormittags', afternoon1 => 'mittags', afternoon2 => 'nachmittags', evening1 => 'abends', night1 => 'nachts' }, 'Islamic AM PM format narrow');
 $am_pm = $locale->am_pm_stand_alone_wide();
-is_deeply ($am_pm, { am => 'am', noon => 'noon', pm => 'pm', midnight => 'midnight', morning1 => 'morning', afternoon1 => 'Mittag', evening1 => 'evening', night1 => 'night' }, 'Islamic AM PM stand alone wide');
+is_deeply ($am_pm, { am => 'vorm.', pm => 'nachm.', midnight => 'Mitternacht', morning1 => 'Morgen', morning2 => 'Vormittag', afternoon1 => 'Mittag', afternoon2 => 'Nachmittag', evening1 => 'Abend', night1 => 'Nacht' }, 'Islamic AM PM stand alone wide');
 $am_pm = $locale->am_pm_stand_alone_abbreviated();
-is_deeply ($am_pm, { am => 'am', noon => 'noon', pm => 'pm', midnight => 'midnight', morning1 => 'in the morning', afternoon1 => 'in the afternoon', evening1 => 'in the evening', night1 => 'at night' }, 'Islamic AM PM stand alone abbreviated');
+is_deeply ($am_pm, { am => 'vorm.', pm => 'nachm.', midnight => 'Mitternacht', morning1 => 'Morgen', morning2 => 'Vormittag', afternoon1 => 'Mittag', afternoon2 => 'Nachmittag', evening1 => 'Abend', night1 => 'Nacht' }, 'Islamic AM PM stand alone abbreviated');
 $am_pm = $locale->am_pm_stand_alone_narrow();
-is_deeply ($am_pm, { am => 'a', noon => 'n', pm => 'p', midnight => 'midnight', morning1 => 'in the morning', afternoon1 => 'in the afternoon', evening1 => 'in the evening', night1 => 'at night' }, 'Islamic AM PM stand alone narrow');
+is_deeply ($am_pm, { am => 'vorm.', pm => 'nachm.', midnight => 'Mitternacht', morning1 => 'Morgen', morning2 => 'Vormittag', afternoon1 => 'Mittag', afternoon2 => 'Nachmittag', evening1 => 'Abend', night1 => 'Nacht' }, 'Islamic AM PM stand alone narrow');
 
 my $era = $locale->era_wide();
 is_deeply ($era, [ 'AH', undef() ], 'Islamic Era wide');
@@ -91,20 +91,20 @@ is_deeply ($era, [ 'AH' ], 'Islamic Era stand alone narrow');
 
 
 my $day_period_data = $locale->get_day_period('0000');
-is($day_period_data, 'am', 'Islamic Day period data AM');
+is($day_period_data, 'Mitternacht', 'Islamic Day period data AM');
 $day_period_data = $locale->get_day_period('1200');
-is($day_period_data, 'pm', 'Islamic Day period data Noon');
+is($day_period_data, 'mittags', 'Islamic Day period data Noon');
 $day_period_data = $locale->get_day_period('1210');
-is($day_period_data, 'pm', 'Islamic Day period data PM');
+is($day_period_data, 'mittags', 'Islamic Day period data PM');
 
 my $date_format = $locale->date_format_full;
-is($date_format, 'EEEE, d MMMM y', 'Islamic Date Format Full');
+is($date_format, 'EEEE, d. MMMM y', 'Islamic Date Format Full');
 $date_format = $locale->date_format_long;
-is($date_format, 'd MMMM y', 'Islamic Date Format Long');
+is($date_format, 'd. MMMM y', 'Islamic Date Format Long');
 $date_format = $locale->date_format_medium;
-is($date_format, 'd MMM y', 'Islamic Date Format Medium');
+is($date_format, 'dd.MM.y', 'Islamic Date Format Medium');
 $date_format = $locale->date_format_short;
-is($date_format, 'dd/MM/y', 'Islamic Date Format Short');
+is($date_format, 'dd.MM.yy', 'Islamic Date Format Short');
 
 my $time_format = $locale->time_format_full;
 is($time_format, 'HH:mm:ss zzzz', 'Islamic Time Format Full');
@@ -116,16 +116,16 @@ $time_format = $locale->time_format_short;
 is($time_format, 'HH:mm', 'Islamic Time Format Short');
 
 my $date_time_format = $locale->datetime_format_full;
-is($date_time_format, "EEEE, d MMMM y 'at' HH:mm:ss zzzz", 'Islamic Date Time Format Full');
+is($date_time_format, "EEEE, d. MMMM y 'um' HH:mm:ss zzzz", 'Islamic Date Time Format Full');
 $date_time_format = $locale->datetime_format_long;
-is($date_time_format, "d MMMM y 'at' HH:mm:ss z", 'Islamic Date Time Format Long');
+is($date_time_format, "d. MMMM y 'um' HH:mm:ss z", 'Islamic Date Time Format Long');
 $date_time_format = $locale->datetime_format_medium;
-is($date_time_format, 'd MMM y, HH:mm:ss', 'Islamic Date Time Format Medium');
+is($date_time_format, 'dd.MM.y, HH:mm:ss', 'Islamic Date Time Format Medium');
 $date_time_format = $locale->datetime_format_short;
-is($date_time_format, 'dd/MM/y, HH:mm', 'Islamic Date Time Format Short');
+is($date_time_format, 'dd.MM.yy, HH:mm', 'Islamic Date Time Format Short');
 
 is ($locale->prefers_24_hour_time(), 1, 'Islamic Prefers 24 hour time');
-is ($locale->first_day_of_week(), 7, 'Islamic First day of week');
+is ($locale->first_day_of_week(), 1, 'Islamic First day of week');
 
 # Number Overrides
 $locale = Locale::CLDR->new('de_DE_u_numbers_roman');

@@ -19,7 +19,7 @@ for (my $count = 0; $count < @results; $count++) {
 	is ($locale->plural($count), $results[$count], "Plural for $count in de");
 }
 
-@results = (('other') x 66);
+@results = (('other') x 31, 'one', ('other') x 34);
 my $count = 0;
 foreach my $start (qw(zero one two few many other)) {
 	foreach my $end (qw(zero one two few many other)) {
@@ -27,7 +27,7 @@ foreach my $start (qw(zero one two few many other)) {
 	}
 }
 
-@results = ('other') x 121;
+@results = ('other', 'one', ('other') x 21, ('one', ('other') x 10) x 9);
 $count = 0;
 foreach my $start (0 .. 10) {
 	foreach my $end (0 .. 10) {

@@ -4684,7 +4684,7 @@ sub _make_text_expand {
 
 =item localetext($identifer, @parameters)
 
-This method looks up the identifier in the current locals lexicon and then formats the returned text
+This method looks up the identifier in the current locales lexicon and then formats the returned text
 as part in the current locale the identifier is the same as the identifier passed into the 
 add_to_lexicon() metod. The parameters are the values required by the [ ... ] expantions in the 
 localised text.
