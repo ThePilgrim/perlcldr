@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.28.3
+Version 0.28.4
 
 =head1 SYNOPSIS
 
@@ -39,14 +39,16 @@ or
 
 use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.28.3');
+our $VERSION = version->declare('v0.28.4');
 
 use open ':encoding(utf8)';
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Moose;
-use MooseX::ClassAttribute;
+use Moo;
+use MooX::ClassAttribute;
+use Types::Standard qw( Str Int Maybe ArrayRef HashRef Object Bool InstanceOf );
+
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
 	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
 	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::RegionContainment', 'Locale::CLDR::CalendarPreferences',
@@ -60,6 +62,7 @@ use DateTime::Locale;
 use Unicode::Normalize();
 use Locale::CLDR::Collator();
 use File::Spec();
+use Scalar::Util qw(blessed);
 
 # Backwards compatibility
 BEGIN {
@@ -86,7 +89,7 @@ A valid language or language alias id, such as C<en>
 
 has 'language_id' => (
 	is			=> 'ro',
-	isa			=> 'Str',
+	isa			=> Str,
 	required	=> 1,
 );
 
@@ -106,7 +109,7 @@ depending on the given language if non is provided.
 
 has 'script_id' => (
 	is			=> 'ro',
-	isa			=> 'Str',
+	isa			=> Str,
 	default		=> '',
 	predicate	=> 'has_script',
 );
@@ -119,7 +122,7 @@ A valid region id or region alias such as C<GB>
 
 has 'region_id' => (
 	is			=> 'ro',
-	isa			=> 'Str',
+	isa			=> Str,
 	default		=> '',
 	predicate	=> 'has_region',
 );
@@ -141,7 +144,7 @@ A valid variant id. The code currently ignores this
 
 has 'variant_id' => (
 	is			=> 'ro',
-	isa			=> 'Str',
+	isa			=> Str,
 	default		=> '',
 	predicate	=> 'has_variant',
 );
@@ -532,7 +535,7 @@ one of
 
 has 'extensions' => (
 	is			=> 'ro',
-	isa			=> 'Undef|HashRef',
+	isa			=> Maybe[HashRef],
 	default		=> undef,
 	writer		=> '_set_extensions',
 );
@@ -560,7 +563,7 @@ data to guess the locale's language.
 
 has 'likely_language' => (
 	is			=> 'ro',
-	isa			=> 'Str',
+	isa			=> Str,
 	init_arg	=> undef,
 	lazy		=> 1,
 	builder		=> '_build_likely_language',
@@ -585,7 +588,7 @@ language and region data to guess the locale's script.
 
 has 'likely_script' => (
 	is			=> 'ro',
-	isa			=> 'Str',
+	isa			=> Str,
 	init_arg	=> undef,
 	lazy		=> 1,
 	builder		=> '_build_likely_script',
@@ -612,7 +615,7 @@ language and script data to guess the locale's region.
 
 has 'likely_region' => (
 	is			=> 'ro',
-	isa			=> 'Str',
+	isa			=> Str,
 	init_arg	=> undef,
 	lazy		=> 1,
 	builder		=> '_build_likely_region',
@@ -630,7 +633,7 @@ sub _build_likely_region {
 
 has 'module' => (
 	is			=> 'ro',
-	isa			=> 'Object',
+	isa			=> Object,
 	init_arg	=> undef,
 	lazy		=> 1,
 	builder		=> '_build_module',
@@ -706,14 +709,14 @@ sub _build_module {
 
 class_has 'method_cache' => (
 	is			=> 'rw',
-	isa			=> 'HashRef[HashRef[ArrayRef[Object]]]',
+	isa			=> HashRef[HashRef[ArrayRef[Object]]],
 	init_arg	=> undef,
 	default		=> sub { return {}},
 );
 
 has 'break_grapheme_cluster' => (
 	is => 'ro',
-	isa => 'ArrayRef',
+	isa => ArrayRef,
 	init_arg => undef(),
 	lazy => 1,
 	default => sub {shift->_build_break('GraphemeClusterBreak')},
@@ -721,7 +724,7 @@ has 'break_grapheme_cluster' => (
 
 has 'break_word' => (
 	is => 'ro',
-	isa => 'ArrayRef',
+	isa => ArrayRef,
 	init_arg => undef(),
 	lazy => 1,
 	default => sub {shift->_build_break('WordBreak')},
@@ -729,7 +732,7 @@ has 'break_word' => (
 
 has 'break_line' => (
 	is => 'ro',
-	isa => 'ArrayRef',
+	isa => ArrayRef,
 	init_arg => undef(),
 	lazy => 1,
 	default => sub {shift->_build_break('LineBreak')},
@@ -737,7 +740,7 @@ has 'break_line' => (
 
 has 'break_sentence' => (
 	is => 'ro',
-	isa => 'ArrayRef',
+	isa => ArrayRef,
 	init_arg => undef(),
 	lazy => 1,
 	default => sub {shift->_build_break('SentenceBreak')},
@@ -814,7 +817,7 @@ The name of the locale's variant in the locale's language and script.
 foreach my $property (qw( name language script region variant)) {
 	has $property => (
 		is => 'ro',
-		isa => 'Str',
+		isa => Str,
 		init_arg => undef,
 		lazy => 1,
 		builder => "_build_$property",
@@ -921,7 +924,7 @@ foreach my $property (qw(
 )) {
 	has $property => (
 		is => 'ro',
-		isa => 'ArrayRef',
+		isa => ArrayRef,
 		init_arg => undef,
 		lazy => 1,
 		builder => "_build_$property",
@@ -974,7 +977,7 @@ foreach my $property (qw(
 )) {
 	has $property => (
 		is => 'ro',
-		isa => 'HashRef',
+		isa => HashRef,
 		init_arg => undef,
 		lazy => 1,
 		builder => "_build_$property",
@@ -1022,7 +1025,7 @@ foreach my $property (qw(
 )) {
 	has $property => (
 		is => 'ro',
-		isa => 'Str',
+		isa => Str,
 		init_arg => undef,
 		lazy => 1,
 		builder => "_build_$property",
@@ -1030,22 +1033,25 @@ foreach my $property (qw(
 	);
 }
 
-has '_available_formats' => (
-	traits => ['Array'],
+has 'available_formats' => (
 	is => 'ro',
-	isa => 'ArrayRef',
+	isa => ArrayRef,
 	init_arg => undef,
 	lazy => 1,
 	builder => "_build_available_formats",
 	clearer => "_clear_available_formats",
-	handles => {
-		available_formats => 'elements',
-	},
 );
+
+around available_formats => sub {
+	my ($orig, $self) = @_;
+	my $formats = $self->$orig;
+	
+	return @{$formats};
+};
 
 has 'format_data' => (
 	is => 'ro',
-	isa => 'HashRef',
+	isa => HashRef,
 	init_arg => undef,
 	lazy => 1,
 	builder => "_build_format_data",
@@ -1058,7 +1064,7 @@ foreach my $property (qw(
 )) {
 	has $property => (
 		is => 'ro',
-		isa => 'Str',
+		isa => Str,
 		init_arg => undef,
 		lazy => 1,
 		builder => "_build_$property",
@@ -1075,7 +1081,7 @@ for 24 hour time over 12 hour
 
 has 'prefers_24_hour_time' => (
 	is => 'ro',
-	isa => 'Bool',
+	isa => Bool,
 	init_arg => undef,
 	lazy => 1,
 	builder => "_build_prefers_24_hour_time",
@@ -1101,7 +1107,7 @@ the localised version of the format.
 
 has 'first_day_of_week' => (
 	is => 'ro',
-	isa => 'Int',
+	isa => Int,
 	init_arg => undef,
 	lazy => 1,
 	builder => "_build_first_day_of_week",
@@ -1109,7 +1115,7 @@ has 'first_day_of_week' => (
 
 has 'likely_subtag' => (
 	is => 'ro',
-	isa => __PACKAGE__,
+	isa => InstanceOf['Locale::CLDR'],
 	init_arg => undef,
 	writer => '_set_likely_subtag',
 	predicate => 'has_likely_subtag',
@@ -1376,15 +1382,18 @@ after 'BUILD' => sub {
 foreach my $default (qw( ca cf cu fw)) {
 	has "default_$default" => (
 		is			=> 'ro',
-		isa			=> 'Str',
+		isa			=> Str,
 		init_arg	=> undef,
 		default		=> '',
-		traits		=> ['String'],
-		handles		=> {
-			"_set_default_$default"  => 'append',
-			"_test_default_$default" => 'length',
-		},
+		writer		=> "_set_default_$default",
 	);
+	
+	no strict 'refs';
+	*{"_test_default_$default"} = sub {
+		my $self = shift;
+		my $method = "default_$default";
+		return length $self->$method;
+	};
 }
 
 sub default_calendar {
@@ -1547,7 +1556,7 @@ sub _find_bundle {
 	}
 
 	foreach my $module ($self->module->meta->linearized_isa) {
-		last if $module eq 'Moose::Object';
+		last if $module eq 'Moo::Object';
 		if ($module->meta->has_method($method_name)) {
 			push @{$self->method_cache->{$id}{$method_name}}, $module->new;
 		}
@@ -3832,7 +3841,7 @@ sub {
 
 EOT
 
-# The following pod is for methods defined in the Moose Role
+# The following pod is for methods defined in the Moo Role
 # files that are automatically generated from the data
 =back
 
@@ -4133,7 +4142,7 @@ sub cyclic_name_sets {
 
 =back
 
-=head2 region Containment
+=head2 Region Containment
 
 =over 4
 
@@ -4432,16 +4441,22 @@ used the region of the current locale.
 =cut
 
 has 'Lexicon' => (
-	isa => 'HashRef',
-	traits => ['Hash'],
+	isa => HashRef,
 	init_arg => undef,
 	is => 'ro',
-	handles => {
-		'reset_lexicon' => 'clear',
-		'_add_to_lexicon' => 'set',
-		'_get_from_lexicon' => 'get',
-	},
+	clearer => 'reset_lexicon',
+	default => sub { return {} },
 );
+
+sub _add_to_lexicon {
+	my ($self, $key, $value) = @_;
+	$self->Lexicon()->{$key} = $value;
+}
+
+sub _get_from_lexicon {
+	my ($self, $key) = @_;
+	return $self->Lexicon()->{$key};
+}
 
 =head2 Make text emulation
 

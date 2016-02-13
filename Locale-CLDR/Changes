@@ -149,3 +149,8 @@ All dates are in ISO 8601 Format
 	Added tests for above
 	Added maketext emulation and tests
 	Pushed all language packs
+
+0.28.4
+	Fixed bug in version line of base Transliteration Package
+	Fixed text in meta description of Transliteration Package
+	Moved from using Moose to Moo

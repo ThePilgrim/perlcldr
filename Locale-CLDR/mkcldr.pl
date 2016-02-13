@@ -33,13 +33,13 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '28'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 3; # This is the build number against the CLDR revision
+my $REVISION = 4; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -481,7 +481,7 @@ package Locale::CLDR::Transformations;
 
 use version;
 
-our $VERSION = version->declare('v$VERSION');
+our VERSION = version->declare('v$VERSION');
 
 1;
 EOT
@@ -796,11 +796,11 @@ use v5.10.1;
 use mro 'c3';
 use if \$^V ge v5.12.0, feature => 'unicode_strings';
 
-use Moose;
+use Moo;
 
 extends('$parent');
 
-no Moose;
+no Moo;
 __PACKAGE__->meta->make_immutable;
 EOT
         close $file;
@@ -843,7 +843,8 @@ use mro 'c3';
 use utf8;
 use if \$^V ge v5.12.0, feature => 'unicode_strings';
 
-use Moose$isRole;
+use Types::Standard qw( Str Int HashRef ArrayRef CodeRef RegexpRef );
+use Moo$isRole;
 
 EOT
     print $file $header;
@@ -950,7 +951,7 @@ sub process_collation_base {
 	print $Allkeys_out <<EOT;
 has han_order => (
 	is => 'ro',
-	isa => 'HashRef',
+	isa => HashRef,
 	init_arg => 'undef',
 	default => sub {
 		return {
@@ -969,7 +970,7 @@ EOT
 	print $Allkeys_out <<EOT;
 has collation_elements => (
 	is => 'ro',
-	isa => 'HashRef',
+	isa => HashRef,
 	init_arg => undef,
 	default => sub {
 		return {
@@ -995,7 +996,7 @@ EOT
 	print $Allkeys_out <<EOT;
 has _digraphs => (
 	is => 'ro',
-	isa => 'ArrayRef',
+	isa => ArrayRef,
 	init_arg => undef,
 	default => sub {
 		return [ qw( @digraphs ) ]
@@ -1171,11 +1172,17 @@ sub process_valid_languages {
     print $file <<EOT
 has 'valid_languages' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef',
+\tisa\t\t\t=> ArrayRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @languages \t)]},
 );
+
+around valid_languages => sub {
+	my (\$orig, \$self) = \@_;
+	
+	my \$languages = \$self->\$orig;
+	return \@{\$languages};
+};
 
 EOT
 }
@@ -1197,11 +1204,17 @@ sub process_valid_scripts {
     print $file <<EOT
 has 'valid_scripts' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef',
+\tisa\t\t\t=> ArrayRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @scripts \t)]},
 );
+
+around valid_scripts => sub {
+	my (\$orig, \$self) = \@_;
+	
+	my \$scripts = \$self->\$orig;
+	return \@{\$scripts};
+};
 
 EOT
 }
@@ -1223,11 +1236,17 @@ sub process_valid_regions {
     print $file <<EOT
 has 'valid_regions' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef',
+\tisa\t\t\t=> ArrayRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @regions \t)]},
 );
+
+around valid_regions => sub {
+	my (\$orig, \$self) = \@_;
+	
+	my \$regions = \$self->\$orig;
+	return \@{\$regions};
+};
 
 EOT
 }
@@ -1249,11 +1268,17 @@ sub process_valid_variants {
     print $file <<EOT
 has 'valid_variants' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef',
+\tisa\t\t\t=> ArrayRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @variants \t)]},
 );
+
+around valid_variants => sub {
+	my (\$orig, \$self) = \@_;
+	my \$variants = \$self->\$orig;
+	
+	return \@{\$variants};
+};
 
 EOT
 }
@@ -1275,11 +1300,17 @@ sub process_valid_currencies {
     print $file <<EOT
 has 'valid_currencies' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef',
+\tisa\t\t\t=> ArrayRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @currencies \t)]},
 );
+
+around valid_currencies => sub {
+	my (\$orig, \$self) = \@_;
+	my \$currencies = \$self->\$orig;
+	
+	return \@{\$currencies};
+};
 
 EOT
 }
@@ -1301,11 +1332,17 @@ sub process_valid_subdivisions {
     print $file <<EOT
 has 'valid_subdivisions' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef',
+\tisa\t\t\t=> ArrayRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @sub_divisions \t)]},
 );
+
+around valid_subdivisions => sub {
+	my (\$orig, \$self) = \@_;
+	my \$subdevisions = \$self->\$orig;
+	
+	return \@{\$subdevisions};
+};
 
 EOT
 }
@@ -1327,11 +1364,17 @@ sub process_valid_units {
     print $file <<EOT
 has 'valid_units' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef',
+\tisa\t\t\t=> ArrayRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub {[qw( @units \t)]},
 );
+
+around valid_units => sub {
+	my (\$orig, \$self) = \@_;
+	my \$units = \$self->\$orig;
+	
+	return \@{\$units};
+};
 
 EOT
 }
@@ -1376,9 +1419,8 @@ sub process_valid_keys {
     print $file <<EOT;
 has 'key_aliases' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub { return {
 EOT
     foreach my $key (sort keys %keys) {
@@ -1390,20 +1432,32 @@ EOT
 \t}},
 );
 
+around key_aliases => sub {
+	my (\$orig, \$self) = \@_;
+	my \$aliases = \$self->\$orig;
+	
+	return %{\$aliases};
+};
+
 has 'key_names' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tlazy\t\t=> 1,
 \tdefault\t=> sub { return { reverse shift()->key_aliases }; },
 );
 
+around key_names => sub {
+	my (\$orig, \$self) = \@_;
+	my \$names = \$self->\$orig;
+	
+	return %{\$names};
+};
+
 has 'valid_keys' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
-\tauto_deref\t=> 1,
 \tdefault\t=> sub { return {
 EOT
     
@@ -1418,6 +1472,13 @@ EOT
 \t}},
 );
 
+around valid_keys => sub {
+	my (\$orig, \$self) = \@_;
+	
+	my \$keys = \$self->\$orig;
+	return %{\$keys};
+};
+
 EOT
 }
 
@@ -1431,7 +1492,7 @@ sub process_valid_language_aliases {
     print $file <<EOT;
 has 'language_aliases' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { return {
 EOT
@@ -1456,7 +1517,7 @@ sub process_valid_region_aliases {
     print $file <<EOT;
 has 'region_aliases' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { return {
 EOT
@@ -1481,7 +1542,7 @@ sub process_valid_variant_aliases {
     print $file <<EOT;
 has 'variant_aliases' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { return {
 \t\tbokmal\t\t=> { language\t=> 'nb' },
@@ -1503,7 +1564,7 @@ sub process_likely_subtags {
 	print $file <<EOT;
 has 'likely_subtags' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { return {
 EOT
@@ -1531,7 +1592,7 @@ sub process_numbering_systems {
 	print $file <<EOT;
 has 'numbering_system' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { return {
 EOT
@@ -1561,16 +1622,23 @@ print $file <<EOT;
 
 has '_default_numbering_system' => ( 
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
+\tisa\t\t\t=> Str,
 \tinit_arg\t=> undef,
 \tdefault\t=> '',
-\ttraits\t=> ['String'],
-\thandles\t=> {
-\t\t_set_default_nu\t\t=> 'append',
-\t\t_clear_default_nu\t=> 'clear',
-\t\t_test_default_nu\t=> 'length',
-\t},
+\tclearer\t=> '_clear_default_nu',
+\twriter\t=> '_set_default_numbering_system',
 );
+
+sub _set_default_nu {
+	my (\$self, \$system) = \@_;
+	my \$default = \$self->_default_numbering_system;
+	\$self->_set_default_numbering_system("\$default\$system");
+}
+
+sub _test_default_nu {
+	my \$self = shift;
+	return length \$self->_default_numbering_system ? 1 : 0;
+}
 
 sub default_numbering_system {
 	my \$self = shift;
@@ -1598,11 +1666,16 @@ sub process_era_boundries {
         q(/supplementalData/calendarData/calendar));
     
     print $file <<EOT;
+
+sub era_boundry {
+	my (\$self, \$type, \$date) = \@_;
+	my \$era = \$self->_era_boundry;
+	return \$era->(\$self, \$type, \$date);
+}
+
 has '_era_boundry' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'CodeRef',
-\ttraits\t\t=> ['Code'],
-\thandles\t\t=> { era_boundry => 'execute_method' },
+\tisa\t\t\t=> CodeRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { sub {
 \t\tmy (\$self, \$type, \$date) = \@_;
@@ -1666,7 +1739,7 @@ sub process_week_data {
     print $file <<EOT;
 has '_week_data_min_days' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { {
 EOT
@@ -1690,7 +1763,7 @@ EOT
     print $file <<EOT;
 has '_week_data_first_day' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { {
 EOT
@@ -1714,7 +1787,7 @@ EOT
     print $file <<EOT;
 has '_week_data_weekend_start' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { {
 EOT
@@ -1738,7 +1811,7 @@ EOT
     print $file <<EOT;
 has '_week_data_weekend_end' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { {
 EOT
@@ -1769,7 +1842,7 @@ sub process_calendar_preferences {
     print $file <<EOT;
 has 'calendar_preferences' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { {
 EOT
@@ -1797,7 +1870,7 @@ sub process_valid_timezone_aliases {
     print $file <<EOT;
 has 'zone_aliases' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { {
 EOT
@@ -1884,7 +1957,7 @@ sub process_display_language {
     print $file <<EOT;
 has 'display_name_language' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'CodeRef',
+\tisa\t\t\t=> CodeRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
 \t\t sub {
@@ -1927,7 +2000,7 @@ sub process_display_script {
     print $file <<EOT;
 has 'display_name_script' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'CodeRef',
+\tisa\t\t\t=> CodeRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub {
 \t\tsub {
@@ -1972,7 +2045,7 @@ sub process_display_region {
     print $file <<EOT;
 has 'display_name_region' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> HashRef[Str],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
 \t\t{
@@ -2009,7 +2082,7 @@ sub process_display_variant {
     print $file <<EOT;
 has 'display_name_variant' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> HashRef[Str],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
 \t\t{
@@ -2042,7 +2115,7 @@ sub process_display_key {
     print $file <<EOT;
 has 'display_name_key' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> HashRef[Str],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
 \t\t{
@@ -2084,7 +2157,7 @@ sub process_display_type {
     print $file <<EOT;
 has 'display_name_type' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[HashRef[Str]]',
+\tisa\t\t\t=> HashRef[HashRef[Str]],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub {
 \t\t{
@@ -2117,7 +2190,7 @@ sub process_display_measurement_system_name {
     print $file <<EOT;
 has 'display_name_measurement_system' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> HashRef[Str],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
 \t\t{
@@ -2150,7 +2223,7 @@ sub process_display_transform_name {
     print $file <<EOT;
 has 'display_name_transform_name' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> HashRef[Str],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
 \t\t{
@@ -2183,7 +2256,7 @@ sub process_code_patterns {
     print $file <<EOT;
 has 'display_name_code_patterns' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> HashRef[Str],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { 
 \t\t{
@@ -2212,7 +2285,7 @@ sub process_orientation {
     print $file <<EOT;
 has 'text_orientation' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> HashRef[Str],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { return {
 \t\t\tlines => '$lines',
@@ -2251,7 +2324,7 @@ sub process_exemplar_characters {
     print $file <<EOT;
 has 'characters' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> \$^V ge v5.18.0
 \t? eval <<'EOT'
@@ -2298,7 +2371,7 @@ sub process_ellipsis {
     print $file <<EOT;
 has 'ellipsis' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub {
 \t\treturn {
@@ -2326,7 +2399,7 @@ sub process_more_information {
     print $file <<EOT;
 has 'more_information' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
+\tisa\t\t\t=> Str,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> qq{$info},
 );
@@ -2358,7 +2431,7 @@ sub process_delimiters {
         print $file <<EOT;
 has '$quote' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
+\tisa\t\t\t=> Str,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> qq{$value},
 );
@@ -2389,7 +2462,7 @@ sub process_measurement_system_data {
 	print $file <<EOT;
 has 'measurement_system' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2409,7 +2482,7 @@ EOT
 	print $file <<EOT;
 has 'paper_size' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2503,7 +2576,7 @@ sub process_units {
 		print $file <<EOT;
 has 'duration_units' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[Str]',
+\tisa\t\t\t=> HashRef[Str],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2524,7 +2597,7 @@ EOT
 		print $file <<EOT;
 has 'unit_alias' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2551,7 +2624,7 @@ EOT
     print $file <<EOT;
 has 'units' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef[HashRef[HashRef[Str]]]',
+\tisa\t\t\t=> HashRef[HashRef[HashRef[Str]]],
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2599,7 +2672,7 @@ sub process_posix {
     print $file <<EOT if defined $yes;
 has 'yesstr' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'RegexpRef',
+\tisa\t\t\t=> RegexpRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { qr'^(?i:$yes)\$' }
 );
@@ -2609,7 +2682,7 @@ EOT
     print $file <<EOT if defined $no;
 has 'nostr' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'RegexpRef',
+\tisa\t\t\t=> RegexpRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { qr'^(?i:$no)\$' }
 );
@@ -2638,7 +2711,7 @@ sub process_list_patterns {
 	print $file <<EOT;
 has 'listPatterns' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2835,7 +2908,7 @@ sub process_numbers {
 	print $file <<EOT if $default_numbering_system;
 has 'default_numbering_system' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
+\tisa\t\t\t=> Str,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> '$default_numbering_system',
 );
@@ -2847,7 +2920,7 @@ EOT
 			print $file <<EOT;
 has ${numbering_system}_numbering_system => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'Str',
+\tisa\t\t\t=> Str,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> '$other_numbering_systems{$numbering_system}',
 );
@@ -2860,7 +2933,7 @@ EOT
 	print $file <<EOT if $minimum_grouping_digits;
 has 'minimum_grouping_digits' => (
 \tis\t\t\t=>'ro',
-\tisa\t\t\t=> 'Int',
+\tisa\t\t\t=> Int,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> $minimum_grouping_digits,
 );
@@ -2870,7 +2943,7 @@ EOT
 		print $file <<EOT;
 has 'number_symbols' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2897,7 +2970,7 @@ EOT
 		print $file <<EOT;
 has 'number_formats' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2937,7 +3010,7 @@ EOT
 		print $file <<EOT;
 has 'number_currency_formats' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -2987,7 +3060,7 @@ EOT
 		print $file <<EOT;
 has 'currencies' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3053,7 +3126,7 @@ sub process_currency_data {
 	say $file <<EOT;
 has '_currency_fractions' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3087,7 +3160,7 @@ sub currency_fractions {
 
 has '_default_currency' => (
 	is			=> 'ro',
-	isa			=> 'HashRef',
+	isa			=> HashRef,
 	init_arg	=> undef,
 	default		=> sub { {
 EOT
@@ -3122,7 +3195,7 @@ sub process_region_containment_data {
 	say $file <<EOT;
 has 'region_contains' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3137,7 +3210,7 @@ EOT
 
 has 'region_contained_by' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3196,7 +3269,7 @@ sub process_calendars {
         print $file <<EOT;
 has 'calendar_months' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3265,7 +3338,7 @@ EOT
         print $file <<EOT;
 has 'calendar_days' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3319,7 +3392,7 @@ EOT
         print $file <<EOT;
 has 'calendar_quarters' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3368,11 +3441,9 @@ EOT
     if (keys %{$calendars{day_period_data}}) {
         print $file <<EOT;
 has 'day_period_data' => (
-\ttraits\t\t=> ['Code'],
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'CodeRef',
+\tisa\t\t\t=> CodeRef,
 \tinit_arg\t=> undef,
-\thandles\t\t=> { call => 'execute_method' },
 \tdefault\t\t=> sub { sub {
 \t\t# Time in hhmm format
 \t\tmy (\$self, \$type, \$time, \$day_period_type) = \@_;
@@ -3418,6 +3489,11 @@ EOT
 \t} },
 );
 
+around day_period_data => sub {
+	my (\$orig, \$self) = \@_;
+	return \$self->\$orig;
+};
+
 EOT
     }
 
@@ -3425,7 +3501,7 @@ EOT
         print $file <<EOT;
 has 'day_periods' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3477,7 +3553,7 @@ EOT
         print $file <<EOT;
 has 'eras' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3511,7 +3587,7 @@ EOT
         print $file <<EOT;
 has 'date_formats' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3534,7 +3610,7 @@ EOT
         print $file <<EOT;
 has 'time_formats' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3557,7 +3633,7 @@ EOT
         print $file <<EOT;
 has 'datetime_formats' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3580,7 +3656,7 @@ EOT
 
 has 'datetime_formats_available_formats' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3606,7 +3682,7 @@ EOT
 
 has 'datetime_formats_append_item' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3633,7 +3709,7 @@ EOT
 
 has 'datetime_formats_interval' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3673,7 +3749,7 @@ EOT
         print $file <<EOT;
 has 'month_patterns' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -3719,7 +3795,7 @@ EOT
         print $file <<EOT;
 has 'cyclic_name_sets' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
@@ -4495,7 +4571,7 @@ sub process_time_zone_names {
     print $file <<EOT;
 has 'time_zone_names' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'HashRef',
+\tisa\t\t\t=> HashRef,
 \tinit_arg\t=> undef,
 \tdefault\t=> sub { {
 EOT
@@ -4731,7 +4807,7 @@ sub process_footer {
     say "Processing Footer"
         if $verbose;
 
-    say $file "no Moose$isRole;";
+    say $file "no Moo$isRole;";
     say $file '__PACKAGE__->meta->make_immutable;' unless $isRole;
     say $file '';
     say $file '1;';
@@ -4751,7 +4827,7 @@ sub process_segments {
         print $file <<EOT;
 has '${type}_variables' => (
 \tis => 'ro',
-\tisa => 'ArrayRef',
+\tisa => ArrayRef,
 \tinit_arg => undef,
 \tdefault => sub {[
 EOT
@@ -4777,7 +4853,7 @@ EOT
 
 has '${type}_rules' => (
 \tis => 'ro',
-\tisa => 'HashRef',
+\tisa => HashRef,
 \tinit_arg => undef,
 \tdefault => sub { {
 EOT
@@ -4910,7 +4986,7 @@ BEGIN {
 no warnings 'experimental::regex_sets';
 has 'transforms' => (
 \tis => 'ro',
-\tisa => 'ArrayRef',
+\tisa => ArrayRef,
 \tinit_arg => undef,
 \tdefault => sub { [
 EOT
@@ -5358,7 +5434,7 @@ sub process_rbnf {
 		print $file <<EOT;
 has 'valid_algorithmic_formats' => (
 	is => 'ro',
-	isa => 'ArrayRef',
+	isa => ArrayRef,
 	init_arg => undef,
 	default => sub {[ $valid_formats ]},
 );
@@ -5369,7 +5445,7 @@ EOT
 	print $file <<EOT;
 has 'algorithmic_number_format_data' => (
 	is => 'ro',
-	isa => 'HashRef',
+	isa => HashRef,
 	init_arg => undef,
 	default => sub { 
 		use bignum;
@@ -5565,12 +5641,13 @@ my \$builder = Module::Build->new(
     requires        => {
         'version'                   => '0.95',
         'DateTime'                  => '0.72',
-        'Moose'                     => '2.0401',
-        'MooseX::ClassAttribute'    => '0.26',
+        'Moo'                       => '2',
+        'MooX::ClassAttribute'      => '0.011',
         'perl'                      => '5.10.1',
+		'Type::Tiny'                => 0,
         'Class::Load'               => 0,
         'DateTime::Locale'          => 0,
-        'namespace::autoclean'      => 0,
+        'namespace::autoclean'      => 0.16,
         'List::MoreUtils'           => 0,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
@@ -5631,10 +5708,12 @@ sub build_text {
 	$language =~ s/^.*::([^:]+)$/$1/;
 	my $name = '';
 	$name = "Perl localization data for $languages->{$language}" if exists $languages->{$language};
-	
+	$name = "Perl localization data for transliterations" if $language eq 'transformations';
 	my $build_text = <<EOT;
 use strict;
 use warnings;
+use utf8;
+
 use Module::Build;
 
 my \$builder = Module::Build->new(
@@ -5643,8 +5722,9 @@ my \$builder = Module::Build->new(
     requires        => {
         'version'                   => '0.95',
         'DateTime'                  => '0.72',
-        'Moose'                     => '2.0401',
-        'MooseX::ClassAttribute'    => '0.26',
+        'Moo'                       => '2',
+        'MooX::ClassAttribute'      => '0.011',
+		'Type::Tiny'                => 0,
         'perl'                      => '5.10.1',
         'Locale::CLDR'              => '$VERSION'
     },
@@ -5841,7 +5921,7 @@ use mro 'c3';
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
 
-use Moose::Role;
+use Moo::Role;
 
 sub format_number {
 	my ($self, $number, $format, $currency, $for_cash) = @_;
@@ -6497,7 +6577,7 @@ sub _get_algorithmic_number_format {
 	}
 }
 
-no Moose::Role;
+no Moo::Role;
 
 1;
 
@@ -6506,8 +6586,8 @@ __DATA__
 use Unicode::Normalize('NFD');
 use Unicode::UCD qw( charinfo );
 use List::MoreUtils qw(pairwise);
-use Moose;
-
+use Moo;
+use Types::Standard qw(Str Int Maybe ArrayRef InstanceOf);
 with 'Locale::CLDR::CollatorBase';
 
 my $NUMBER_SORT_TOP = "\x{FD00}\x{0034}";
@@ -6516,68 +6596,68 @@ my $FIELD_SEPARATOR = "\x{0002}";
 
 has 'type' => (
 	is => 'ro',
-	isa => 'Str',
+	isa => Str,
 	default => 'standard',
 );
 
 has 'locale' => (
 	is => 'ro',
-	isa => 'Maybe[Locale::CLDR]',
+	isa => Maybe[InstanceOf['Locale::CLDR']],
 	default => undef,
 	predicate => 'has_locale',
 );
 
 has 'alternate' => (
 	is => 'ro',
-	isa => 'Str',
+	isa => Str,
 	default => 'noignore'
 );
 
 has 'backwards' => (
 	is => 'ro',
-	isa => 'Str',
+	isa => Str,
 	default => 'false',
 );
 
 has 'case_level' => (
 	is => 'ro',
-	isa => 'Str',
+	isa => Str,
 	default => 'false',
 );
 
 has 'case_ordering' => (
 	is => 'ro',
-	isa => 'Str',
+	isa => Str,
 	default => 'false',
 );
 
 has 'normalization' => (
 	is => 'ro',
-	isa => 'Str',
+	isa => Str,
 	default => 'false',
 );
 
 has 'numeric' => (
 	is => 'ro',
-	isa => 'Str',
+	isa => Str,
 	default => 'false',
 );
 
 has 'reorder' => (
 	is => 'ro',
-	isa => 'ArrayRef',
+	isa => ArrayRef,
 	default => sub { [] },
 );
 
 has 'strength' => (
 	is => 'ro',
-	isa => 'Int',
+	isa => Int,
 	default => 3,
 );
 
 has 'max_variable' => (
 	is => 'ro',
-	isa => 'Str',
+	isa => Str,
 	default => 'punct',
 );
 
@@ -6759,8 +6839,9 @@ sub _convert_digits_to_numbers {
 	return @numbers;
 }
 
-no Moose;
+no Moo;
 
 1;
 
 # vim: tabstop=4
+
