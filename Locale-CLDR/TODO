@@ -1,4 +1,7 @@
 This is the TODO list
+
+Colation
+
 localetext :- like maketext but better :-)
 
 $locale->localetext($identefier, [ @parameters ], { options => 1 });
