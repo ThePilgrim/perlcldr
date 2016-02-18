@@ -57,7 +57,6 @@ with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::We
 use Class::Load;
 use namespace::autoclean;
 use List::Util qw(first);
-use Class::MOP;
 use DateTime::Locale;
 use Unicode::Normalize();
 use Locale::CLDR::Collator();
@@ -1555,7 +1554,7 @@ sub _find_bundle {
 			: $self->method_cache->{$id}{$method_name}[0];
 	}
 
-	foreach my $module ($self->module->meta->linearized_isa) {
+	foreach my $module (@{mro::get_linear_isa( ref ($self->module ))}) {
 		last if $module eq 'Moo::Object';
 		if ($module->meta->has_method($method_name)) {
 			push @{$self->method_cache->{$id}{$method_name}}, $module->new;

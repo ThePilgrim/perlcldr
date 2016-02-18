@@ -1631,7 +1631,7 @@ has '_default_numbering_system' => (
 
 sub _set_default_nu {
 	my (\$self, \$system) = \@_;
-	my \$default = \$self->_default_numbering_system;
+	my \$default = \$self->_default_numbering_system // '';
 	\$self->_set_default_numbering_system("\$default\$system");
 }
 
