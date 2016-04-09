@@ -32,8 +32,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '28'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 4; # This is the build number against the CLDR revision
+my $CLDR_VERSION = '29'; # This needs to match the revision number of the CLDR revision being generated against
+my $REVISION = 0; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -46,12 +46,13 @@ my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename             = File::Spec->catfile($data_directory, 'core.zip');
 my $base_directory            = File::Spec->catdir($data_directory, 'common'); 
 my $transform_directory       = File::Spec->catdir($base_directory, 'transforms');
-my $lib_directory             = File::Spec->catdir($FindBin::Bin, 'lib', 'Locale', 'CLDR');
+my $build_directory           = File::Spec->catdir($FindBin::Bin, 'lib');
+my $lib_directory             = File::Spec->catdir($build_directory, 'Locale', 'CLDR');
 my $locales_directory         = File::Spec->catdir($lib_directory, 'Locales');
+my $bundles_directory         = File::Spec->catdir($build_directory, 'Bundle', 'Locale', 'CLDR');
 my $transformations_directory = File::Spec->catdir($lib_directory, 'Transformations');
 my $distributions_directory   = File::Spec->catdir($FindBin::Bin, 'Distributions');
 my $tests_directory           = File::Spec->catdir($FindBin::Bin, 't');
-my $build_directory           = File::Spec->catdir($FindBin::Bin, 'lib');
 
 # Check if we have a Data directory
 if (! -d $data_directory ) {
@@ -520,6 +521,7 @@ my %region_to_package;
 # Sort files ASCIIbetically
 my $en;
 my $languages;
+my $regions;
 foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, readdir($dir) ) {
     if (@ARGV) {
         next unless grep {$file_name eq $_} @ARGV;
@@ -574,7 +576,7 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
 
 	if (defined( my $t = $output_file_parts[2])) {
 		$t =~ s/\.pm$//;
-		push @{$region_to_package{lc $t}}, join('::','Locale::CLDR',@output_file_parts[0,1],$t);
+		push @{$region_to_package{lc $t}}, join('::','Locale::CLDR::Locales',@output_file_parts[0,1],$t);
 	}
 	
 	my $has_en = -e File::Spec->catfile($locales_directory, 'En', 'Any', 'Us.pm');
@@ -584,6 +586,7 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
 		require Locale::CLDR;
 		$en = Locale::CLDR->new('en');
 		$languages = $en->all_languages;
+		$regions = $en->all_regions;
 	}
 
     open $file, '>', File::Spec->catfile($locales_directory, @output_file_parts);
@@ -639,7 +642,7 @@ foreach my $region (keys %$region_names) {
 }
 
 foreach my $region (sort keys %$region_contains) {
-	my $name = lc $region_names->{$region};
+	my $name = lc ( $region_names->{$region} // '' );
 	$name=~tr/a-z0-9//cs;
 	build_bundle($out_directory, $region_contains->{$region}, $name, $region_names);
 }
@@ -801,7 +804,8 @@ use Moo;
 extends('$parent');
 
 no Moo;
-__PACKAGE__->meta->make_immutable;
+
+1;
 EOT
         close $file;
     }
@@ -3181,7 +3185,7 @@ EOT
 sub process_region_containment_data {
 	my ($file, $xpath) = @_;
 	
-	my $data = findnodes($xpath, '/supplementalData/territoryContainment/group');
+	my $data = findnodes($xpath, q(/supplementalData/territoryContainment/group[not(@status) or @status!='deprecated']));
 	
 	my %contains;
 	my %contained_by;
@@ -4808,7 +4812,6 @@ sub process_footer {
         if $verbose;
 
     say $file "no Moo$isRole;";
-    say $file '__PACKAGE__->meta->make_immutable;' unless $isRole;
     say $file '';
     say $file '1;';
     say $file '';
@@ -4923,52 +4926,58 @@ sub process_transform_data {
     foreach my $node (@nodes) {
         next if $node->getLocalName() eq 'comment';
 		next unless $node->getChildNode(1);
-        my $rule = $node->getChildNode(1)->getValue;
+        my $rules = $node->getChildNode(1)->getValue;
 		
-		my @terms = grep { defined && /\S/ } parse_line(qr/\s+|[{};\x{2190}\x{2192}\x{2194}=\[\]]/, 'delimiters', $rule);
-		
-		# Escape transformation meta characters inside a set
-		my $brackets = 0;
-		my $count = 0;
-		foreach my $term (@terms) {
-		    $count++;
-			$brackets++ if $term eq '[';
-			$brackets-- if $term eq ']';
-			if ($brackets && $term =~ /[{};]/) {
-			    $term = "\\$term";
+		# Split into lines
+		my @rules = split /\n/, $rules;
+		foreach my $rule (@rules) {
+			next if $rule =~ /^\s*#/; # Skip comments
+			next if $rule =~ /^\s*$/; # Skip empty lines
+			my @terms = grep { defined && /\S/ } parse_line(qr/\s+|[{};\x{2190}\x{2192}\x{2194}=\[\]]/, 'delimiters', $rule);
+
+			# Escape transformation meta characters inside a set
+			my $brackets = 0;
+			my $count = 0;
+			foreach my $term (@terms) {
+				$count++;
+				$brackets++ if $term eq '[';
+				$brackets-- if $term eq ']';
+				if ($brackets && $term =~ /[{};]/) {
+					$term = "\\$term";
+				}
+				last if ! $brackets && $term =~ /;\s*(?:#.*)?$/;
 			}
-			last if ! $brackets && $term =~ /;\s*(?:#.*)?$/;
+			@terms = @terms[ 0 .. $count - 2 ]; 
+
+
+			# Check for conversion rules
+			$terms[0] //= '';
+			if ($terms[0] =~ s/^:://) {
+				push @transforms, process_transform_conversion(\@terms, $direction);
+				next;
+			}
+
+			# Check for Variables
+			if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
+				my $value = join (' ', map { defined $_ ? $_ : '' } @terms[2 .. @terms]);
+				$value =~ s/\[ /[/g;
+				$value =~ s/ \]/]/g;
+				$vars{$terms[0]} = process_transform_substitute_var(\%vars, $value);
+				$vars{$terms[0]} =~ s/^\s*(.*\S)\s*$/$1/;
+				next;
+			}
+
+			# check we are in the right direction
+			my $split = qr/^\x{2194}|$direction$/;
+			next unless any { /$split/ } @terms;
+			@terms = map { process_transform_substitute_var(\%vars, $_) } @terms;
+			if ($direction eq "\x{2192}") {
+				push @transforms, process_transform_rule_forward($split, \@terms);
+			}
+			else {
+				push @transforms, process_transform_rule_backward($split, \@terms);
+			}
 		}
-		@terms = @terms[ 0 .. $count - 2 ]; 
-		
-
-        # Check for conversion rules
-		$terms[0] //= '';
-        if ($terms[0] =~ s/^:://) {
-            push @transforms, process_transform_conversion(\@terms, $direction);
-            next;
-        }
-
-        # Check for Variables
-		if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
-		    my $value = join (' ', map { defined $_ ? $_ : '' } @terms[2 .. @terms]);
-			$value =~ s/\[ /[/g;
-			$value =~ s/ \]/]/g;
-            $vars{$terms[0]} = process_transform_substitute_var(\%vars, $value);
-			$vars{$terms[0]} =~ s/^\s*(.*\S)\s*$/$1/;
-            next;
-        }
-
-        # check we are in the right direction
-        my $split = qr/^\x{2194}|$direction$/;
-        next unless any { /$split/ } @terms;
-        @terms = map { process_transform_substitute_var(\%vars, $_) } @terms;
-        if ($direction eq "\x{2192}") {
-            push @transforms, process_transform_rule_forward($split, \@terms);
-        }
-        else {
-            push @transforms, process_transform_rule_backward($split, \@terms);
-        }
     }
     @transforms = reverse @transforms if $direction eq "\x{2190}";
 	
@@ -5570,14 +5579,18 @@ sub expand_regions {
 	
 	my %packages;
 	foreach my $region (@$regions) {
-		my $packages = $region_to_package{lc $region};
-		$packages //= [ 'Bundle::Locale::CLDR::' . ucfirst lc (($names->{$region} // $region) =~ s/[^a-zA-Z0-9]//gr) ];
-		foreach my $package (@$packages) {
-			eval "require $package";
-			my @packages = grep /Locale::CLDR/, $package->can('meta')
-				? $package->meta->linearized_isa
-				: $package;
-			@packages{@packages} = ();
+		if ($names->{$region} !~ /\.pm$/) {
+			my $package = 'Bundle::Locale::CLDR::' . ucfirst lc (($names->{$region} ) =~ s/[^a-zA-Z0-9]//gr);
+			$packages{$package} = ();
+		}
+		else {
+			my $packages = $region_to_package{lc $region};
+			foreach my $package (@$packages) {
+				eval "require $package";
+				my @packages = @{ mro::get_linear_isa($package) };
+				@packages{@packages} = ();
+				delete $packages{'Moo::Object'};
+			}
 		}
 	}
 	
@@ -5590,7 +5603,6 @@ sub build_distributions {
 	build_base_distribution();
 	build_transforms_distribution();
 	build_language_distributions();
-	build_region_distributions();
 	build_bundle_distributions();
 }
 
@@ -5695,6 +5707,8 @@ sub build_text {
 	my ($module, $version) = @_;
 	$file = $module;
 	$module =~ s/\.pm$//;
+	my $is_bundle = $module =~ /^Bundle::/ ? 1 : 0;
+	
 	my $cleanup = $module =~ s/::/-/gr;
 	if ($version) {
 		$version = "/$version";
@@ -5709,6 +5723,11 @@ sub build_text {
 	my $name = '';
 	$name = "Perl localization data for $languages->{$language}" if exists $languages->{$language};
 	$name = "Perl localization data for transliterations" if $language eq 'transformations';
+	$name = "Perl localization data for $regions->{uc $language}" if exists $regions->{uc $language} && $is_bundle;
+	my $module_base = $is_bundle ? '' : 'Locale::CLDR::';
+	my $module_cleanup = $is_bundle ? '' : 'Locale-CLDR-';
+	my $requires_base = $is_bundle ? '' : "'Locale::CLDR'              => '$VERSION'";
+	my $dist_version = $is_bundle ? "dist_version        => '$VERSION'" : "dist_version_from   => 'lib/Locale/CLDR/$file$version'";
 	my $build_text = <<EOT;
 use strict;
 use warnings;
@@ -5717,7 +5736,7 @@ use utf8;
 use Module::Build;
 
 my \$builder = Module::Build->new(
-    module_name         => 'Locale::CLDR::$module',
+    module_name         => '$module_base$module',
     license             => 'perl',
     requires        => {
         'version'                   => '0.95',
@@ -5726,16 +5745,16 @@ my \$builder = Module::Build->new(
         'MooX::ClassAttribute'      => '0.011',
 		'Type::Tiny'                => 0,
         'perl'                      => '5.10.1',
-        'Locale::CLDR'              => '$VERSION'
+        $requires_base,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
-    dist_version_from   => 'lib/Locale/CLDR/$file$version',
+    $dist_version,
     build_requires => {
         'ok'                => 0,
         'Test::Exception'   => 0,
         'Test::More'        => '0.98',
     },
-    add_to_cleanup      => [ 'Locale-CLDR-$cleanup-*' ],
+    add_to_cleanup      => [ '$module_cleanup$cleanup-*' ],
 	configure_requires => { 'Module::Build' => '0.40' },
 	release_status => '$RELEASE_STATUS',
 	dist_abstract => 'Locale::CLDR - Data Package ( $name )',
@@ -5827,9 +5846,10 @@ sub build_language_distributions {
 			get_files_recursive(File::Spec->catdir($locales_directory, $language))
 		);
 
-		unless (copy_tests($language)) {
-			create_default_tests($language, \@files);
-		}
+		# This construct attempts to copy tests from the t directory and
+		# then creates the default tests passing in the flag returned by 
+		# copy_tests saying wether any tests where copied
+		create_default_tests($language, \@files, copy_tests($language));
 
 		foreach my $file (@files) {
 			my $source_name = File::Spec->catfile(@$file);
@@ -5844,7 +5864,7 @@ sub build_language_distributions {
 }
 
 sub create_default_tests {
-	my ($distribution, $files) = @_;
+	my ($distribution, $files, $has_tests) = @_;
 	my $destination_directory = File::Spec->catdir($distributions_directory, $distribution, 't');
 	make_path($destination_directory) unless -d $destination_directory;
 	
@@ -5899,19 +5919,40 @@ To install this module, run the following commands:
 Locale Data
 This is a locale data package, you will need the Locale::CLDR package to get it to work, which if you are using the 
 CPAN client should have been installed for you.
+EOT
 
+	print $readme <<EOT unless $has_tests;
 WARNING
 This package has insufficient tests. If you feel like helping get hold of the Locale::CLDR::Locales::En package from CPAN
 or use the git repository at https://github.com/ThePilgrim/perlcldr and use the tests from that to create a propper test 
 suite for this language pack. Please send me a copy of the tests, either by a git pull request, which will get your name into
 the git history or by emailing me using my email address on CPAN.
 EOT
-}	
-
-sub build_region_distributions{
 }
 
 sub build_bundle_distributions {
+	opendir (my $dir, $bundles_directory);
+	while (my $file = readdir($dir)) {
+		next unless -f File::Spec->catfile($bundles_directory, $file);
+
+		my $bundle = $file;
+		$bundle =~ s/\.pm$//;
+		my $distribution = File::Spec->catdir($distributions_directory, 'Bundles', $bundle, 'lib');
+		make_path($distribution)
+			unless -d $distribution;
+
+		open my $build_file, '>', File::Spec->catfile($distributions_directory, 'Bundles', $bundle, 'Build.PL');
+		print $build_file build_text("Bundle::Locale::CLDR::$file");
+		close $build_file;
+	
+		my $source_name = File::Spec->catfile($bundles_directory, $file);
+		my $destination_name = File::Spec->catdir($distribution, qw(Bundle Locale CLDR), $file);
+		make_path(File::Spec->catdir($distribution, qw(Bundle Locale CLDR)))
+			unless -d File::Spec->catdir($distribution, qw(Bundle Locale CLDR));
+		copy($source_name, $destination_name);
+		
+		make_distribution(File::Spec->catdir($distributions_directory, 'Bundles', $bundle));
+	}
 }
 
 __DATA__
