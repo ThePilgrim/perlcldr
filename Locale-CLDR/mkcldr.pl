@@ -3459,7 +3459,14 @@ EOT
             say $file "\t\t\tif (\$_ eq '$ctype') {";
 			foreach my $day_period_type (keys  %{$calendars{day_period_data}{$ctype}}) {
 				say $file "\t\t\t\tif(\$day_period_type eq '$day_period_type') {";
-				foreach my $type (keys  %{$calendars{day_period_data}{$ctype}{$day_period_type}}) {
+				foreach my $type (sort
+					{ 
+						my $return = 0; 
+						$return = -1 if $a eq 'noon' || $a eq 'midnight';
+						$return = 1 if $b eq 'noon' || $b eq 'midnight';
+						return $return;
+					} keys  %{$calendars{day_period_data}{$ctype}{$day_period_type}}) {
+					# Sort 'at' periods to the top of the list so they are printed first
 					my %boundries = map {@$_} @{$calendars{day_period_data}{$ctype}{$day_period_type}{$type}};
 					if (exists $boundries{at}) {
 						my ($hm) = $boundries{at};
@@ -3469,19 +3476,23 @@ EOT
 						next;
 					}
 
-					my $start = exists $boundries{from} ? '>=' : '>';
-					my $end   = exists $boundries{to}   ? '<=' : '<';
-
-					my $stime = $boundries{from} // $boundries{after};
-					my $etime = $boundries{to}   // $boundries{before};
+					my $stime = $boundries{from};
+					my $etime = $boundries{before};
 
 					foreach ($stime, $etime) {
 						s/://;
 						$_ = $_ + 0;
 					}
 
-					say $file "\t\t\t\t\treturn '$type' if \$time $start $stime";
-					say $file "\t\t\t\t\t\t&& \$time $end $etime;";
+					if ($etime < $stime) { 
+						# Time crosses midnight
+						say $file "\t\t\t\t\treturn '$type' if \$time >= $stime;";
+						say $file "\t\t\t\t\treturn '$type' if \$time < $etime;";
+					}
+					else {
+						say $file "\t\t\t\t\treturn '$type' if \$time >= $stime";
+						say $file "\t\t\t\t\t\t&& \$time < $etime;";
+					}
 				}
 				say $file "\t\t\t\t}";
 			}
@@ -5824,6 +5835,9 @@ sub build_transforms_distribution {
 sub build_language_distributions {
 	opendir (my $dir, $locales_directory);
 	while (my $file = readdir($dir)) {
+	
+		# Skip the Root language as it's subsumed into Base
+		next if $file eq 'Root.pm';
 		next unless -f File::Spec->catfile($locales_directory, $file);
 
 		my $language = $file;

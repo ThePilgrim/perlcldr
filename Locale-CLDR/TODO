@@ -1,6 +1,8 @@
 This is the TODO list
 
-Colation
+Fix regionFormat in Timezone names.
+
+**********************************************
 
 localetext :- like maketext but better :-)
 
@@ -36,3 +38,7 @@ this calles localetext_quant()
 This method finds the plural form of the number in $_[1] and passes that as the option to $locale->localetext
 giving, for the file lookup a call of somthing like
 $locale->localetext('file', 1, { plural => 'one' })
+
+**********************************************
+
+Colation

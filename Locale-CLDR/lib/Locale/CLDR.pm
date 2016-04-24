@@ -552,6 +552,18 @@ The following methods can be called on the locale object
 The local identifier. This is what you get if you attempt to
 stringify a locale object.
 
+=item has_region()
+
+True if a region id was passed into the constructor
+
+=item has_script()
+
+True if a script id was passed into the constructor
+
+=item has_variant()
+
+True if a variant id was passed into the constructor
+
 =item likely_language()
 
 Given a locale with no language passed in or with the explicit language
@@ -651,9 +663,9 @@ sub _build_module {
 
 	my @likely_path = 
 		map { ucfirst lc } (
-			$self->has_likely_subtag ? $self->likely_subtag->language_id : 'Any',
-			$self->has_likely_subtag ? $self->likely_subtag->script_id : 'Any',
-			$self->has_likely_subtag ? $self->likely_subtag->region_id : 'Any',
+			$self->_has_likely_subtag ? $self->likely_subtag->language_id : 'Any',
+			$self->_has_likely_subtag ? $self->likely_subtag->script_id : 'Any',
+			$self->_has_likely_subtag ? $self->likely_subtag->region_id : 'Any',
 		);
 	
 	for (my $i = 0; $i < @path; $i++) {
@@ -1117,7 +1129,7 @@ has 'likely_subtag' => (
 	isa => InstanceOf['Locale::CLDR'],
 	init_arg => undef,
 	writer => '_set_likely_subtag',
-	predicate => 'has_likely_subtag',
+	predicate => '_has_likely_subtag',
 );
 
 sub _build_break {
@@ -1379,7 +1391,7 @@ after 'BUILD' => sub {
 # Defaults
 # Calendar, currency format, currency type, first day of week
 foreach my $default (qw( ca cf cu fw)) {
-	has "default_$default" => (
+	has "_default_$default" => (
 		is			=> 'ro',
 		isa			=> Str,
 		init_arg	=> undef,
@@ -1390,7 +1402,7 @@ foreach my $default (qw( ca cf cu fw)) {
 	no strict 'refs';
 	*{"_test_default_$default"} = sub {
 		my $self = shift;
-		my $method = "default_$default";
+		my $method = "_default_$default";
 		return length $self->$method;
 	};
 }
@@ -1400,7 +1412,7 @@ sub default_calendar {
 
 	my $default = '';
 	if ($self->_test_default_ca) {
-		$default = $self->default_ca();
+		$default = $self->_default_ca();
 	}
 	else {
 		my $calendar_preferences = $self->calendar_preferences();
@@ -1426,7 +1438,7 @@ sub default_currency_format {
 	
 	my $default = 'standard';
 	if ($self->_test_default_cf) {
-		$default = $self->default_cf();
+		$default = $self->_default_cf();
 	}
 	else {
 		$self->_set_default_cf($default);
@@ -1543,7 +1555,7 @@ sub _build_native_variant {
 # Method to locate the resource bundle with the required data
 sub _find_bundle {
 	my ($self, $method_name) = @_;
-	my $id = $self->has_likely_subtag()
+	my $id = $self->_has_likely_subtag()
 		? $self->likely_subtag()->id()
 		: $self->id(); 
 		
@@ -1556,7 +1568,7 @@ sub _find_bundle {
 
 	foreach my $module (@{mro::get_linear_isa( ref ($self->module ))}) {
 		last if $module eq 'Moo::Object';
-		if ($module->meta->has_method($method_name)) {
+		if (defined &{"${module}::${method_name}"}) {
 			push @{$self->method_cache->{$id}{$method_name}}, $module->new;
 		}
 	}
@@ -2782,7 +2794,7 @@ sub transform {
 	my $variant	= $params{variant} // 'Any';
 	my $text	= $params{text} // '';
 	
-	($from, $to) = map {ref $_ ? $_->likely_script() : $_} ($from, $to);
+	($from, $to) = map {ref $_ ? $_->likely_subtag->script_id() : $_} ($from, $to);
 	$_ = ucfirst(lc $_) foreach ($from, $to, $variant);
 	
 	my $package = __PACKAGE__ . "::Transformations::${variant}::${from}::${to}";
@@ -3973,7 +3985,7 @@ sub week_data_first_day {
 	my ($self, $region_id) = @_;
 	
 	if ($self->_test_default_fw) {
-		return $self->default_fw;
+		return $self->_default_fw;
 	}
 	
 	my $week_data_hash = $self->_week_data_first_day();
@@ -4333,6 +4345,11 @@ of the CLDR data and usage patterns of locales around the world.
 This function returns a hash ref keyed on partial locale id's with the value being the locale
 id for the most likely language, script and region code for the key.
 
+=item likely_subtag()
+
+This method returns a Locale::CLDR object with any missing elements from the language, script or
+region, filled in with data from the likely_subtags hash
+
 =back
 
 =head2 Currency Information
@@ -4375,7 +4392,7 @@ If no region id is given then the current locale's is used
 sub default_currency {
 	my ($self, $region_id) = @_;
 	
-	return $self->default_cu if $self->_test_default_cu();
+	return $self->_default_cu if $self->_test_default_cu();
 	
 	$region_id //= $self->region_id;
 	

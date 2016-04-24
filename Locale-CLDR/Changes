@@ -157,4 +157,6 @@ All dates are in ISO 8601 Format
 	Moved from using Moose to Moo
 	Removed Deprecated regions
 	Added Region bundles and distributions
-	
+	Added some Rusian tests
+	Fixed generation of day period rules
+	Transliteration now requires script identifiers rather than script names

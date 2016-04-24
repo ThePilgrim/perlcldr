@@ -19,7 +19,7 @@ is($locale->language_name(), 'English', 'Language name from current locale');
 is($locale->language_name('fr'), 'French', 'Language name from string');
 
 my $all_languages = {
-    'aa' => 'Afar',
+	'aa' => 'Afar',
 	'ab' => 'Abkhazian',
 	'ace' => 'Achinese',
 	'ach' => 'Acoli',
@@ -542,8 +542,8 @@ my $all_languages = {
 	'sux' => 'Sumerian',
 	'sv' => 'Swedish',
 	'sw' => 'Swahili',
+	'sw_CD' => 'Congo Swahili',
 	'swb' => 'Comorian',
-	'swc' => 'Congo Swahili',
 	'syc' => 'Classical Syriac',
 	'syr' => 'Syriac',
 	'szl' => 'Silesian',
@@ -816,6 +816,7 @@ my $all_scripts = {
 	'Yiii' => 'Yi',
 	'Zinh' => 'Inherited',
 	'Zmth' => 'Mathematical Notation',
+	'Zsye' => 'Emoji',
 	'Zsym' => 'Symbols',
 	'Zxxx' => 'Unwritten',
 	'Zyyy' => 'Common',
@@ -866,7 +867,6 @@ my $all_regions = {
 	'AI' => 'Anguilla',
 	'AL' => 'Albania',
 	'AM' => 'Armenia',
-	'AN' => 'Netherlands Antilles',
 	'AO' => 'Angola',
 	'AQ' => 'Antarctica',
 	'AR' => 'Argentina',

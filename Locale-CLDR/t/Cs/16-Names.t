@@ -533,8 +533,8 @@ my $all_languages = {
 	'sux' => 'sumerština',
 	'sv' => 'švédština',
 	'sw' => 'svahilština',
+	'sw_CD' => 'svahilština (Kongo)',
 	'swb' => 'komorština',
-	'swc' => 'svahilština (Kongo)',
 	'syc' => 'syrština (klasická)',
 	'syr' => 'syrština',
 	'szl' => 'slezština',
@@ -628,6 +628,7 @@ my $all_languages = {
 	'zun' => 'zunijština',
 	'zxx' => 'žádný jazykový obsah',
 	'zza' => 'zaza',
+
 };
 
 is_deeply($locale->all_languages, $all_languages, 'All languages');
@@ -850,7 +851,6 @@ my $all_regions = {
 	'AI' => 'Anguilla',
 	'AL' => 'Albánie',
 	'AM' => 'Arménie',
-	'AN' => 'Nizozemské Antily',
 	'AO' => 'Angola',
 	'AQ' => 'Antarktida',
 	'AR' => 'Argentina',
