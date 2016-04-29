@@ -723,7 +723,7 @@ build_bundle($out_directory, \@base_bundle, 'Base');
 
 # All Bundle
 my @all_bundle = (
-	'Locale::CLDR::Locales::World',
+	'Bundle::Locale::CLDR::World',
 	'Locale::CLDR::Transformations',
 );
 
