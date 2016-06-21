@@ -3,41 +3,11 @@ This is the TODO list
 Fix regionFormat in Timezone names.
 
 **********************************************
+Second thaughts on gettext/maktext
 
-localetext :- like maketext but better :-)
-
-$locale->localetext($identefier, [ @parameters ], { options => 1 });
-identifier can be anything but suggest a maketext formatted string
-paramaters will fit into the slots in the localised version of the string,
-giving a level of indirection, see examples below
-Not sure what the options are yet
-
-Locale::CLDR->localetext_add($locale, $identifier, $localised_text, {options => 1});
-$locale is the locale id or a locale object to add the identifier to, this allows you
-to add an identifier to say en and then add a seperate on to en_US. making US english 
-use en_US and en_CA use the identifier in the en locale
-$identifier is the identifier used for this text to be localised
-$localised text is that gets returned, or posibly a sub ref
-The options allow you to refine when a piece of localised text is returned definatly plural
-and possibly gender
-
-Psudo code of how localetext works
-$locale->localetext('I scanned [_1] files from [_2] directories', [ 1, 2 ]);
-look up 'I scanned [_1] files from [_2] directories' in locales lexicon, if can't be found
-	try again with just the language then root then the string passed into the function
-In this case the lookup finds 'I scanned [_1] [quant,_1,file] from [_2] [quant,_2,directory]'
-parse the string into a code ref we can run. In this case we get
-$sub = {
-	return join '', 'I scanned ', $_[1], ' ', $local->localetext_quant($_[1], 'file'), ' from ', $_[2], ' ', $locale->localetext_quant($_[2], 'directory');
-}
-
-replace the original looked up text with this subref.
-If we originally find a sub ref the come here
-call the sub ref
-this calles localetext_quant()
-This method finds the plural form of the number in $_[1] and passes that as the option to $locale->localetext
-giving, for the file lookup a call of somthing like
-$locale->localetext('file', 1, { plural => 'one' })
+I have decided that the simple way to do this is to impliment ngettext,
+possibly with extentions. Also add functionality to handle .po files 
+and .mo/.gmo files
 
 **********************************************
 
