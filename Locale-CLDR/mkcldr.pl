@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+﻿#!/usr/bin/perl
 
 use v5.18;
 use strict;
@@ -22,7 +22,6 @@ use XML::Parser;
 use Text::ParseWords;
 use List::MoreUtils qw( any );
 use List::Util qw( min max );
-use Unicode::Normalize('NFD');
 
 my $start_time = time();
 
@@ -32,14 +31,14 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '29'; # This needs to match the revision number of the CLDR revision being generated against
+my $CLDR_VERSION = '30.0.3'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION = 0; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
@@ -1428,7 +1427,7 @@ has 'key_aliases' => (
 \tdefault\t=> sub { return {
 EOT
     foreach my $key (sort keys %keys) {
-        my $alias = lc $keys{$key}{alias};
+        my $alias = lc ($keys{$key}{alias} // '');
         next unless $alias;
         say $file "\t\t'$key' => '$alias',";
     }
@@ -4892,9 +4891,9 @@ sub process_transforms {
 
     my $transform_nodes = findnodes($xpath, q(/supplementalData/transforms/transform));
     foreach my $transform_node ($transform_nodes->get_nodelist) {
-        my $variant   = ucfirst lc $transform_node->getAttribute('variant') || 'Any';
-        my $source    = ucfirst lc $transform_node->getAttribute('source')  || 'Any';
-        my $target    = ucfirst lc $transform_node->getAttribute('target')  || 'Any';
+        my $variant   = ucfirst lc ($transform_node->getAttribute('variant') || 'Any');
+        my $source    = ucfirst lc ($transform_node->getAttribute('source')  || 'Any');
+        my $target    = ucfirst lc ($transform_node->getAttribute('target')  || 'Any');
         my $direction = $transform_node->getAttribute('direction') || 'both';
 
         my @directions = $direction eq 'both'
@@ -5303,13 +5302,13 @@ sub process_transform_rule_backward {
 # Sub to mangle Unicode regex to Perl regex
 sub unicode_to_perl {
 	my $regex = shift;
-
 	return '' unless length $regex;
 	
 		
 	# Convert Unicode escapes \u1234 to characters
 	$regex =~ s/(?:\\\\)*+\K\\u(\p{Ahex}+)/chr(hex($1))/egx;
 	
+	# Convert Unicode sets to Perl sets
 	$regex =~ s/
 		(?:\\\\)*+               	# Pairs of \
 		(?!\\)                   	# Not followed by \
@@ -5334,7 +5333,7 @@ sub unicode_to_perl {
 }
 
 sub convert {
-	my $set = shift;
+	my ($set) = @_;
 	
 	# Some definitions
 	my $posix = qr/(?(DEFINE)
@@ -5375,27 +5374,27 @@ sub convert {
 	$set =~ s/\[:(.*?):\]/\\p{$1}/g;
 	
 	if ($normal) {
-		return "$set";
+		return $set;
 	}
 	
 	# Fix up [abc[de]] to [[abc][de]]
 	$set =~ s/\[ ( (?>\^? \s*) [^\]]+? ) \s* \[/[[$1][/gx;
-	
+
 	# Fix up [[ab]cde] to [[ab][cde]]
-	$set =~ s/\[ \^?+ \s* \[ [^\]]+? \] \K \s* ( [^\[]+ ) \]/[$1]]/gx;
-	
+	$set =~ s/\[ \^?+ \s* (?: \[ [^\]]+? \] )++ \K \s* ( [^\[]+ ) \]/[$1]]/gx;
+
 	# Unicode uses ^ to compliment the set where as Perl uses !
 	$set =~ s/\[ \^ \s*/[!/gx;
-	
+
 	# The above can leave us with empty sets. Strip them out
 	$set =~ s/\[\]//g;
-	
+
 	# Fixup inner sets with no operator
 	1 while $set =~ s/ \] \s* \[ /] + [/gx;
 	1 while $set =~ s/ \] \s * (\\p\{.*?\}) /] + $1/xg;
 	1 while $set =~ s/ \\p\{.*?\} \s* \K \[ / + [/xg;
 	1 while $set =~ s/ \\p\{.*?\} \s* \K (\\p\{.*?\}) / + $1/xg;
-	
+
 	# Unicode uses [] for grouping as well as starting an inner set
 	# Perl uses ( ) So fix that up now
 	
@@ -5426,7 +5425,7 @@ sub process_rbnf {
 			my $access  = $ruleset_node->getAttribute('access');
 			push @valid_formats, $ruleset unless $access && $access eq 'private';
 			
-			my $ruleset_attributes = "\@type='$ruleset'" . ($access ne '' ? " and \@access='$access'" : '');
+			my $ruleset_attributes = "\@type='$ruleset'" . (length ($access // '' ) ? " and \@access='$access'" : '');
 			
 			my $rule_nodes = findnodes($xml, qq(/ldml/rbnf/rulesetGrouping[\@type='$grouping']/ruleset[$ruleset_attributes]/rbnfrule));
 			
@@ -5889,7 +5888,7 @@ use Test::Exception;
 use ok( 'Locale::CLDR' );
 my \$locale;
 
-diag( "Testing Locale::CLDR $Locale::CLDR::VERSION, Perl $], $^X" );
+diag( "Testing Locale::CLDR $Locale::CLDR::VERSION, Perl \$], \$^X" );
 use ok Locale::CLDR::Locales::$distribution, 'Can use locale file Locale::CLDR::Locales::$distribution';
 EOT
 	foreach my $locale (@$files) {
