@@ -5377,11 +5377,23 @@ sub convert {
 		return $set;
 	}
 	
+	say $set;
 	# Fix up [abc[de]] to [[abc][de]]
 	$set =~ s/\[ ( (?>\^? \s*) [^\]]+? ) \s* \[/[[$1][/gx;
 
 	# Fix up [[ab]cde] to [[ab][cde]]
-	$set =~ s/\[ \^?+ \s* (?: \[ [^\]]+? \] )++ \K \s* ( [^\[]+ ) \]/[$1]]/gx;
+	my $inner_set = qr/(?(DEFINE)
+		(?<inner> [^\[\]]++)
+		(?<basic_set> \[ (?&inner) \] )
+		(?<op> (?: [-+&] | ) )
+		(?<compound_set> (?&basic_set) (?: (?&op) (?&basic_set) )*+ | \[ (?&compound_set) (?: (?&op) (?&compound_set) )*+ \])
+		(?<set> (?&compound_set) (?: (?&op) (?&compound_set) )*+ )
+	)/x;
+#	$set =~ s/\[ \^?+ \s* (?: \[ [^\]]+? \] )++ \K \s* ( [^\[]+ ) \]/[$1]]/gx;
+	{
+		no warnings 'uninitialized';
+		$set =~ s/\[ $inner_set (?&set)\K \s* ( [^\[]+ ) \]/[$1]]/gx;
+	}
 
 	# Unicode uses ^ to compliment the set where as Perl uses !
 	$set =~ s/\[ \^ \s*/[!/gx;
@@ -5398,8 +5410,9 @@ sub convert {
 	# Unicode uses [] for grouping as well as starting an inner set
 	# Perl uses ( ) So fix that up now
 	
+	say $set;
 	$set =~ s/. \K \[ (?> (!?) \s*) \[ /($1\[/gx;
-	$set =~ s/ \] \s* \] (.) /])$1/gx;
+	$set =~ s/ \] \s* \] (.) /] )$1/gx;
 	
 	return "(?$set)";
 }
