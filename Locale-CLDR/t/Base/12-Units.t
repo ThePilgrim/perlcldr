@@ -517,10 +517,10 @@ is($locale->unit(1, 'millimeter', 'short'), '1 mm', 'English short 1 millimetre'
 is($locale->unit(2, 'millimeter', 'short'), '2 mm', 'English short 2 millimetres');
 is($locale->unit(1, 'millimeter'), '1 millimeter', 'English long 1 millimetre');
 is($locale->unit(2, 'millimeter'), '2 millimeters', 'English long 2 millimetres');
-is($locale->unit(1, 'millimeter-of-mercury', 'narrow'), '1mm Hg', 'English narrow 1 millimetre of mercury');
-is($locale->unit(2, 'millimeter-of-mercury', 'narrow'), '2mm Hg', 'English narrow 2 millimetres of mercury');
-is($locale->unit(1, 'millimeter-of-mercury', 'short'), '1 mm Hg', 'English short 1 millimetre of mercury');
-is($locale->unit(2, 'millimeter-of-mercury', 'short'), '2 mm Hg', 'English short 2 millimetres of mercury');
+is($locale->unit(1, 'millimeter-of-mercury', 'narrow'), '1mmHg', 'English narrow 1 millimetre of mercury');
+is($locale->unit(2, 'millimeter-of-mercury', 'narrow'), '2mmHg', 'English narrow 2 millimetres of mercury');
+is($locale->unit(1, 'millimeter-of-mercury', 'short'), '1 mmHg', 'English short 1 millimetre of mercury');
+is($locale->unit(2, 'millimeter-of-mercury', 'short'), '2 mmHg', 'English short 2 millimetres of mercury');
 is($locale->unit(1, 'millimeter-of-mercury'), '1 millimeter of mercury', 'English long 1 millimetre of mercury');
 is($locale->unit(2, 'millimeter-of-mercury'), '2 millimeters of mercury', 'English long 2 millimetres of mercury');
 is($locale->unit(1, 'millisecond', 'narrow'), '1ms', 'English narrow 1 millisecond');
