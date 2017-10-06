@@ -806,9 +806,9 @@ has 'likely_language' => (
 sub _build_likely_language {
 	my $self = shift;
 	
-	my $language = $self->language();
+	my $language = $self->language_id();
 	
-	return $language unless $language eq 'und';
+	return $self->language unless $language eq 'und';
 	
 	return $self->likely_subtag->language;
 }
