@@ -22,7 +22,7 @@ use XML::Parser;
 use Text::ParseWords;
 use List::MoreUtils qw( any );
 use List::Util qw( min max );
-#use charnames;
+use Unicode::Regex::Set();
 
 my $start_time = time();
 
@@ -45,12 +45,12 @@ chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename             = File::Spec->catfile($data_directory, 'core.zip');
 my $base_directory            = File::Spec->catdir($data_directory, 'common'); 
-#my $transform_directory       = File::Spec->catdir($base_directory, 'transforms');
+my $transform_directory       = File::Spec->catdir($base_directory, 'transforms');
 my $build_directory           = File::Spec->catdir($FindBin::Bin, 'lib');
 my $lib_directory             = File::Spec->catdir($build_directory, 'Locale', 'CLDR');
 my $locales_directory         = File::Spec->catdir($lib_directory, 'Locales');
 my $bundles_directory         = File::Spec->catdir($build_directory, 'Bundle', 'Locale', 'CLDR');
-#my $transformations_directory = File::Spec->catdir($lib_directory, 'Transformations');
+my $transformations_directory = File::Spec->catdir($lib_directory, 'Transformations');
 my $distributions_directory   = File::Spec->catdir($FindBin::Bin, 'Distributions');
 my $tests_directory           = File::Spec->catdir($FindBin::Bin, 't');
 
@@ -447,48 +447,48 @@ close $file;
 my %parent_locales = get_parent_locales($xml);
 
 # Transformations
-#make_path($transformations_directory) unless -d $transformations_directory;
-#opendir (my $dir, $transform_directory);
-#my $num_files = grep { -f File::Spec->catfile($transform_directory,$_)} readdir $dir;
-#my $count_files = 0;
-#rewinddir $dir;
-#my @transformation_list;
-#
-#foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
-#    my $percent = ++$count_files / $num_files * 100;
-#    my $full_file_name = File::Spec->catfile($transform_directory, $file_name);
-#    say sprintf("Processing Transformation File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent) if $verbose;
-#	$xml = XML::XPath->new(
-#		parser => XML::Parser->new(
-#			NoLWP => 1,
-#			ErrorContext => 2,
-#			ParseParamEnt => 1,
-#		),
-#		filename => $full_file_name
-#	);
-#	
-#    process_transforms($transformations_directory, $xml, $full_file_name);
-#}
-#
+make_path($transformations_directory) unless -d $transformations_directory;
+opendir (my $dir, $transform_directory);
+my $num_files = grep { -f File::Spec->catfile($transform_directory,$_)} readdir $dir;
+my $count_files = 0;
+rewinddir $dir;
+my @transformation_list;
+
+foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
+    my $percent = ++$count_files / $num_files * 100;
+    my $full_file_name = File::Spec->catfile($transform_directory, $file_name);
+    say sprintf("Processing Transformation File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent) if $verbose;
+	$xml = XML::XPath->new(
+		parser => XML::Parser->new(
+			NoLWP => 1,
+			ErrorContext => 2,
+			ParseParamEnt => 1,
+		),
+		filename => $full_file_name
+	);
+	
+    process_transforms($transformations_directory, $xml, $full_file_name);
+}
+
 # Write out a dummy transformation module to keep CPAN happy
-#{
-#	open my $file, '>', File::Spec->catfile($lib_directory, 'Transformations.pm');
-#	print $file <<EOT;
-#package Locale::CLDR::Transformations;
-#
-#=head1 Locale::CLDR::Transformations - Dummy base class to keep CPAN happy
-#
-#=cut
-#
-#use version;
-#
-#our VERSION = version->declare('v$VERSION');
-#
-#1;
-#EOT
-#}
-#
-#push @transformation_list, 'Locale::CLDR::Transformations';
+{
+	open my $file, '>', File::Spec->catfile($lib_directory, 'Transformations.pm');
+	print $file <<EOT;
+package Locale::CLDR::Transformations;
+
+=head1 Locale::CLDR::Transformations - Dummy base class to keep CPAN happy
+
+=cut
+
+use version;
+
+our VERSION = version->declare('v$VERSION');
+
+1;
+EOT
+}
+
+push @transformation_list, 'Locale::CLDR::Transformations';
 
 #Collation
 
@@ -506,12 +506,12 @@ close $Allkeys_out;
 
 # Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
-opendir ( my $dir, $main_directory);
+opendir ( $dir, $main_directory);
 
 # Count the number of files
-my $num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
+$num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
 $num_files += 3; # We do root.xml, en.xml and en_US.xml twice
-my $count_files = 0;
+$count_files = 0;
 rewinddir $dir;
 
 my $segmentation_directory = File::Spec->catdir($base_directory, 'segments');
@@ -696,7 +696,7 @@ sub get_language_bundle_data {
 }
 
 # Transformation bundle
-#build_bundle($out_directory, \@transformation_list, 'Transformations');
+build_bundle($out_directory, \@transformation_list, 'Transformations');
 
 # Base bundle
 my @base_bundle = (
@@ -4890,437 +4890,438 @@ EOT
     }    
 }
 
-#sub process_transforms {
-#    my ($dir, $xpath, $xml_file_name) = @_;
-#
-#    my $transform_nodes = findnodes($xpath, q(/supplementalData/transforms/transform));
-#    foreach my $transform_node ($transform_nodes->get_nodelist) {
-#        my $variant   = ucfirst lc ($transform_node->getAttribute('variant') || 'Any');
-#        my $source    = ucfirst lc ($transform_node->getAttribute('source')  || 'Any');
-#        my $target    = ucfirst lc ($transform_node->getAttribute('target')  || 'Any');
-#        my $direction = $transform_node->getAttribute('direction') || 'both';
-#
-#        my @directions = $direction eq 'both'
-#           ? qw(forward backward)
-#            : $direction;
-#
-#        foreach my $direction (@directions) {
-#            if ($direction eq 'backward') {
-#                ($source, $target) = ($target, $source);
-#            }
-#
-#            my $package = "Locale::CLDR::Transformations::${variant}::${source}::$target";
-#			push @transformation_list, $package;
-#            my $dir_name = File::Spec->catdir($dir, $variant, $source);
-#         
-#            make_path($dir_name) unless -d $dir_name;
-#
-#            open my $file, '>', File::Spec->catfile($dir_name, "$target.pm");
-#            process_header($file, $package, $CLDR_VERSION, $xpath, $xml_file_name);
-#            process_transform_data($file, $xpath, (
-#                $direction eq 'forward'
-#                ? "\x{2192}"
-#                : "\x{2190}"
-#            ) );
-#
-#            process_footer($file);
-#            close $file;
-#        }
-#    }
-#}
-#
-#sub process_transform_data {
-#    my ($file, $xpath, $direction) = @_;
-#
-#    my $nodes = findnodes($xpath, q(/supplementalData/transforms/transform/*));
-#	my @nodes = $nodes->get_nodelist;
-#
-#    my @transforms;
-#    my %vars;
-#    foreach my $node (@nodes) {
-#        next if $node->getLocalName() eq 'comment';
-#		next unless $node->getChildNode(1);
-#        my $rules = $node->getChildNode(1)->getValue;
-#		
-#		# Split into lines
-#		my @rules = split /\n/, $rules;
-#		foreach my $rule (@rules) {
-#			next if $rule =~ /^\s*#/; # Skip comments
-#			next if $rule =~ /^\s*$/; # Skip empty lines
-#
-#			my @terms = grep { defined && /\S/ } parse_line(qr/\s+|[{};\x{2190}\x{2192}\x{2194}=\[\]]/, 'delimiters', $rule);
-#
-#			# Escape transformation meta characters inside a set
-#			my $brackets = 0;
-#			my $count = 0;
-#			foreach my $term (@terms) {
-#				$count++;
-#				$brackets++ if $term eq '[';
-#				$brackets-- if $term eq ']';
-#				if ($brackets && $term =~ /[{};]/) {
-#					$term = "\\$term";
-#				}
-#				last if ! $brackets && $term =~ /;\s*(?:#.*)?$/;
-#			}
-#			@terms = @terms[ 0 .. $count - 2 ]; 
-#
-#
-#			# Check for conversion rules
-#			$terms[0] //= '';
-#			if ($terms[0] =~ s/^:://) {
-#				push @transforms, process_transform_conversion(\@terms, $direction);
-#				next;
-#			}
-#
-#			# Check for Variables
-#			if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
-#				my $value = join (' ', map { defined $_ ? $_ : '' } @terms[2 .. @terms]);
-#				$value =~ s/\[ /[/g;
-#				$value =~ s/ \]/]/g;
-#				$vars{$terms[0]} = process_transform_substitute_var(\%vars, $value);
-#				$vars{$terms[0]} =~ s/^\s*(.*\S)\s*$/$1/;
-#				# Convert \\u... to char
-#				$vars{$terms[0]} =~ s/ (?:\\\\)*+ \K \\u (\p{Ahex}+) /chr(hex($1))/egx;
-#				next;
-#			}
-#
-#			# check we are in the right direction
-#			my $split = qr/^\x{2194}|$direction$/;
-#			next unless any { /$split/ } @terms;
-#			@terms = map { process_transform_substitute_var(\%vars, $_) } @terms;
-#			if ($direction eq "\x{2192}") {
-#				push @transforms, process_transform_rule_forward($split, \@terms);
-#			}
-#			else {
-#				push @transforms, process_transform_rule_backward($split, \@terms);
-#			}
-#		}
-#    }
-#    @transforms = reverse @transforms if $direction eq "\x{2190}";
-#	
-#	# Some of these files use non character code points so turn of the 
-#	# non character warning
-#	no warnings "utf8";
-#	
-#    # Print out transforms
-#    print $file <<EOT;
-#BEGIN {
-#\tdie "Transliteration requires Perl 5.18 or above"
-#\t\tunless \$^V ge v5.18.0;
-#}
-#
-#no warnings 'experimental::regex_sets';
-#has 'transforms' => (
-#\tis => 'ro',
-#\tisa => ArrayRef,
-#\tinit_arg => undef,
-#\tdefault => sub { [
-#EOT
-#    if (($transforms[0]{type} // '') ne 'filter') {
-#        unshift @transforms, {
-#            type => 'filter',
-#            match => qr/\G./m,
-#        }
-#    }
-#
-#	say $file "\t\tqr/$transforms[0]->{match}/,";
-#	shift @transforms;
-#	
-#	my $previous = 'transform';
-#	print $file <<EOT;
-#\t\t{
-#\t\t\ttype => 'transform',
-#\t\t\tdata => [
-#EOT
-#	foreach my $transform (@transforms) {
-#        if (($transform->{type} // '' ) ne $previous) {
-#			$previous = $transform->{type} // '';
-#			print $file <<EOT;
-#\t\t\t],
-#\t\t},
-#\t\t{
-#\t\t\ttype => '$previous',
-#\t\t\tdata => [
-#EOT
-#		}
-#		
-#        if ($previous eq 'transform') {
-#            print $file <<EOT;
-#\t\t\t\t{
-#\t\t\t\t\tfrom => q($transform->{from}),
-#\t\t\t\t\tto => q($transform->{to}),
-#\t\t\t\t},
-#EOT
-#        }
-#        if ($previous eq 'conversion') {
-#            print $file <<EOT;
-#\t\t\t\t{
-#\t\t\t\t\tbefore  => q($transform->{before}),
-#\t\t\t\t\tafter   => q($transform->{after}),
-#\t\t\t\t\treplace => q($transform->{replace}),
-#\t\t\t\t\tresult  => q($transform->{result}),
-#\t\t\t\t\trevisit => @{[length($transform->{revisit})]},
-#\t\t\t\t},
-#EOT
-#        }
-#    }
-#    print $file <<EOT;
-#\t\t\t]
-#\t\t},
-#\t] },
-#);
-#
-#EOT
-#}
-#
-#sub process_transform_conversion {
-#    my ($terms, $direction) = @_;
-#
-#    # If the :: marker was it's own term then $terms->[0] will
-#    # Be the null string. Shift it off so we can test for the type
-#    # Of conversion
-#    shift @$terms unless length $terms->[0];
-#
-#    # Do forward rules first
-#    if ($direction eq "\x{2192}") {
-#        # Filter
-#        my $filter = join '', @$terms;
-#        if ($terms->[0] =~ /^\[/) {
-#            $filter =~ s/^(\[ # Start with a [
-#                (?:
-#                    [^\[\]]++ # One or more non [] not backtracking
-#                    (?<!\\)   # Not preceded by a single back slash
-#                    (?>\\\\)* # After we eat an even number of 0 or more backslashes
-#                    |
-#                    (?1)     # Recurs capture group 1
-#                )*
-#                \]           # Followed by the terminating ]
-#                )
-#                \K           # Keep all that and
-#                .*$//x;      # Remove the rest
-#
-#            return process_transform_filter($filter)
-#        }
-#        # Transform Rules
-#        my ($from, $to) = $filter =~ /^(?:(\w+)-)?(\w+)/;
-#		
-#		return () unless defined( $from ) + defined( $to );
-#		
-#        foreach ($from, $to) {
-#            $_ = 'Any' unless defined $_;
-#            s/^und/Any/;
-#        }
-#
-#        return {
-#            type => 'transform',
-#            from => $from,
-#            to   => $to,
-#        }
-#    }
-#    else { # Reverse
-#        # Filter
-#        my $filter = join '', @$terms;
-#        
-#        # Look for a reverse filter
-#        if ($terms->[0] =~ /^\(\s*\[/) {
-#            $filter =~ s/^\(
-#            	(\[               # Start with a [
-#                    (?:
-#                        [^\[\]]++ # One or more non [] not backtracking
-#                        (?<!\\)   # Not preceded by a single back slash
-#                        (?>\\\\)* # After we eat an even number of 0 or more backslashes
-#                        |
-#                        (?1)      # Recurs capture group 1
-#                    )*
-#                \]                # Followed by the terminating ]
-#                )
-#                \)
-#                \K                # Keep all that and
-#                .*$//x;           # Remove the rest
-#
-#            # Remove the brackets
-#            $filter =~ s/^\(\s*(.*\S)\s*\)/$1/;
-#            return process_transform_filter($filter)
-#        }
-#        # Transform Rules
-#        my ($from, $to) = $filter =~ /^(?:\S+)?\((?:(\w+)-)?(\w+)\)/;
-#		
-#		return () unless defined( $from ) + defined( $to );
-#		
-#        foreach ($from, $to) {
-#            $_ = 'Any' unless length $_;
-#            s/^und/Any/;
-#        }
-#
-#        return {
-#            type => 'transform',
-#            from => $from,
-#            to   => $to,
-#        }
-#    }
-#}
-#
-#sub process_transform_filter {
-#    my $filter = shift;
-#    my $match = unicode_to_perl($filter);
-#
-#	no warnings 'regexp';
-#    return {
-#        type => 'filter',
-#        match => qr/\G$match/im,
-#    }
-#}
-#
-#sub process_transform_substitute_var {
-#    my ($vars, $string) = @_;
-#
-#    return $string =~ s!(\$\p{XID_Start}\p{XID_Continue}*)!$vars->{$1} // q()!egr;
-#}
-#
-#sub process_transform_rule_forward {
-#    my ($direction, $terms) = @_;
-#
-#    my (@lhs, @rhs);
-#    my $rhs = 0;
-#    foreach my $term (@$terms) {
-#        if ($term =~ /$direction/) {
-#            $rhs = 1;
-#            next;
-#        }
-#
-#        push ( @{$rhs ? \@rhs : \@lhs}, $term);
-#    }
-#    my $before = 0;
-#    my (@before, @replace, @after);
-#
-#    $before = 1 if any { '{' eq $_ } @lhs;
-#    if ($before) {
-#        while (my $term = shift @lhs) {
-#            last if $term eq '{';
-#            push @before, $term;
-#        }
-#    }
-#    while (my $term = shift @lhs) {
-#        last if $term eq '}';
-#        next if ($term eq '|');
-#        push @replace, $term;
-#    }
-#    @after = @lhs;
-#
-#    # Done lhs now do rhs
-#    if (any { '{' eq $_ } @rhs) {
-#        while (my $term = shift @rhs) {
-#            last if $term eq '{';
-#        }
-#    }
-#    my (@result, @revisit);
-#    my $revisit = 0;
-#    while (my $term = shift @rhs) {
-#        last if $term eq '}';
-#        if ($term eq '|') {
-#            $revisit = 1;
-#            next;
-#        }
-#
-#        push(@{ $revisit ? \@revisit : \@result}, $term);
-#    }
-#
-#	# Strip out quotes
-#	foreach my $term (@before, @after, @replace, @result, @revisit) {
-#		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\Q$1\E/g;
-#		$term =~ s/(["'])(?1)/$1/g;
-#	}
-#	
-#    return {
-#        type    => 'conversion',
-#        before  => unicode_to_perl( join('', @before) ) // '',
-#        after   => unicode_to_perl( join('', @after) ) // '',
-#        replace => unicode_to_perl( join('', @replace) ) // '',
-#        result  => join('', @result),
-#        revisit => join('', @revisit),
-#    };
-#}
-#
-#sub process_transform_rule_backward {
-#    my ($direction, $terms) = @_;
-#
-#    my (@lhs, @rhs);
-#    my $rhs = 0;
-#    foreach my $term (@$terms) {
-#        if ($term =~ /$direction/) {
-#            $rhs = 1;
-#            next;
-#        }
-#
-#        push ( @{$rhs ? \@rhs : \@lhs}, $term);
-#    }
-#    my $before = 0;
-#    my (@before, @replace, @after);
-#
-#    $before = 1 if any { '{' eq $_ } @rhs;
-#    if ($before) {
-#        while (my $term = shift @rhs) {
-#            last if $term eq '{';
-#            push @before, $term;
-#        }
-#    }
-#    while (my $term = shift @rhs) {
-#        last if $term eq '}';
-#        next if ($term eq '|');
-#        push @replace, $term;
-#    }
-#    @after = @rhs;
-#
-#    # Done lhs now do rhs
-#    if (any { '{' eq $_ } @lhs) {
-#        while (my $term = shift @lhs) {
-#            last if $term eq '{';
-#        }
-#    }
-#    my (@result, @revisit);
-#    my $revisit = 0;
-#    while (my $term = shift @lhs) {
-#        last if $term eq '}';
-#        if ($term eq '|') {
-#            $revisit = 1;
-#            next;
-#        }
-#
-#        push(@{ $revisit ? \@revisit : \@result}, $term);
-#    }
-#
-#	# Strip out quotes and escapes
-#	foreach my $term (@before, @after, @replace, @result, @revisit) {
-#	    $term =~ s/(?:\\\\)*+\K\\([^\\])/\Q$1\E/g;
-#		$term =~ s/\\\\/\\/g;
-#		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\Q$1\E/g;
-#		$term =~ s/(["'])(?1)/$1/g;
-#	}
-#	
-#    return {
-#        type    => 'conversion',
-#        before  => unicode_to_perl( join('', @before) ),
-#        after   => unicode_to_perl( join('', @after) ),
-#        replace => unicode_to_perl( join('', @replace) ),
-#        result  => join('', @result),
-#        revisit => join('', @revisit),
-#    };
-#}
+sub process_transforms {
+    my ($dir, $xpath, $xml_file_name) = @_;
+
+    my $transform_nodes = findnodes($xpath, q(/supplementalData/transforms/transform));
+    foreach my $transform_node ($transform_nodes->get_nodelist) {
+        my $variant   = ucfirst lc ($transform_node->getAttribute('variant') || 'Any');
+        my $source    = ucfirst lc ($transform_node->getAttribute('source')  || 'Any');
+        my $target    = ucfirst lc ($transform_node->getAttribute('target')  || 'Any');
+        my $direction = $transform_node->getAttribute('direction') || 'both';
+
+        my @directions = $direction eq 'both'
+           ? qw(forward backward)
+            : $direction;
+
+        foreach my $direction (@directions) {
+            if ($direction eq 'backward') {
+                ($source, $target) = ($target, $source);
+            }
+
+            my $package = "Locale::CLDR::Transformations::${variant}::${source}::$target";
+			push @transformation_list, $package;
+            my $dir_name = File::Spec->catdir($dir, $variant, $source);
+         
+            make_path($dir_name) unless -d $dir_name;
+
+            open my $file, '>', File::Spec->catfile($dir_name, "$target.pm");
+            process_header($file, $package, $CLDR_VERSION, $xpath, $xml_file_name);
+            process_transform_data($file, $xpath, (
+                $direction eq 'forward'
+                ? "\x{2192}"
+                : "\x{2190}"
+            ) );
+
+            process_footer($file);
+            close $file;
+        }
+    }
+}
+
+sub process_transform_data {
+    my ($file, $xpath, $direction) = @_;
+
+    my $nodes = findnodes($xpath, q(/supplementalData/transforms/transform/*));
+	my @nodes = $nodes->get_nodelist;
+
+    my @transforms;
+    my %vars;
+    foreach my $node (@nodes) {
+        next if $node->getLocalName() eq 'comment';
+		next unless $node->getChildNode(1);
+        my $rules = $node->getChildNode(1)->getValue;
+		
+		# Split into lines
+		my @rules = split /\n/, $rules;
+		foreach my $rule (@rules) {
+			next if $rule =~ /^\s*#/; # Skip comments
+			next if $rule =~ /^\s*$/; # Skip empty lines
+
+			my @terms = grep { defined && /\S/ } parse_line(qr/\s+|[{};\x{2190}\x{2192}\x{2194}=\[\]]/, 'delimiters', $rule);
+
+			# Escape transformation meta characters inside a set
+			my $brackets = 0;
+			my $count = 0;
+			foreach my $term (@terms) {
+				$count++;
+				$brackets++ if $term eq '[';
+				$brackets-- if $term eq ']';
+				if ($brackets && $term =~ /[{};]/) {
+					$term = "\\$term";
+				}
+				last if ! $brackets && $term =~ /;\s*(?:#.*)?$/;
+			}
+			@terms = @terms[ 0 .. $count - 2 ]; 
+
+
+			# Check for conversion rules
+			$terms[0] //= '';
+			if ($terms[0] =~ s/^:://) {
+				push @transforms, process_transform_conversion(\@terms, $direction);
+				next;
+			}
+
+			# Check for Variables
+			if ($terms[0] =~ /^\$/ && $terms[1] eq '=') {
+				my $value = join (' ', map { defined $_ ? $_ : '' } @terms[2 .. @terms]);
+				$value =~ s/\[ /[/g;
+				$value =~ s/ \]/]/g;
+				$vars{$terms[0]} = process_transform_substitute_var(\%vars, $value);
+				$vars{$terms[0]} =~ s/^\s*(.*\S)\s*$/$1/;
+				# Convert \\u... to char
+				$vars{$terms[0]} =~ s/ (?:\\\\)*+ \K \\u (\p{Ahex}+) /chr(hex($1))/egx;
+				next;
+			}
+
+			# check we are in the right direction
+			my $split = qr/^\x{2194}|$direction$/;
+			next unless any { /$split/ } @terms;
+			@terms = map { process_transform_substitute_var(\%vars, $_) } @terms;
+			if ($direction eq "\x{2192}") {
+				push @transforms, process_transform_rule_forward($split, \@terms);
+			}
+			else {
+				push @transforms, process_transform_rule_backward($split, \@terms);
+			}
+		}
+    }
+    @transforms = reverse @transforms if $direction eq "\x{2190}";
+	
+	# Some of these files use non character code points so turn of the 
+	# non character warning
+	no warnings "utf8";
+	
+    # Print out transforms
+    print $file <<EOT;
+BEGIN {
+\tdie "Transliteration requires Perl 5.18 or above"
+\t\tunless \$^V ge v5.18.0;
+}
+
+no warnings 'experimental::regex_sets';
+has 'transforms' => (
+\tis => 'ro',
+\tisa => ArrayRef,
+\tinit_arg => undef,
+\tdefault => sub { [
+EOT
+    if (($transforms[0]{type} // '') ne 'filter') {
+        unshift @transforms, {
+            type => 'filter',
+            match => qr/\G./m,
+        }
+    }
+
+	say $file "\t\tqr/$transforms[0]->{match}/,";
+	shift @transforms;
+	
+	my $previous = 'transform';
+	print $file <<EOT;
+\t\t{
+\t\t\ttype => 'transform',
+\t\t\tdata => [
+EOT
+	foreach my $transform (@transforms) {
+        if (($transform->{type} // '' ) ne $previous) {
+			$previous = $transform->{type} // '';
+			print $file <<EOT;
+\t\t\t],
+\t\t},
+\t\t{
+\t\t\ttype => '$previous',
+\t\t\tdata => [
+EOT
+		}
+		
+        if ($previous eq 'transform') {
+            print $file <<EOT;
+\t\t\t\t{
+\t\t\t\t\tfrom => q($transform->{from}),
+\t\t\t\t\tto => q($transform->{to}),
+\t\t\t\t},
+EOT
+        }
+        if ($previous eq 'conversion') {
+            print $file <<EOT;
+\t\t\t\t{
+\t\t\t\t\tbefore  => q($transform->{before}),
+\t\t\t\t\tafter   => q($transform->{after}),
+\t\t\t\t\treplace => q($transform->{replace}),
+\t\t\t\t\tresult  => q($transform->{result}),
+\t\t\t\t\trevisit => @{[length($transform->{revisit})]},
+\t\t\t\t},
+EOT
+        }
+    }
+    print $file <<EOT;
+\t\t\t]
+\t\t},
+\t] },
+);
+
+EOT
+}
+
+sub process_transform_conversion {
+    my ($terms, $direction) = @_;
+
+    # If the :: marker was it's own term then $terms->[0] will
+    # Be the null string. Shift it off so we can test for the type
+    # Of conversion
+    shift @$terms unless length $terms->[0];
+
+    # Do forward rules first
+    if ($direction eq "\x{2192}") {
+        # Filter
+        my $filter = join '', @$terms;
+        if ($terms->[0] =~ /^\[/) {
+            $filter =~ s/^(\[ # Start with a [
+                (?:
+                    [^\[\]]++ # One or more non [] not backtracking
+                    (?<!\\)   # Not preceded by a single back slash
+                    (?>\\\\)* # After we eat an even number of 0 or more backslashes
+                    |
+                    (?1)     # Recurs capture group 1
+                )*
+                \]           # Followed by the terminating ]
+                )
+                \K           # Keep all that and
+                .*$//x;      # Remove the rest
+
+            return process_transform_filter($filter)
+        }
+        # Transform Rules
+        my ($from, $to) = $filter =~ /^(?:(\w+)-)?(\w+)/;
+		
+		return () unless defined( $from ) + defined( $to );
+		
+        foreach ($from, $to) {
+            $_ = 'Any' unless defined $_;
+            s/^und/Any/;
+        }
+
+        return {
+            type => 'transform',
+            from => $from,
+            to   => $to,
+        }
+    }
+    else { # Reverse
+        # Filter
+        my $filter = join '', @$terms;
+        
+        # Look for a reverse filter
+        if ($terms->[0] =~ /^\(\s*\[/) {
+            $filter =~ s/^\(
+            	(\[               # Start with a [
+                    (?:
+                        [^\[\]]++ # One or more non [] not backtracking
+                        (?<!\\)   # Not preceded by a single back slash
+                        (?>\\\\)* # After we eat an even number of 0 or more backslashes
+                        |
+                        (?1)      # Recurs capture group 1
+                    )*
+                \]                # Followed by the terminating ]
+                )
+                \)
+                \K                # Keep all that and
+                .*$//x;           # Remove the rest
+
+            # Remove the brackets
+            $filter =~ s/^\(\s*(.*\S)\s*\)/$1/;
+            return process_transform_filter($filter)
+        }
+        # Transform Rules
+        my ($from, $to) = $filter =~ /^(?:\S+)?\((?:(\w+)-)?(\w+)\)/;
+		
+		return () unless defined( $from ) + defined( $to );
+		
+        foreach ($from, $to) {
+            $_ = 'Any' unless length $_;
+            s/^und/Any/;
+        }
+
+        return {
+            type => 'transform',
+            from => $from,
+            to   => $to,
+        }
+    }
+}
+
+sub process_transform_filter {
+    my $filter = shift;
+    my $match = unicode_to_perl($filter);
+
+	no warnings 'regexp';
+    return {
+        type => 'filter',
+        match => qr/\G$match/im,
+    }
+}
+
+sub process_transform_substitute_var {
+    my ($vars, $string) = @_;
+
+    return $string =~ s!(\$\p{XID_Start}\p{XID_Continue}*)!$vars->{$1} // q()!egr;
+}
+
+sub process_transform_rule_forward {
+    my ($direction, $terms) = @_;
+
+    my (@lhs, @rhs);
+    my $rhs = 0;
+    foreach my $term (@$terms) {
+        if ($term =~ /$direction/) {
+            $rhs = 1;
+            next;
+        }
+
+        push ( @{$rhs ? \@rhs : \@lhs}, $term);
+    }
+    my $before = 0;
+    my (@before, @replace, @after);
+
+    $before = 1 if any { '{' eq $_ } @lhs;
+    if ($before) {
+        while (my $term = shift @lhs) {
+            last if $term eq '{';
+            push @before, $term;
+        }
+    }
+    while (my $term = shift @lhs) {
+        last if $term eq '}';
+        next if ($term eq '|');
+        push @replace, $term;
+    }
+    @after = @lhs;
+
+    # Done lhs now do rhs
+    if (any { '{' eq $_ } @rhs) {
+        while (my $term = shift @rhs) {
+            last if $term eq '{';
+        }
+    }
+    my (@result, @revisit);
+    my $revisit = 0;
+    while (my $term = shift @rhs) {
+        last if $term eq '}';
+        if ($term eq '|') {
+            $revisit = 1;
+            next;
+        }
+
+        push(@{ $revisit ? \@revisit : \@result}, $term);
+    }
+
+	# Strip out quotes
+	foreach my $term (@before, @after, @replace, @result, @revisit) {
+		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\Q$1\E/g;
+		$term =~ s/(["'])(?1)/$1/g;
+	}
+	
+    return {
+        type    => 'conversion',
+        before  => unicode_to_perl( join('', @before) ) // '',
+        after   => unicode_to_perl( join('', @after) ) // '',
+        replace => unicode_to_perl( join('', @replace) ) // '',
+        result  => join('', @result),
+        revisit => join('', @revisit),
+    };
+}
+
+sub process_transform_rule_backward {
+    my ($direction, $terms) = @_;
+
+    my (@lhs, @rhs);
+    my $rhs = 0;
+    foreach my $term (@$terms) {
+        if ($term =~ /$direction/) {
+            $rhs = 1;
+            next;
+        }
+
+        push ( @{$rhs ? \@rhs : \@lhs}, $term);
+    }
+    my $before = 0;
+    my (@before, @replace, @after);
+
+    $before = 1 if any { '{' eq $_ } @rhs;
+    if ($before) {
+        while (my $term = shift @rhs) {
+            last if $term eq '{';
+            push @before, $term;
+        }
+    }
+    while (my $term = shift @rhs) {
+        last if $term eq '}';
+        next if ($term eq '|');
+        push @replace, $term;
+    }
+    @after = @rhs;
+
+    # Done lhs now do rhs
+    if (any { '{' eq $_ } @lhs) {
+        while (my $term = shift @lhs) {
+            last if $term eq '{';
+        }
+    }
+    my (@result, @revisit);
+    my $revisit = 0;
+    while (my $term = shift @lhs) {
+        last if $term eq '}';
+        if ($term eq '|') {
+            $revisit = 1;
+            next;
+        }
+
+        push(@{ $revisit ? \@revisit : \@result}, $term);
+    }
+
+	# Strip out quotes and escapes
+	foreach my $term (@before, @after, @replace, @result, @revisit) {
+	    $term =~ s/(?:\\\\)*+\K\\([^\\])/\Q$1\E/g;
+		$term =~ s/\\\\/\\/g;
+		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\Q$1\E/g;
+		$term =~ s/(["'])(?1)/$1/g;
+	}
+	
+    return {
+        type    => 'conversion',
+        before  => unicode_to_perl( join('', @before) ),
+        after   => unicode_to_perl( join('', @after) ),
+        replace => unicode_to_perl( join('', @replace) ),
+        result  => join('', @result),
+        revisit => join('', @revisit),
+    };
+}
 
 # Sub to mangle Unicode regex to Perl regex
 sub unicode_to_perl {
 	my $regex = shift;
 	return '' unless length $regex;
 	no warnings 'utf8';
-		
+	
 	# Convert Unicode escapes \u1234 to characters
-	$regex =~ s/ (?:\\\\)*+ \K \\u ( \p{Ahex}+) /chr(hex($1))/egx;
+	$regex =~ s/ (?:\\\\)*+ \K \\u ( \p{Ahex}{4}) /chr(hex($1))/egx;
+	$regex =~ s/ (?:\\\\)*+ \K \\U ( \p{Ahex}{8}) /chr(hex($1))/egx;
 	
 	# Somtimes we get a set that looks like [[ data ]], convert to [ data ]
 	$regex =~ s/ \[ \[ ([^]]+) \] \] /[$1]/x;
 	
 	# This works around a malformed UTF-8 error in Perls Substitute
-	return $regex if $regex =~ /^[^[]*\[[^]]+\][^[]]*$/; 
+	return $regex if ($regex =~ /^[^[]*\[[^]]+\][^[]]*$/);
 
 	# Convert Unicode sets to Perl sets
 	$regex =~ s/
@@ -5394,6 +5395,10 @@ sub convert {
 		return $set;
 	}
 	
+	return Unicode::Regex::Set::parse($set);
+
+=comment
+
 	my $inner_set = qr/(?(DEFINE)
 		(?<inner> [^\[\]]++)
 		(?<basic_set> \[ \^? (?&inner) \] | \\[pP]\{[^}]+} )
@@ -5431,6 +5436,8 @@ sub convert {
 	no warnings 'regexp';
 	no warnings "experimental::regex_sets";
 	return qr"(?$set)";
+=cut
+
 }
 
 # Rule based number formats
@@ -5640,7 +5647,7 @@ sub build_distributions {
 	make_path($distributions_directory) unless -d $distributions_directory;
 
 	build_base_distribution();
-#	build_transforms_distribution();
+	build_transforms_distribution();
 	build_language_distributions();
 	build_bundle_distributions();
 }
@@ -5833,32 +5840,32 @@ sub get_files_recursive {
 	return @files;
 }
 
-#sub build_transforms_distribution {
-#	my $distribution = File::Spec->catdir($distributions_directory, qw(Transformations lib));
-#	make_path($distribution)
-#		unless -d $distribution;
-#
-#	copy_tests('Transformations');
-#	
-#	open my $build_file, '>', File::Spec->catfile($distributions_directory, 'Transformations','Build.PL');
-#	print $build_file build_text('Transformations', 'Any/Any/Accents.pm');
-#	close $build_file;
-#	
-#	my @files = get_files_recursive($transformations_directory);
-#	
-#	foreach my $file (@files) {
-#		my $source_name = File::Spec->catfile(@$file);
-#		my $destination_name = File::Spec->catdir($distribution, qw(Locale CLDR Transformations), @{$file}[1 .. @$file - 2]);
-#		make_path($destination_name)
-#			unless -d $destination_name;
-#		copy($source_name, $destination_name);
-#	}
-#	
-#	# Copy over the dummy base file
-#	copy(File::Spec->catfile($lib_directory, 'Transformations.pm'), File::Spec->catfile($distribution, qw(Locale CLDR Transformations.pm)));
-#	
-#	make_distribution(File::Spec->catdir($distributions_directory, 'Transformations'));
-#}
+sub build_transforms_distribution {
+	my $distribution = File::Spec->catdir($distributions_directory, qw(Transformations lib));
+	make_path($distribution)
+		unless -d $distribution;
+
+	copy_tests('Transformations');
+	
+	open my $build_file, '>', File::Spec->catfile($distributions_directory, 'Transformations','Build.PL');
+	print $build_file build_text('Transformations', 'Any/Any/Accents.pm');
+	close $build_file;
+	
+	my @files = get_files_recursive($transformations_directory);
+	
+	foreach my $file (@files) {
+		my $source_name = File::Spec->catfile(@$file);
+		my $destination_name = File::Spec->catdir($distribution, qw(Locale CLDR Transformations), @{$file}[1 .. @$file - 2]);
+		make_path($destination_name)
+			unless -d $destination_name;
+		copy($source_name, $destination_name);
+	}
+	
+	# Copy over the dummy base file
+	copy(File::Spec->catfile($lib_directory, 'Transformations.pm'), File::Spec->catfile($distribution, qw(Locale CLDR Transformations.pm)));
+	
+	make_distribution(File::Spec->catdir($distributions_directory, 'Transformations'));
+}
 
 sub build_language_distributions {
 	opendir (my $dir, $locales_directory);

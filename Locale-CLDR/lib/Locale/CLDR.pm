@@ -62,6 +62,8 @@ use Unicode::Normalize();
 use Locale::CLDR::Collator();
 use File::Spec();
 use Scalar::Util qw(blessed);
+use Unicode::Regex::Set();
+#no warnings "experimental::regex_sets";
 
 # Backwards compatibility
 BEGIN {
@@ -3003,151 +3005,151 @@ sub is_no {
 
 =cut
 
-#=head2 Transliteration
-#
-#This method requires Perl version 5.18 or above to use and for you to have
-#installed the optional C<Bundle::CLDR::Transformations>
-#
-#=over 4
-#
-#=item transform(from => $from, to => $to, variant => $variant, text => $text)
-#
-#This method returns the transliterated string of C<text> from script C<from>
-#to script C<to> using variant C<variant>. If C<from> is not given then the 
-#current locale's script is used. If C<text> is not given then it defaults to an
-#empty string. The C<variant> is optional.
-#
-#=cut
-#
-#sub transform {
-#	_new_perl();
-#	
-#	my ($self, %params) = @_;
-#	
-#	my $from 	= $params{from} // $self;
-#	my $to 		= $params{to}; 
-#	my $variant	= $params{variant} // 'Any';
-#	my $text	= $params{text} // '';
-#	
-#	($from, $to) = map {ref $_ ? $_->likely_subtag->script_id() : $_} ($from, $to);
-#	$_ = ucfirst(lc $_) foreach ($from, $to, $variant);
-#	
-#	my $package = __PACKAGE__ . "::Transformations::${variant}::${from}::${to}";
-#	eval { Class::Load::load_class($package); };
-#	warn $@ if $@;
-#	return $text if $@; # Can't load transform module so return original text
-#	use feature 'state';
-#	state $transforms;
-#	$transforms->{$variant}{$from}{$to} //= $package->new();
-#	my $rules = $transforms->{$variant}{$from}{$to}->transforms();
-#	
-#	# First get the filter rule
-#	my $filter = $rules->[0];
-#		
-#	# Break up the input on the filter
-#	my @text;
-#	pos($text) = 0;
-#	while (pos($text) < length($text)) {
-#		my $characters = '';
-#		while (my ($char) = $text =~ /($filter)/) {
-#			$characters .= $char;
-#			pos($text) = pos($text) + length $char;
-#		}
-#		push @text, $characters;
-#		last unless pos($text) < length $text;
-#		
-#		$characters = '';
-#		while ($text !~ /$filter/) {
-#			my ($char) = $text =~ /\G(\X)/;
-#			$characters .= $char;
-#			pos($text) = pos($text) + length $char;
-#		}
-#		push @text, $characters;
-#	}
-#	
-#	my $to_transform = 1;
-#	
-#	foreach my $characters (@text) {
-#		if ($to_transform) {
-#			foreach my $rule (@$rules[1 .. @$rules -1 ]) {
-#				if ($rule->{type} eq 'transform') {
-#					$characters = $self->_transformation_transform($characters, $rule->{data}, $variant);
-#				}
-#				else {
-#					$characters = $self->_transform_convert($characters, $rule->{data});
-#				}
-#			}
-#		}
-#		$to_transform = ! $to_transform;
-#	}
-#	
-#	return join '', @text;
-#}
-#
-#sub _transformation_transform {
-#	my ($self, $text, $rules, $variant) = @_;
-#		
-#	foreach my $rule (@$rules) {
-#		for (lc $rule->{to}) {
-#			if ($_ eq 'nfc') {
-#				$text = Unicode::Normalize::NFC($text);
-#			}
-#			elsif($_ eq 'nfd') {
-#				$text = Unicode::Normalize::NFD($text);
-#			}
-#			elsif($_ eq 'nfkd') {
-#				$text = Unicode::Normalize::NFKD($text);
-#			}
-#			elsif($_ eq 'nfkc') {
-#				$text = Unicode::Normalize::NFKC($text);
-#			}
-#			elsif($_ eq 'lower') {
-#				$text = lc($text);
-#			}
-#			elsif($_ eq 'upper') {
-#				$text = uc($text);
-#			}
-#			elsif($_ eq 'title') {
-#				$text =~ s/(\X)/\u$1/g;
-#			}
-#			elsif($_ eq 'null') {
-#			}
-#			elsif($_ eq 'remove') {
-#				$text = '';
-#			}
-#			else {
-#				$text = $self->transform($text, $variant, $rule->{from}, $rule->to);
-#			}
-#		}
-#	}
-#	return $text;
-#}
-#
-#sub _transform_convert {
-#	my ($self, $text, $rules) = @_;
-#	
-#	pos($text) = 0; # Make sure we start scanning at the beginning of the text
-#		
-#	CHARACTER: while (pos($text) < length($text)) {
-#		foreach my $rule (@$rules) {
-#			next if length $rule->{before} && $text !~ /$rule->{before}\G/;
-#			my $regex = $rule->{replace};
-#			$regex .= '(' . $rule->{after} . ')' if length $rule->{after};
-#			my $result = 'q(' . $rule->{result} . ')';
-#			$result .= '. $1' if length $rule->{after};
-#			if ($text =~ s/\G$regex/eval $result/e) {
-#				pos($text) += length($rule->{result}) - $rule->{revisit};
-#				next CHARACTER;
-#			}
-#		}
-#		
-#		pos($text)++;
-#	}
-#	
-#	return $text;
-#}
-#
-#=back
+=head2 Transliteration
+
+This method requires Perl version 5.18 or above to use and for you to have
+installed the optional C<Bundle::CLDR::Transformations>
+
+=over 4
+
+=item transform(from => $from, to => $to, variant => $variant, text => $text)
+
+This method returns the transliterated string of C<text> from script C<from>
+to script C<to> using variant C<variant>. If C<from> is not given then the 
+current locale's script is used. If C<text> is not given then it defaults to an
+empty string. The C<variant> is optional.
+
+=cut
+
+sub transform {
+	_new_perl();
+	
+	my ($self, %params) = @_;
+	
+	my $from 	= $params{from} // $self;
+	my $to 		= $params{to}; 
+	my $variant	= $params{variant} // 'Any';
+	my $text	= $params{text} // '';
+	
+	($from, $to) = map {ref $_ ? $_->likely_subtag->script_id() : $_} ($from, $to);
+	$_ = ucfirst(lc $_) foreach ($from, $to, $variant);
+	
+	my $package = __PACKAGE__ . "::Transformations::${variant}::${from}::${to}";
+	eval { Class::Load::load_class($package); };
+	warn $@ if $@;
+	return $text if $@; # Can't load transform module so return original text
+	use feature 'state';
+	state $transforms;
+	$transforms->{$variant}{$from}{$to} //= $package->new();
+	my $rules = $transforms->{$variant}{$from}{$to}->transforms();
+	
+	# First get the filter rule
+	my $filter = $rules->[0];
+		
+	# Break up the input on the filter
+	my @text;
+	pos($text) = 0;
+	while (pos($text) < length($text)) {
+		my $characters = '';
+		while (my ($char) = $text =~ /($filter)/) {
+			$characters .= $char;
+			pos($text) = pos($text) + length $char;
+		}
+		push @text, $characters;
+		last unless pos($text) < length $text;
+		
+		$characters = '';
+		while ($text !~ /$filter/) {
+			my ($char) = $text =~ /\G(\X)/;
+			$characters .= $char;
+			pos($text) = pos($text) + length $char;
+		}
+		push @text, $characters;
+	}
+	
+	my $to_transform = 1;
+	
+	foreach my $characters (@text) {
+		if ($to_transform) {
+			foreach my $rule (@$rules[1 .. @$rules -1 ]) {
+				if ($rule->{type} eq 'transform') {
+					$characters = $self->_transformation_transform($characters, $rule->{data}, $variant);
+				}
+				else {
+					$characters = $self->_transform_convert($characters, $rule->{data});
+				}
+			}
+		}
+		$to_transform = ! $to_transform;
+	}
+	
+	return join '', @text;
+}
+
+sub _transformation_transform {
+	my ($self, $text, $rules, $variant) = @_;
+		
+	foreach my $rule (@$rules) {
+		for (lc $rule->{to}) {
+			if ($_ eq 'nfc') {
+				$text = Unicode::Normalize::NFC($text);
+			}
+			elsif($_ eq 'nfd') {
+				$text = Unicode::Normalize::NFD($text);
+			}
+			elsif($_ eq 'nfkd') {
+				$text = Unicode::Normalize::NFKD($text);
+			}
+			elsif($_ eq 'nfkc') {
+				$text = Unicode::Normalize::NFKC($text);
+			}
+			elsif($_ eq 'lower') {
+				$text = lc($text);
+			}
+			elsif($_ eq 'upper') {
+				$text = uc($text);
+			}
+			elsif($_ eq 'title') {
+				$text =~ s/(\X)/\u$1/g;
+			}
+			elsif($_ eq 'null') {
+			}
+			elsif($_ eq 'remove') {
+				$text = '';
+			}
+			else {
+				$text = $self->transform($text, $variant, $rule->{from}, $rule->to);
+			}
+		}
+	}
+	return $text;
+}
+
+sub _transform_convert {
+	my ($self, $text, $rules) = @_;
+	
+	pos($text) = 0; # Make sure we start scanning at the beginning of the text
+		
+	CHARACTER: while (pos($text) < length($text)) {
+		foreach my $rule (@$rules) {
+			next if length $rule->{before} && $text !~ /$rule->{before}\G/;
+			my $regex = $rule->{replace};
+			$regex .= '(' . $rule->{after} . ')' if length $rule->{after};
+			my $result = 'q(' . $rule->{result} . ')';
+			$result .= '. $1' if length $rule->{after};
+			if ($text =~ s/\G$regex/eval $result/e) {
+				pos($text) += length($rule->{result}) - $rule->{revisit};
+				next CHARACTER;
+			}
+		}
+		
+		pos($text)++;
+	}
+	
+	return $text;
+}
+
+=back
 
 =head2 Lists
 
@@ -4058,6 +4060,10 @@ sub {
 		return "$set";
 	}
 	
+	return Unicode::Regex::Set::parse($set);
+
+=comment
+	
 	# Fix up [abc[de]] to [[abc][de]]
 	$set =~ s/\[ ( (?>\^? \s*) [^\]]+? ) \s* \[/[[$1][/gx;
 	
@@ -4083,6 +4089,9 @@ sub {
 	$set =~ s/ \] \s* \] (.) /])$1/gx;
 	
 	return "(?$set)";
+	
+=cut
+	
 }
 
 EOT
