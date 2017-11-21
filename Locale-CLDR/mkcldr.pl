@@ -32,7 +32,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '31.0.1'; # This needs to match the revision number of the CLDR revision being generated against
+my $CLDR_VERSION = '32'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION = 0; # This is the build number against the CLDR revision
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
