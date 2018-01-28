@@ -24,6 +24,9 @@ use List::MoreUtils qw( any );
 use List::Util qw( min max );
 use Unicode::Regex::Set();
 
+use lib $FindBin::Bin;
+use named_characters;
+
 my $start_time = time();
 
 our $verbose = 0;
@@ -185,7 +188,7 @@ process_numbering_systems($file, $xml);
 process_footer($file, 1);
 close $file;
 
-#Plaural rules
+#Plural rules
 $file_name = File::Spec->catfile($base_directory,
     'supplemental',
     'plurals.xml'
@@ -453,6 +456,7 @@ my $num_files = grep { -f File::Spec->catfile($transform_directory,$_)} readdir 
 my $count_files = 0;
 rewinddir $dir;
 my @transformation_list;
+my %custom_characters = ();
 
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $percent = ++$count_files / $num_files * 100;
@@ -467,7 +471,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
 		filename => $full_file_name
 	);
 	
-    process_transforms($transformations_directory, $xml, $full_file_name);
+    process_transforms($transformations_directory, $xml, $full_file_name, \%custom_characters);
 }
 
 # Write out a dummy transformation module to keep CPAN happy
@@ -489,6 +493,35 @@ EOT
 }
 
 push @transformation_list, 'Locale::CLDR::Transformations';
+
+# Write out Locale::CLDR::CustomCharacterSequances
+open $file, '>', File::Spec->catfile($lib_directory, 'CustomCharacterSequances.pm');
+process_header($file, 'Locale::CLDR::CustomCharacterSequances', $CLDR_VERSION, undef, 'Transformation files');
+print $file <<'EOT';
+sub import {
+	$^H{charnames} = \&translate;
+}
+
+my @chars = (
+EOT
+
+foreach my $character ( @{$custom_characters{character}} ) {
+	say $file "\t'$character',";
+}
+
+
+print $file <<'EOT';
+);
+
+sub translate {
+	my $name = shift;
+	return $name =~ s/^Locale_CLDR_CustomCharacterSequances_(.*)$/$chars[$1]/er;
+}
+
+1;
+EOT
+
+close $file;
 
 #Collation
 
@@ -612,7 +645,7 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
     process_display_transform_name($file,$xml);
     process_code_patterns($file, $xml);
     process_orientation($file, $xml);
-    process_exemplar_characters($file, $xml);
+    process_exemplar_characters(\%custom_characters, $file, $xml);
     process_ellipsis($file, $xml);
     process_more_information($file, $xml);
     process_delimiters($file, $xml);
@@ -2300,7 +2333,7 @@ EOT
 }
 
 sub process_exemplar_characters {
-    my ($file, $xpath) = @_;
+    my ($custom_characters, $file, $xpath) = @_;
 
     say "Processing Exemplar Characters" if $verbose;
     my $characters = findnodes($xpath, '/ldml/characters/exemplarCharacters');
@@ -2320,7 +2353,7 @@ sub process_exemplar_characters {
             $data{index} = "['$entries'],";
         }
         else {
-		    $regex = unicode_to_perl($regex);
+		    $regex = unicode_to_perl($custom_characters, $regex);
             $data{$type} = "qr{$regex},";
         }
     }
@@ -4891,7 +4924,7 @@ EOT
 }
 
 sub process_transforms {
-    my ($dir, $xpath, $xml_file_name) = @_;
+    my ($dir, $xpath, $xml_file_name, $custom_characters) = @_;
 
     my $transform_nodes = findnodes($xpath, q(/supplementalData/transforms/transform));
     foreach my $transform_node ($transform_nodes->get_nodelist) {
@@ -4917,11 +4950,16 @@ sub process_transforms {
 
             open my $file, '>', File::Spec->catfile($dir_name, "$target.pm");
             process_header($file, $package, $CLDR_VERSION, $xpath, $xml_file_name);
-            process_transform_data($file, $xpath, (
-                $direction eq 'forward'
-                ? "\x{2192}"
-                : "\x{2190}"
-            ) );
+            process_transform_data(
+				$file, 
+				$xpath, 
+				(
+					$direction eq 'forward'
+						? "\x{2192}"
+						: "\x{2190}"
+				),
+				$custom_characters,
+			);
 
             process_footer($file);
             close $file;
@@ -4930,7 +4968,7 @@ sub process_transforms {
 }
 
 sub process_transform_data {
-    my ($file, $xpath, $direction) = @_;
+    my ($file, $xpath, $direction, $custom_characters) = @_;
 
     my $nodes = findnodes($xpath, q(/supplementalData/transforms/transform/*));
 	my @nodes = $nodes->get_nodelist;
@@ -4968,7 +5006,7 @@ sub process_transform_data {
 			# Check for conversion rules
 			$terms[0] //= '';
 			if ($terms[0] =~ s/^:://) {
-				push @transforms, process_transform_conversion(\@terms, $direction);
+				push @transforms, process_transform_conversion(\@terms, $direction, $custom_characters);
 				next;
 			}
 
@@ -4989,10 +5027,10 @@ sub process_transform_data {
 			next unless any { /$split/ } @terms;
 			@terms = map { process_transform_substitute_var(\%vars, $_) } @terms;
 			if ($direction eq "\x{2192}") {
-				push @transforms, process_transform_rule_forward($split, \@terms);
+				push @transforms, process_transform_rule_forward($split, \@terms, $custom_characters);
 			}
 			else {
-				push @transforms, process_transform_rule_backward($split, \@terms);
+				push @transforms, process_transform_rule_backward($split, \@terms, $custom_characters);
 			}
 		}
     }
@@ -5074,7 +5112,7 @@ EOT
 }
 
 sub process_transform_conversion {
-    my ($terms, $direction) = @_;
+    my ($terms, $direction, $custom_characters) = @_;
 
     # If the :: marker was it's own term then $terms->[0] will
     # Be the null string. Shift it off so we can test for the type
@@ -5099,7 +5137,7 @@ sub process_transform_conversion {
                 \K           # Keep all that and
                 .*$//x;      # Remove the rest
 
-            return process_transform_filter($filter)
+            return process_transform_filter($custom_characters, $filter)
         }
         # Transform Rules
         my ($from, $to) = $filter =~ /^(?:(\w+)-)?(\w+)/;
@@ -5140,7 +5178,7 @@ sub process_transform_conversion {
 
             # Remove the brackets
             $filter =~ s/^\(\s*(.*\S)\s*\)/$1/;
-            return process_transform_filter($filter)
+            return process_transform_filter($custom_characters, $filter)
         }
         # Transform Rules
         my ($from, $to) = $filter =~ /^(?:\S+)?\((?:(\w+)-)?(\w+)\)/;
@@ -5161,8 +5199,8 @@ sub process_transform_conversion {
 }
 
 sub process_transform_filter {
-    my $filter = shift;
-    my $match = unicode_to_perl($filter);
+    my ($custom_characters, $filter) = @_;
+    my $match = unicode_to_perl($custom_characters, $filter);
 
 	no warnings 'regexp';
     return {
@@ -5178,7 +5216,7 @@ sub process_transform_substitute_var {
 }
 
 sub process_transform_rule_forward {
-    my ($direction, $terms) = @_;
+    my ($direction, $terms, $custom_characters) = @_;
 
     my (@lhs, @rhs);
     my $rhs = 0;
@@ -5233,16 +5271,16 @@ sub process_transform_rule_forward {
 	
     return {
         type    => 'conversion',
-        before  => unicode_to_perl( join('', @before) ) // '',
-        after   => unicode_to_perl( join('', @after) ) // '',
-        replace => unicode_to_perl( join('', @replace) ) // '',
+        before  => unicode_to_perl($custom_characters, join('', @before) ) // '',
+        after   => unicode_to_perl($custom_characters, join('', @after) ) // '',
+        replace => unicode_to_perl($custom_characters, join('', @replace) ) // '',
         result  => join('', @result),
         revisit => join('', @revisit),
     };
 }
 
 sub process_transform_rule_backward {
-    my ($direction, $terms) = @_;
+    my ($direction, $terms, $custom_characters) = @_;
 
     my (@lhs, @rhs);
     my $rhs = 0;
@@ -5299,17 +5337,29 @@ sub process_transform_rule_backward {
 	
     return {
         type    => 'conversion',
-        before  => unicode_to_perl( join('', @before) ),
-        after   => unicode_to_perl( join('', @after) ),
-        replace => unicode_to_perl( join('', @replace) ),
+        before  => unicode_to_perl($custom_characters, join('', @before) ),
+        after   => unicode_to_perl($custom_characters, join('', @after) ),
+        replace => unicode_to_perl($custom_characters, join('', @replace) ),
         result  => join('', @result),
         revisit => join('', @revisit),
     };
 }
 
+sub process_character_sequance {
+	my ($custom_characters, $character) = @_;
+	
+	return 'Locale_CLDR_CustomCharacterSequances_' . $custom_characters->{id}{$character}
+		if exists $custom_characters->{id}{$character};
+	
+	push @{$custom_characters->{character}},$character;
+	$custom_characters->{id}{$character} = @{$custom_characters->{character}} - 1;
+	return '\N{ Locale_CLDR_CustomCharacterSequances_' . $custom_characters->{id}{$character} . ' }';
+}
+
 # Sub to mangle Unicode regex to Perl regex
 sub unicode_to_perl {
-	my $regex = shift;
+	my ($custom_characters, $regex) = @_;
+	
 	return '' unless length $regex;
 	no warnings 'utf8';
 	
@@ -5317,10 +5367,13 @@ sub unicode_to_perl {
 	$regex =~ s/ (?:\\\\)*+ \K \\u ( \p{Ahex}{4}) /chr(hex($1))/egx;
 	$regex =~ s/ (?:\\\\)*+ \K \\U ( \p{Ahex}{8}) /chr(hex($1))/egx;
 	
-	# Somtimes we get a set that looks like [[ data ]], convert to [ data ]
+	# Fix up digraphs
+	$regex =~ s/ \\ \{ \s* (.*?) \s* \\ \} / process_character_sequance($custom_characters, $1) /egx;
+	
+	# Sometimes we get a set that looks like [[ data ]], convert to [ data ]
 	$regex =~ s/ \[ \[ ([^]]+) \] \] /[$1]/x;
 	
-	# This works around a malformed UTF-8 error in Perls Substitute
+	# This works around a malformed UTF-8 error in Perl's Substitute
 	return $regex if ($regex =~ /^[^[]*\[[^]]+\][^[]]*$/);
 
 	# Convert Unicode sets to Perl sets
@@ -5346,7 +5399,7 @@ sub unicode_to_perl {
 	no warnings "experimental::regex_sets";
 	no warnings 'utf8';
 	no warnings 'regexp';
-	return qr/$regex/;
+	return $regex;
 }
 
 sub convert {

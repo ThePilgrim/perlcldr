@@ -44,10 +44,13 @@ our $VERSION = version->declare('v0.32.0');
 use open ':encoding(utf8)';
 use utf8;
 use if $^V ge v5.12.0, feature => 'unicode_strings';
+use if $^V le v5.16, charnames => 'full';
 
 use Moo;
 use MooX::ClassAttribute;
 use Types::Standard qw( Str Int Maybe ArrayRef HashRef Object Bool InstanceOf );
+
+use Locale::CLDR::CustomCharacterSequances;
 
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
 	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
@@ -1390,7 +1393,7 @@ sub _build_break_vars {
 	return \%vars;
 }
 
-# Back port missing unicode properties
+# Back port missing Unicode properties
 sub _fix_missing_properties {
 	my $string  = shift;
 	if ( $^V le v5.26.0 ) {
