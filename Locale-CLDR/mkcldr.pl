@@ -747,6 +747,7 @@ my @base_bundle = (
 	'Locale::CLDR::RegionContainment',
 	'Locale::CLDR::ValidCodes',
 	'Locale::CLDR::WeekData',
+	'Locale::CLDR::CustomCharacterSequances',
 	'Locale::CLDR::Locales::En',
 	'Locale::CLDR::Locales::En::Any',
 	'Locale::CLDR::Locales::En::Any::Us',
