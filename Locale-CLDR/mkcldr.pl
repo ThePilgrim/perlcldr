@@ -81,7 +81,7 @@ if (! -e $core_filename ) {
     );
 
     if (! $response->is_success) {
-        die "Can not access http://unicode.org/Public/cldr/$CLDR_VERSION/core.zip' "
+        die "Can not access http://unicode.org/Public/cldr/$CLDR_PATH/core.zip' "
              . $response->status_line;
     }
 }
@@ -494,7 +494,7 @@ EOT
 
 push @transformation_list, 'Locale::CLDR::Transformations';
 
-# Write out Locale::CLDR::CustomCharacterSequances
+# Write out skelital Locale::CLDR::CustomCharacterSequances for when we load Local::CLDR
 open $file, '>', File::Spec->catfile($lib_directory, 'CustomCharacterSequances.pm');
 process_header($file, 'Locale::CLDR::CustomCharacterSequances', $CLDR_VERSION, undef, 'Transformation files');
 print $file <<'EOT';
@@ -503,19 +503,11 @@ sub import {
 }
 
 my @chars = (
-EOT
-
-foreach my $character ( @{$custom_characters{character}} ) {
-	say $file "\t'$character',";
-}
-
-
-print $file <<'EOT';
 );
 
 sub translate {
 	my $name = shift;
-	return $name =~ s/^Locale_CLDR_CustomCharacterSequances_(.*)$/$chars[$1]/er;
+	return $name =~ s/^\s*Locale_CLDR_CustomCharacterSequances_([0-9]+)\s*$/$chars[$1]/er;
 }
 
 1;
@@ -660,6 +652,36 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
 
     close $file;
 }
+
+# Write out Locale::CLDR::CustomCharacterSequances again as we will have all the custom sequences now
+open $file, '>', File::Spec->catfile($lib_directory, 'CustomCharacterSequances.pm');
+process_header($file, 'Locale::CLDR::CustomCharacterSequances', $CLDR_VERSION, undef, 'Transformation files');
+print $file <<'EOT';
+sub import {
+	$^H{charnames} = \&translate;
+}
+
+my @chars = (
+EOT
+
+foreach my $character ( @{$custom_characters{character}} ) {
+	say $file "\t'$character',";
+}
+
+
+print $file <<'EOT';
+);
+
+sub translate {
+	my $name = shift;
+	return $name =~ s/^\s*Locale_CLDR_CustomCharacterSequances_([0-9]+)\s*$/$chars[$1]/er;
+}
+
+1;
+EOT
+
+close $file;
+
 
 # Build Bundles and Distributions
 
@@ -883,7 +905,7 @@ use v5.10.1;
 use mro 'c3';
 use utf8;
 use if \$^V ge v5.12.0, feature => 'unicode_strings';
-
+use Locale::CLDR::CustomCharacterSequances;
 use Types::Standard qw( Str Int HashRef ArrayRef CodeRef RegexpRef );
 use Moo$isRole;
 
@@ -5328,10 +5350,8 @@ sub process_transform_rule_backward {
         push(@{ $revisit ? \@revisit : \@result}, $term);
     }
 
-	# Strip out quotes and escapes
+	# Strip out quotes
 	foreach my $term (@before, @after, @replace, @result, @revisit) {
-	    $term =~ s/(?:\\\\)*+\K\\([^\\])/\Q$1\E/g;
-		$term =~ s/\\\\/\\/g;
 		$term =~ s/(?<quote>['"])(.+?)\k<quote>/\Q$1\E/g;
 		$term =~ s/(["'])(?1)/$1/g;
 	}
@@ -5349,12 +5369,12 @@ sub process_transform_rule_backward {
 sub process_character_sequance {
 	my ($custom_characters, $character) = @_;
 	
-	return 'Locale_CLDR_CustomCharacterSequances_' . $custom_characters->{id}{$character}
+	return '\N{Locale_CLDR_CustomCharacterSequances_' . $custom_characters->{id}{$character} . '}'
 		if exists $custom_characters->{id}{$character};
 	
 	push @{$custom_characters->{character}},$character;
 	$custom_characters->{id}{$character} = @{$custom_characters->{character}} - 1;
-	return '\N{ Locale_CLDR_CustomCharacterSequances_' . $custom_characters->{id}{$character} . ' }';
+	return '\N{Locale_CLDR_CustomCharacterSequances_' . $custom_characters->{id}{$character} . '}';
 }
 
 # Sub to mangle Unicode regex to Perl regex
@@ -5679,6 +5699,7 @@ sub expand_regions {
 	
 	my %packages;
 	foreach my $region (@$regions) {
+		next unless $names->{$region};
 		if ($names->{$region} !~ /\.pm$/) {
 			my $package = 'Bundle::Locale::CLDR::' . ucfirst lc (($names->{$region} ) =~ s/[^a-zA-Z0-9]//gr);
 			$packages{$package} = ();
