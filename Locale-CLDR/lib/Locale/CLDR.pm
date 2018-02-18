@@ -50,8 +50,6 @@ use Moo;
 use MooX::ClassAttribute;
 use Types::Standard qw( Str Int Maybe ArrayRef HashRef Object Bool InstanceOf );
 
-use Locale::CLDR::CustomCharacterSequances;
-
 with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
 	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
 	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::RegionContainment', 'Locale::CLDR::CalendarPreferences',
@@ -4065,7 +4063,7 @@ sub {
 	
 	return Unicode::Regex::Set::parse($set);
 
-=comment
+=begin comment
 	
 	# Fix up [abc[de]] to [[abc][de]]
 	$set =~ s/\[ ( (?>\^? \s*) [^\]]+? ) \s* \[/[[$1][/gx;
@@ -4092,7 +4090,9 @@ sub {
 	$set =~ s/ \] \s* \] (.) /])$1/gx;
 	
 	return "(?$set)";
-	
+
+=end comment
+
 =cut
 	
 }
