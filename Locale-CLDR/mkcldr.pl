@@ -717,7 +717,6 @@ my @base_bundle = (
 	'Locale::CLDR::RegionContainment',
 	'Locale::CLDR::ValidCodes',
 	'Locale::CLDR::WeekData',
-	'Locale::CLDR::CustomCharacterSequances',
 	'Locale::CLDR::Locales::En',
 	'Locale::CLDR::Locales::En::Any',
 	'Locale::CLDR::Locales::En::Any::Us',
@@ -853,7 +852,6 @@ use v5.10.1;
 use mro 'c3';
 use utf8;
 use if \$^V ge v5.12.0, feature => 'unicode_strings';
-use Locale::CLDR::CustomCharacterSequances;
 use Types::Standard qw( Str Int HashRef ArrayRef CodeRef RegexpRef );
 use Moo$isRole;
 
@@ -4657,7 +4655,7 @@ EOT
             }
             say $file "\t\t\t$length => {";
             foreach my $type (sort keys %{$zone{$name}{$length}}) {
-                say $file "\t\t\t\t'$type' => q($zone{$name}{$length}{$type}),";
+                say $file "\t\t\t\t'$type' => q#$zone{$name}{$length}{$type}#,";
             }
             say $file "\t\t\t},";
         }
@@ -6329,6 +6327,9 @@ sub get_formatted_number {
 			# Fast commify using unpack
 			my $pattern = "(A$minor_group)(A$major_group)*";
 			$number = reverse join $separator, grep {length} unpack $pattern, reverse $integer;
+		}
+		else {
+			$number = $integer;
 		}
 	}
 	else {

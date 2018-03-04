@@ -13,9 +13,9 @@ use ok 'Locale::CLDR';
 
 my $locale = Locale::CLDR->new('de_DE');
 
-is ($locale->truncated_beginning('abc'), '… abc','Truncated beginning');
-is ($locale->truncated_between('abc','def'), 'abc … def','Truncated between');
-is ($locale->truncated_end('abc'), 'abc …','Truncated end');
+is ($locale->truncated_beginning('abc'), '…abc','Truncated beginning');
+is ($locale->truncated_between('abc','def'), 'abc…def','Truncated between');
+is ($locale->truncated_end('abc'), 'abc…','Truncated end');
 is ($locale->truncated_word_beginning('abc'), '… abc','Truncated word beginning');
 is ($locale->truncated_word_between('abc','def'), 'abc … def','Truncated word between');
 is ($locale->truncated_word_end('abc'), 'abc …','Truncated word end');

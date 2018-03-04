@@ -4513,7 +4513,7 @@ correctly format the locale's currency
 This method returns the format string for the currencies for the locale
 
 There are two types of formatting I<standard> and I<accounting> you can
-pass C<standard> or C<account> as the paramater to the method to pick one of
+pass C<standard> or C<accounting> as the paramater to the method to pick one of
 these ot it will use the locales default
 
 =cut
@@ -4521,10 +4521,10 @@ these ot it will use the locales default
 sub currency_format {
 	my ($self, $default_currency_format) = @_;
 	
-	die "Invalid Currency format: must be one of 'standard' or 'account'"
+	die "Invalid Currency format: must be one of 'standard' or 'accounting'"
 		if defined $default_currency_format
 			&& $default_currency_format ne 'standard'
-			&& $default_currency_format ne 'account';
+			&& $default_currency_format ne 'accounting';
 	
 	$default_currency_format //= $self->default_currency_format;
 	my @bundles = $self->_find_bundle('number_currency_formats');
