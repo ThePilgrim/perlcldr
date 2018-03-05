@@ -37,6 +37,7 @@ use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '32'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION = 0; # This is the build number against the CLDR revision
+my $TRIAL_REVISION = 1; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -56,6 +57,16 @@ my $bundles_directory         = File::Spec->catdir($build_directory, 'Bundle', '
 my $transformations_directory = File::Spec->catdir($lib_directory, 'Transformations');
 my $distributions_directory   = File::Spec->catdir($FindBin::Bin, 'Distributions');
 my $tests_directory           = File::Spec->catdir($FindBin::Bin, 't');
+
+if ($TRIAL_REVISION && $RELEASE_STATUS eq 'stable') {
+	warn "\$TRIAL_REVISION is set to $TRIAL_REVISION and this is a stable release resetting \$TRIAL_REVISION to ''";
+	$TRIAL_REVISION = '';
+}
+	
+my $dist_suffix = '';
+if ($TRIAL_REVISION && $RELEASE_STATUS eq 'unstable') {
+	$dist_suffix = "\n    dist_suffix         => 'TRIAL$TRIAL_REVISION',\n";
+}
 
 # Check if we have a Data directory
 if (! -d $data_directory ) {
@@ -5722,9 +5733,10 @@ my \$builder = Module::Build->new(
         'DateTime::Locale'          => 0,
         'namespace::autoclean'      => 0.16,
         'List::MoreUtils'           => 0,
+		'Unicode::Regex::Set'		=> 0,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
-    dist_version_from   => 'lib/Locale/CLDR.pm',
+    dist_version_from   => 'lib/Locale/CLDR.pm',$dist_suffix
     build_requires => {
         'ok'                => 0,
         'Test::Exception'   => 0,
@@ -5808,7 +5820,7 @@ my \$builder = Module::Build->new(
         'perl'                      => '5.10.1',
         $requires_base,
     },
-    dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
+    dist_author         => q{John Imrie <john.imrie1\@gmail.com>},$dist_suffix
     $dist_version,
     build_requires => {
         'ok'                => 0,

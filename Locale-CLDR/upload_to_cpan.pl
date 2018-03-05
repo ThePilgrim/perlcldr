@@ -8,6 +8,8 @@ use FindBin;
 use File::Spec;
 use List::Util qw( uniq );
 
+my $last = shift;
+
 my $config = CPAN::Uploader->read_config_file('./upload_config.txt');
 
 my $uploader = CPAN::Uploader->new($config);
@@ -25,6 +27,11 @@ foreach my $directory ( sort { $a eq 'Base' ? -1 : $b eq 'Base' ? 1 : $a cmp $b 
 	# Skip bundles until all distributions uploaded
 	next if ($directory eq 'Bundles');
 	next if $directory =~ /^\./;
+	
+	if ($last) {
+		next unless $last eq $directory;
+		$last = '';
+	}
 	
 	my $upload_from = File::Spec->catdir($distributions_directory, $directory);
 	opendir( my $dir, $upload_from );
