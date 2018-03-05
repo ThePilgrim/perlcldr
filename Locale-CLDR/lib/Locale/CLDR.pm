@@ -1394,7 +1394,9 @@ sub _build_break_vars {
 # Back port missing Unicode properties
 sub _fix_missing_properties {
 	my $string  = shift;
-	if ( $^V le v5.26.0 ) {
+    # Test for emoji property
+    eval { 1 =~ /\p{emoji}/ };
+	if ( $@ ) { # Emoji property not defined so substitute our own
 		no warnings 'uninitialized';
 		$string =~ s/ \\ (p) \{ (^)? \s* emoji \s* \} /\\$1\{$2 IsEmoji \}/igx;
 	}
