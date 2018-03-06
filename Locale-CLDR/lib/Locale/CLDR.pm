@@ -300,6 +300,16 @@ sub IsEmoji {
 EOT
 }
 
+sub IsZWJ {
+	return <<EOT;
+200D
+EOT
+}
+
+# Test for missing Unicode properties
+my $has_emoji = eval '1 !~ /\p{emoji}/';
+my $has_Grapheme_Cluster_Break_ZWJ = eval '1 !~ /\p{Grapheme_Cluster_Break=ZWJ}/';
+
 =head1 ATTRIBUTES
 
 These can be passed into the constructor and all are optional.
@@ -1394,11 +1404,14 @@ sub _build_break_vars {
 # Back port missing Unicode properties
 sub _fix_missing_properties {
 	my $string  = shift;
-    # Test for emoji property
-    eval { 1 =~ /\p{emoji}/ };
-	if ( $@ ) { # Emoji property not defined so substitute our own
+    
+	{
 		no warnings 'uninitialized';
-		$string =~ s/ \\ (p) \{ (^)? \s* emoji \s* \} /\\$1\{$2 IsEmoji \}/igx;
+		$string =~ s/ \\ (p) \{ (^)? \s* emoji \s* \} /\\$1\{$2 IsEmoji \}/igx
+			unless $has_emoji;
+		
+		$string =~ s/ \\ (p) \{ (^)? \s* Grapheme_Cluster_Break \s* = \s* ZWJ \} /\\$1\{$2 IsGrapheme_Cluster_Break_ZWJ \}/igx
+			unless $has_Grapheme_Cluster_Break_ZWJ;
 	}
 	return $string;
 }
