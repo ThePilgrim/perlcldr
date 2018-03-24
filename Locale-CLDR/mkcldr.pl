@@ -5924,7 +5924,7 @@ sub build_language_distributions {
 
 		# This construct attempts to copy tests from the t directory and
 		# then creates the default tests passing in the flag returned by 
-		# copy_tests saying wether any tests where copied
+		# copy_tests saying whether any tests where copied
 		create_default_tests($language, \@files, copy_tests($language));
 
 		foreach my $file (@files) {
