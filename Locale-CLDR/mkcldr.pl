@@ -25,7 +25,6 @@ use List::Util qw( min max );
 use Unicode::Regex::Set();
 
 use lib $FindBin::Bin;
-#use named_characters;
 
 my $start_time = time();
 
