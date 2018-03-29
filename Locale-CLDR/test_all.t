@@ -21,6 +21,8 @@ foreach my $distribution (@Distributions) {
 
 	next if $distribution eq 'Bundles';
 
+	chdir File::Spec->catdir($distributions_directory, $distribution);
+	
 	opendir my $test_dir, File::Spec->catdir($distributions_directory, $distribution, 't');
 	my @tests = 
 		map { File::Spec->catfile($distributions_directory, $distribution, 't', $_) } 
