@@ -44,3 +44,5 @@ foreach my $distribution (@Distributions) {
 $aggregator->stop;
 
 $harness->summary($aggregator);
+
+exit $aggregator->failed;
