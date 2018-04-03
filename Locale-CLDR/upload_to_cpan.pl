@@ -39,7 +39,16 @@ foreach my $directory ( sort { $a eq 'Base' ? -1 : $b eq 'Base' ? 1 : $a cmp $b 
 	closedir $dir;
 	
 	print "Uploading ", File::Spec->catfile($upload_from, $file_name), "\n";
-	$uploader->upload_file(File::Spec->catfile($upload_from, $file_name));
+	
+	{
+		eval {
+			$uploader->upload_file(File::Spec->catfile($upload_from, $file_name));
+		};
+		last unless $@;
+		print "$@\n";
+		sleep 300;
+		redo;
+	}
 	
 	sleep( ( $directory eq 'Base' ) ? 600 : 60 ); 
 	# Sleep for 10 minutes after uploading the Base package and 1 minute after each of the other packages to give PAUSE time to process each package
@@ -49,15 +58,24 @@ foreach my $directory ( sort { $a eq 'Base' ? -1 : $b eq 'Base' ? 1 : $a cmp $b 
 my $bundles_directory = File::Spec->catdir($distributions_directory, 'Bundles');
 
 #Sort out Bundle order by processing Bundle::Locale::CLDR::Everything down the bundle hierarchy until we run out of Bundles
-my @bundle_distributions = reverse uniq parse_bundle( 'Everything' );
+my @bundle_distributions = (reverse( uniq parse_bundle( 'Everything' )), 'Everything');
 
 foreach my $bundle (@bundle_distributions) {
 	my $upload_from = File::Spec->catdir($bundles_directory, $bundle);
 	opendir( my $dir, $upload_from );
-	my ( $file_name ) = grep { /^Locale-CLDR/} readdir $dir;
+	my ( $file_name ) = grep { /^Bundle-Locale-CLDR/} readdir $dir;
 	closedir $dir;
 	
-	$uploader->upload_file(File::Spec->catfile($upload_from, $file_name));
+	{
+		eval {
+			$uploader->upload_file(File::Spec->catfile($upload_from, $file_name));
+		};
+		last unless $@;
+		print "$@\n";
+		sleep 300;
+		redo;
+	}
+	
 	print "Uploading ", File::Spec->catfile($upload_from, $file_name), "\n";
 	
 	sleep 60; 
@@ -70,12 +88,12 @@ sub parse_bundle {
 	my $bundle_file = File::Spec->catfile($bundles_directory, $bundle, 'lib', 'Bundle', 'Locale', 'CLDR', "${bundle}.pm");
 	
 	open my $file, '<', $bundle_file;
-	my @lines = grep { /^=head1 CONTENTS/ .. eof() } <$file>;
+	my @lines = <$file>;
 	close $file;
 	
 	foreach my $line (@lines) {
 		next unless $line =~ /^Bundle::/;
-		my $new_bundle = (split / /, $line =~ s/^Bundle::Locale::CLDR:://r )[0];
+		my ($new_bundle) = (split / /, $line =~ s/^Bundle::Locale::CLDR:://r )[0];
 		push @distributions, $new_bundle;
 		push @distributions, parse_bundle($new_bundle);
 	}
