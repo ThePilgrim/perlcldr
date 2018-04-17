@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.32.0
+Version 0.33.0
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.32.0');
+our $VERSION = version->declare('v0.33.0');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -1299,16 +1299,21 @@ sub BUILDARGS {
 				(?:[-_]u[_-](.+))?
 			$/x;
 
+		if (! defined $script && length $language == 4) {
+			$script = $language;
+			$language = undef;
+		}
+		
 		foreach ($language, $script, $region, $variant) {
 			$_ = '' unless defined $_;
 		}
 
 		%args = (
-			language_id		=> $language,
-			script_id		=> $script,
+			language_id	=> $language,
+			script_id	=> $script,
 			region_id	=> $region,
-			variant_id		=> $variant,
-			extensions		=> $extensions,
+			variant_id	=> $variant,
+			extensions	=> $extensions,
 		);
 	}
 
@@ -1333,7 +1338,7 @@ sub BUILDARGS {
 	$args{variant_id}	= uc $args{variant_id}			if defined $args{variant_id};
 	
 	# Set up undefined language
-	$args{language_id} //= 'und';
+	$args{language_id} ||= 'und';
 
 	$self->SUPER::BUILDARGS(%args, %internal_args);
 }
