@@ -2892,9 +2892,14 @@ sub transform {
 	$_ = ucfirst(lc $_) foreach ($from, $to, $variant);
 	
 	my $package = __PACKAGE__ . "::Transformations::${variant}::${from}::${to}";
-	eval { Class::Load::load_class($package); };
-	warn $@ if $@;
-	return $text if $@; # Can't load transform module so return original text
+	my ($canload, $error) = Class::Load::try_load_class($package, { -version => $VERSION});
+    if ($canload) {
+	    Class::Load::load_class($package, { -version => $VERSION});
+    }
+    else {
+	    warn $error;
+	    return $text; # Can't load transform module so return original text
+    }
 	use feature 'state';
 	state $transforms;
 	$transforms->{$variant}{$from}{$to} //= $package->new();
@@ -2975,7 +2980,7 @@ sub _transformation_transform {
 				$text = '';
 			}
 			else {
-				$text = $self->transform($text, $variant, $rule->{from}, $rule->to);
+				$text = $self->transform(text => $text, variant => $variant, from => $rule->{from}, to => $rule->{to});
 			}
 		}
 	}

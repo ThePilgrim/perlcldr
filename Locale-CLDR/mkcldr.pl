@@ -3204,6 +3204,8 @@ sub process_region_containment_data {
 		my $base = $node->getAttribute('type');
 		my @contains = split /\s+/, $node->getAttribute('contains');
 		push @{$contains{$base}}, @contains;
+        # Ignore UN, EU and EZ political regions, use the gographical region only
+        next if grep { $base eq $_ } qw(UN EU EZ);
 		@contained_by{@contains} = ($base) x @contains;
 	}
 	
