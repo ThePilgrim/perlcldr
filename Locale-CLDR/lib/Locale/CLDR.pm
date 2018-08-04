@@ -162,6 +162,92 @@ Currently supported extensions are
 
 =over 8
 
+=item ca
+
+=item calendar
+
+You can use this to override a locales default calendar. Valid values are
+
+=over 12
+
+=item buddhist
+
+Thai Buddhist calendar
+
+=item chinese
+
+Traditional Chinese calendar
+
+=item coptic
+
+Coptic calendar
+
+=item dangi
+
+Traditional Korean calendar
+
+=item ethioaa
+
+=item ethiopic-amete-alem
+
+Ethiopic calendar, Amete Alem (epoch approx. 5493 B.C.E)
+
+=item ethiopic
+
+Ethiopic calendar, Amete Mihret (epoch approx, 8 C.E.)
+
+=item gregory
+
+=item gregorian
+
+Gregorian calendar
+
+=item hebrew
+
+Hebrew Calendar
+
+=item indian
+
+Indian National Calendar
+
+=item islamic
+
+Islamic Calendar
+
+=item islamic-civil
+
+Islamic Calendar (tabular, civil epoch)
+
+=item islamic-rgsa
+
+Islamic Calendar (Saudi Arabia, sighting)
+
+=item islamic-tbla
+
+Islamic Calendar (tabular, astronomical epoch)
+
+=item islamic-umalqura
+
+Islamic Calendar (Umm al-Qura)
+
+=item iso8601
+
+ISO-8601 Calendar
+
+=item japanese
+
+Japanese Calendar
+
+=item persian
+
+Persian Calendar
+
+=item roc
+
+Minguo Calendar
+
+=back
+
 =item nu
 
 =item numbers
@@ -420,88 +506,6 @@ Vai Digits
 
 =back
 
-=item ca
-
-=item calendar
-
-You can use this to override a locales default calendar. Valid values are
-
-=over 12
-
-=item buddhist
-
-Buddhist Calendar
-
-=item chinese
-
-Chinese Calendar
-
-=item coptic
-
-Coptic Calendar
-
-=item dangi
-
-Dangi Calendar
-
-=item ethiopic
-
-Ethiopic Calendar
-
-=item ethiopic-amete-alem
-
-Ethiopic Amete Alem Calendar
-
-=item gregorian
-
-Gregorian Calendar
-
-=item hebrew
-
-Hebrew Calendar
-
-=item indian
-
-Indian National Calendar
-
-=item islamic
-
-Islamic Calendar
-
-=item islamic-civil
-
-Islamic Calendar (tabular, civil epoch)
-
-=item islamic-rgsa
-
-Islamic Calendar (Saudi Arabia, sighting)
-
-=item islamic-tbla
-
-Islamic Calendar (tabular, astronomical epoch)
-
-=item islamic-umalqura
-
-Islamic Calendar (Umm al-Qura)
-
-=item iso8601
-
-ISO-8601 Calendar
-
-=item japanese
-
-Japanese Calendar
-
-=item persian
-
-Persian Calendar
-
-=item roc
-
-Minguo Calendar
-
-=back
-
 =item cu
 
 =item currency
@@ -522,11 +526,17 @@ one of
 =over 12
 
 =item mon
+
 =item tue
+
 =item wed
+
 =item thu
+
 =item fri
+
 =item sat
+
 =item sun
 
 =back
@@ -1334,7 +1344,7 @@ sub BUILDARGS {
 	# Fix casing of args
 	$args{language_id}	= lc $args{language_id}			if defined $args{language_id};
 	$args{script_id}	= ucfirst lc $args{script_id}	if defined $args{script_id};
-	$args{region_id}	= uc $args{region_id}		if defined $args{region_id};
+	$args{region_id}	= uc $args{region_id}			if defined $args{region_id};
 	$args{variant_id}	= uc $args{variant_id}			if defined $args{variant_id};
 	
 	# Set up undefined language
