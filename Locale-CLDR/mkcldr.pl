@@ -1,5 +1,9 @@
 ﻿#!/usr/bin/perl
 
+# There are two optional parameters to this script -v which turns on verbose logging and a file name
+# which should be the last successfully processed file should you wish to restart the script after
+# a crash or some other stoppage
+
 use v5.18;
 use strict;
 use warnings;
@@ -36,7 +40,7 @@ use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '33'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION = 0; # This is the build number against the CLDR revision
-my $TRIAL_REVISION = '1'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
@@ -44,6 +48,7 @@ my $CLDR_PATH = $CLDR_VERSION;
 # full release or 'unstable' for a developer release
 my $RELEASE_STATUS = 'unstable';
 
+# Set up the names for the directory structure for the build. Using File::Spec here to maximise portability
 chdir $FindBin::Bin;
 my $data_directory            = File::Spec->catdir($FindBin::Bin, 'Data');
 my $core_filename             = File::Spec->catfile($data_directory, 'core.zip');
@@ -509,7 +514,7 @@ push @transformation_list, 'Locale::CLDR::Transformations';
 # that does not have the characters as raw utf8
 
 say "Copying base collation file" if $verbose;
-open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
+open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'));
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
 process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
 process_collation_base($Allkeys_in, $Allkeys_out);
@@ -535,8 +540,12 @@ my %region_to_package;
 my $en;
 my $languages;
 my $regions;
+
+# We are going to process the root en and en_US locales twice the first time as the first three 
+# locales so we can then use the data in the processed files to create names and other labels in 
+# the local files
 foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, readdir($dir) ) {
-    if (@ARGV) {
+    if (@ARGV) { # Allow us to supply the last processed file for a restart after a crash
         next unless grep {$file_name eq $_} @ARGV;
     }
     
@@ -592,6 +601,8 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
 		push @{$region_to_package{lc $t}}, join('::','Locale::CLDR::Locales',@output_file_parts[0,1],$t);
 	}
 	
+	# If we have already created the US English module we can use it to produce the correct local
+	# names in each modules documentation
 	my $has_en = -e File::Spec->catfile($locales_directory, 'En', 'Any', 'Us.pm');
 	if ($has_en && ! $en) {
 		require lib;
@@ -642,7 +653,6 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
 }
 
 # Build Bundles and Distributions
-
 my $out_directory = File::Spec->catdir($lib_directory, '..', '..', 'Bundle', 'Locale','CLDR');
 make_path($out_directory) unless -d $out_directory;
 
@@ -744,7 +754,6 @@ my @all_bundle = (
 build_bundle($out_directory, \@all_bundle, 'Everything');
 
 # Now split everything into distributions
-
 build_distributions();
 
 my $duration = time() - $start_time;
@@ -875,117 +884,67 @@ EOT
 	}
 }
 
-
-use constant CJK_BASE => 0x4E00;
-use constant CJK_LIMIT => 0x9FCC+1;
-
-use constant CJK_COMPAT_USED_BASE => 0xFA0E;
-use constant CJK_COMPAT_USED_LIMIT => 0xFA2F+1;
-
-use constant CJK_A_BASE => 0x3400;
-use constant CJK_A_LIMIT => 0x4DB5+1;
-use constant CJK_B_BASE => 0x20000;
-use constant CJK_B_LIMIT => 0x2A6D6+1;
-
-use constant CJK_C_BASE => 0x2A700;
-use constant CJK_C_LIMIT => 0x2B734+1;
-
-use constant CJK_D_BASE => 0x2B740;
-use constant CJK_D_LIMIT => 0x2B81D+1;
-
-use constant NON_CJK_OFFSET => 0x110000;
-
-sub swapCJK {
-	my $i = shift;
-	if ($i >= CJK_BASE) {
-		return $i - CJK_BASE if ($i < CJK_LIMIT);
-		return $i + NON_CJK_OFFSET if ($i < CJK_COMPAT_USED_BASE);
-		return $i - CJK_COMPAT_USED_BASE + (CJK_LIMIT - CJK_BASE) if ($i < CJK_COMPAT_USED_LIMIT);
-		return $i + NON_CJK_OFFSET if ($i < CJK_B_BASE);
-		return $i if ($i < CJK_B_LIMIT); # non-BMP-CJK
-		return $i + NON_CJK_OFFSET if ($i < CJK_C_BASE);
-		return $i if ($i < CJK_C_LIMIT); # non-BMP-CJK
-        return $i + NON_CJK_OFFSET if ($i < CJK_D_BASE);
-        return $i if ($i < CJK_D_LIMIT); # non-BMP-CJK
-		return $i + NON_CJK_OFFSET;  # non-CJK
-	}
-	return $i + NON_CJK_OFFSET if ($i < CJK_A_BASE);
-	return $i - CJK_A_BASE + (CJK_LIMIT - CJK_BASE) + (CJK_COMPAT_USED_LIMIT - CJK_COMPAT_USED_BASE) if ($i < CJK_A_LIMIT);
-	return $i + NON_CJK_OFFSET; # non-CJK
-}
-
-
 sub process_collation_base {
 	my ($Allkeys_in, $Allkeys_out) = @_;
+	my %characters;
+	my @multi;
 	
-	my @unified_ideographs = ();
-	my @han_order = ();
-	my %top_byte = ();
-	my %characters = ();
-	my @digraphs = ();
 	while (my $line = <$Allkeys_in>) {
-		next if $line =~ /^\s*$/; # Comments
-		next if $line =~ /^#/; # Empty lines
+		next if $line =~ /^\s*$/; # Empty lines
+		next if $line =~ /^#/; # Comments
 		
-		next if $line =~ /^\[UCA version =/; # Version line
-		
-		# Unified Ideographs
-		if ($line =~ s/^\[Unified_Ideograph (.+)\]/$1/) {
-			$line =~ s/(\p{hex}+)/hex $1/ge;
-			$line =~ s/ /,/g;
-			@unified_ideographs = map { chr } eval "$line";
-			next;
-		}
-		
-		# Han order
-		if ($line =~ s/^\[radical [0-9]+=[^:]+:(.+)\]/$1/) {
-			$line =~ s/(.)/$1,/g;
-			$line =~ s/,-,/../g;
-			$line =~ s/(.)/$1 eq '.' ? '.' : $1 eq ',' ? ',' : ord($1)/eg;
-			push @han_order, map { chr } eval "$line";
-			next;
-		}
-		
-		next if $line eq '[radical end]';
-		
-		# top byte
-		if (my ($byte, $name) = $line =~ /^\[top_byte\t(\p{hex}\p{hex})\t([A-Za-z ]+)(?:\tCOMPRESS)? \]$/) {
-			my @names = split / /, $name;
-			push @{$top_byte{$name}}, $byte foreach (@names);
-			next;
-		}
+		next if $line =~ /^\@version /; # Version line
 		
 		# Characters
-		if (my ($character, $collation_element) = $line =~ /^(\p{hex}{4,6}(?: \| \p{hex}{4,6})*); (.*)$/) {
-			$character = join '', map {chr hex $_} split /\s* \| \s*/x, $character;
-			push @digraphs, $character if length $character > 1;
-			$characters{$character} = process_collation_element($collation_element, \%characters);
+		if (my ($character, $collation_element) = $line =~ /^(\p{hex}{4,6}(?: \p{hex}{4,6})*) *; ((?:\[[.*]\p{hex}{4}\.\p{hex}{4}\.\p{hex}{4}\])+) #.*$/) {
+			$character = join '', map {chr hex $_} split / /, $character;
+			if (length $character > 1) {
+				push(@multi,$character);
+			}
+			$characters{$character} = process_collation_element($collation_element);
 		}
 	}
-
-	my %han_order;
-	my $order = 0;
-	@han_order{@han_order} = map { $order++ } @han_order;
 	
 	print $Allkeys_out <<EOT;
-has han_order => (
+has multi_class => (
 	is => 'ro',
-	isa => HashRef,
-	init_arg => 'undef',
+	isa => ArrayRef,
+	init_arg => undef,
 	default => sub {
-		return {
+		return [
 EOT
-	foreach my $character (sort keys %han_order) {
-		my $character_out = sprintf '"\\x{%0.4X}"', ord $character;
-		print $Allkeys_out "\t\t\t$character_out => $han_order{$character},\n";
+	foreach ( @multi ) {
+		my $multi = $_; # Make sure that $multi is not a reference into @multi
+		no warnings 'utf8';
+		$multi =~ s/'/\\'/g;
+		print $Allkeys_out "\t\t\t'$multi',\n";
 	}
+	
 	print $Allkeys_out <<EOT;
-		}
-	},
+		]
+	}
 );
 
+has multi_rx => (
+	is => 'ro',
+	isa => ArrayRef,
+	init_arg => undef,
+	default => sub {
+		return [
 EOT
-
+	foreach my $multi ( @multi ) {
+		no warnings 'utf8';
+		$multi =~ s/(.)/$1\\P{ccc=0}/g;
+		$multi =~ s/'/\\'/g;
+		print $Allkeys_out "\t\t\t'$multi',\n";
+	}
+	
+	print $Allkeys_out <<EOT;
+		]
+	}
+);
+EOT
+	
 	print $Allkeys_out <<EOT;
 has collation_elements => (
 	is => 'ro',
@@ -994,13 +953,14 @@ has collation_elements => (
 	default => sub {
 		return {
 EOT
-	foreach my $character (sort (@unified_ideographs, keys %characters)) {
+	no warnings 'utf8';
+	foreach my $character (sort (keys %characters)) {
 		my $character_out = $character;
 		$character_out = sprintf '"\\x{%0.4X}"', ord $character_out;
 		print $Allkeys_out "\t\t\t$character_out => '";
-		my @ce = @{$characters{$character} || generate_waight_from($character) };
+		my @ce = @{$characters{$character}};
 		foreach my $ce (@ce) {
-			$ce = join "\x{0002}", map { defined $_ ? $_ : '' } @$ce;
+			$ce = join '', map { defined $_ ? $_ : '' } @$ce;
 		}
 		my $ce = join("\x{0001}", @ce) =~ s/([\\'])/\\$1/r;
 		print $Allkeys_out $ce, "',\n";
@@ -1012,53 +972,16 @@ EOT
 );
 
 EOT
-	print $Allkeys_out <<EOT;
-has _digraphs => (
-	is => 'ro',
-	isa => ArrayRef,
-	init_arg => undef,
-	default => sub {
-		return [ qw( @digraphs ) ]
-	}
-);
-EOT
-}
-
-sub process_collation_element_from_character {
-	my ($original, $levels) = @_;
-	my @collation_elements = @$original;
-	$levels =~ tr/ //d if defined $levels;
-	if ($levels) {
-		my @levels = map {chr hex } split/,/, $levels;
-		if (@levels == 1) {
-			$collation_elements[2] = $levels[0];
-		}
-		else {
-			@collation_elements[1,2] = @levels;
-		}
-	}
-
-	return \@collation_elements;
 }
 
 sub process_collation_element {
-	my ($collation_string, $characters) = @_;
+	my ($collation_string) = @_;
 	my @collation_elements = $collation_string =~ /\[(.*?)\]/g;
 	foreach my $element (@collation_elements) {
-		# Check if the element starts with U+
-		if ($element =~ /^U\+/) {
-			my ($from, $levels) = $element =~ /^U\+(\p{hex}{4,6})(?:,(.*))?/;
-			$from = join '', map {chr hex $_} split /\s* \| \s*/x, $from;
-			$element = process_collation_element_from_character(($characters->{$from} //= generate_waight_from($from) ), $levels);
-			next;
-		}
-
-		my ($primary, $secondary, $tertiary) = map { s/^\s*//r } split(/,/, $element);
+		my (undef, $primary, $secondary, $tertiary) = split(/[.*]/, $element);
 		foreach my $level ($primary, $secondary, $tertiary) {
 			$level //= 0;
-			my @char = split / /, $level;
-			@char = map {chr hex} @char;
-			$level = join '', @char;
+			$level = chr hex $level;
 		}
 		$element = [$primary, $secondary, $tertiary];
 	}
@@ -1066,98 +989,6 @@ sub process_collation_element {
 	return \@collation_elements;
 }
 
-sub generate_waight_from {
-	my ($character) = @_;
-	my $code_point = ord $character;
-
-	# The constants for the boundaries of CJK characters vary from release to release. 
-	# They are of the form CJK*BASE and CJK*LIMIT, and may be expanded to new blocks as well.
-	use feature 'state';
-	state $min3Primary = 0xE0;
-	state $max4Primary = 0xE4;
-	state $minTrail = 0x04;
-	state $maxTrail = 0xFE;
-	state $gap3 = 1;
-	state $primaries3count = 1;
-	state $MAX_INPUT = 0x220001;
-
-	state $final3Multiplier = $gap3 + 1;
-	state $final3Count = int(($maxTrail - $minTrail + 1) / $final3Multiplier);
-	state $max3Trail = $minTrail + ($final3Count - 1) * $final3Multiplier;
-
-	state $medialCount = ($maxTrail - $minTrail + 1);
-	state $threeByteCount = $medialCount * $final3Count;
-	state $primariesAvailable = $max4Primary - $min3Primary + 1;
-	state $primaries4count = $primariesAvailable - $primaries3count;
-
-	state $min3ByteCoverage = $primaries3count * $threeByteCount;
-	state $min4Primary = $min3Primary + $primaries3count;
-	state $min4Boundary = $min3ByteCoverage;
- 
-	state $totalNeeded = $MAX_INPUT - $min4Boundary;
-	state $neededPerPrimaryByte = divideAndRoundUp($totalNeeded, $primaries4count);
-
-	state $neededPerFinalByte = divideAndRoundUp($neededPerPrimaryByte, $medialCount * $medialCount);
-
-	state $gap4 = ($maxTrail - $minTrail - 1) / $neededPerFinalByte;
-
-	state $final4Multiplier = $gap4 + 1;
-	state $final4Count = $neededPerFinalByte;
-
-	$code_point += swapCJK($code_point) + 1;
-	my $last0 = $code_point - $min4Boundary;
-	if ($last0 < 0) {
-		my $last1 = int($code_point / $final3Count);
-		$last0 = $code_point % $final3Count;
-
-		my $last2 = int($last1 / $medialCount);
-		$last1 %= $medialCount;
-
-		$last0 = $minTrail + $last0 * $final3Multiplier; # spread out, leaving gap at start
-		$last1 = $minTrail + $last1; # offset
-		$last2 = $min3Primary + $last2; # offset
-
-#		return ($last2 << 24) + ($last1 << 16) + ($last0 << 8);
-		return [ [map { to_bytes($_) } ($last2, $last1, $last0) ] ];
-	}
-	else {
-		my $last1 = int($last0 / $final4Count);
-		$last0 %= $final4Count;
-
-		my $last2 = int($last1 / $medialCount);
-		$last1 %= $medialCount;
-
-		my $last3 = int ($last2 / $medialCount);
-		$last2 %= $medialCount;
-
-		$last0 = $minTrail + $last0 * $final4Multiplier; # spread out, leaving gap at start 
-		$last1 = $minTrail + $last1; # offset
-		$last2 = $minTrail + $last2; # offset
-		$last3 = $min4Primary + $last3; # offset
-
-#		return ($last3 << 24) + ($last2 << 16) + ($last1 << 8) + $last0;
-		return [ [ map { to_bytes($_) } ($last3, $last2, $last1, $last0) ] ];
-	}
-}
-
-sub to_bytes {
-	my $code = shift;
-	my @results = ();
-
-	while ($code) {
-		unshift @results, $code % 256;
-		$code = int ($code / 256);
-	}
-	
-	return join '', map {chr} @results;
-}
-
-sub divideAndRoundUp {
-	return int (1 + ($_[0]-1)/$_[1]);
-}
-
-
- 
 sub expand_text {
 	my $string = shift;
 
@@ -6704,16 +6535,16 @@ no Moo::Role;
 
 # vim: tabstop=4
 __DATA__
+#line 6538
 use Unicode::Normalize('NFD');
 use Unicode::UCD qw( charinfo );
 use List::MoreUtils qw(pairwise);
 use Moo;
-use Types::Standard qw(Str Int Maybe ArrayRef InstanceOf);
+use Types::Standard qw(Str Int Maybe ArrayRef InstanceOf RegexpRef Bool);
 with 'Locale::CLDR::CollatorBase';
 
 my $NUMBER_SORT_TOP = "\x{FD00}\x{0034}";
 my $LEVEL_SEPARATOR = "\x{0001}";
-my $FIELD_SEPARATOR = "\x{0002}";
 
 has 'type' => (
 	is => 'ro',
@@ -6734,6 +6565,7 @@ has 'alternate' => (
 	default => 'noignore'
 );
 
+# Note that backwards is only at level 2
 has 'backwards' => (
 	is => 'ro',
 	isa => Str,
@@ -6755,7 +6587,7 @@ has 'case_ordering' => (
 has 'normalization' => (
 	is => 'ro',
 	isa => Str,
-	default => 'false',
+	default => 'true',
 );
 
 has 'numeric' => (
@@ -6779,7 +6611,26 @@ has 'strength' => (
 has 'max_variable' => (
 	is => 'ro',
 	isa => Str,
-	default => 'punct',
+	default => chr(0x0397),
+);
+
+has _character_rx => (
+	is => 'ro',
+	isa => RegexpRef,
+	lazy => 1,
+	init_arg => undef,
+	default => sub {
+		my $self = shift;
+		my $list = join '|', @{$self->multi_rx()}, '.';
+		return qr/\G($list)/s;
+	},
+);
+
+has _in_variable_weigting => (
+	is => 'rw',
+	isa => Bool,
+	init_arg => undef,
+	default => 0,
 );
 
 # Set up the locale overrides
@@ -6796,85 +6647,146 @@ sub BUILD {
 	}
 }
 
-sub _get_sort_digraphs_rx {
-	my $self = shift;
-	
-	my $digraphs = $self->_digraphs();
-	
-	my $rx = join '|', @$digraphs, '.';
-	
-	# Fix numeric sorting here
-	if ($self->numeric eq 'true') {
-		$rx = "\\p{Nd}+|$rx";
-	}
-	
-	return qr/$rx/;
-}
-
-
 # Get the collation element at the current strength
-sub get_collation_element {
-	my ($self, $grapheme) = @_;
-	my $ce;
-	if ($self->numeric && $grapheme =~/^\p{Nd}/) {
+sub get_collation_elements {
+	my ($self, $string) = @_;
+	my @ce;
+	if ($self->numeric eq 'true' && $string =~/^\p{Nd}^/) {
 		my $numeric_top = $self->collation_elements()->{$NUMBER_SORT_TOP};
-		my @numbers = $self->_convert_digits_to_numbers($grapheme);
-		$ce = join '', map { "$numeric_top${LEVEL_SEPARATOR}№$_" } @numbers;
+		my @numbers = $self->_convert_digits_to_numbers($string);
+		@ce = map { "$numeric_top${LEVEL_SEPARATOR}№$_" } @numbers;
 	}
 	else {
-		$ce = $self->collation_elements()->{$grapheme};
-	}
-
-	my $strength = $self->strength;
-	my @elements = split /$LEVEL_SEPARATOR/, $ce;
-	foreach my $element (@elements) {
-		my @parts = split /$FIELD_SEPARATOR/, $element;
-		if (@parts > $strength) {
-			@parts = @parts[0 .. $strength - 1];
+		my $rx = $self->_character_rx;
+		my @characters = $string =~ /$rx/g;
+			
+		foreach my $character (@characters) {
+			my @current_ce;
+			if (length $character > 1) {
+				# We have a collation element that dependeds on two or more codepoints
+				# Remove the code points that the collation element depends on and if 
+				# there are still codepoints get the collation elements for them
+				my @multi_rx = @{$self->multi_rx};
+				my $multi;
+				for (my $count = 0; $count < @multi_rx; $count++) {
+					if ($character =~ /$multi_rx[$count]/) {
+						$multi = $self->multi_class()->[$count];
+						last;
+					}
+				}
+				
+				my $match = $character;  
+				eval "\$match =~ tr/$multi//cd;";
+				push @current_ce, $self->collation_elements()->{$match};
+				$character =~ s/$multi//g;
+				if (length $character) {
+					foreach my $codepoint (split //, $character) {
+						push @current_ce,
+							$self->collation_elements()->{$codepoint}
+							// $self->generate_ce($codepoint);
+					}
+				}
+			}
+			else {
+				my $ce = $self->collation_elements()->{$character};
+				$ce //= $self->generate_ce($character);
+				push @current_ce, $ce;
+			}
+			push @ce, $self->_process_variable_weightings(@current_ce);
 		}
-		$element = join $FIELD_SEPARATOR, @parts;
 	}
-	
-	return @elements;
+	return @ce;
 }
 
-# Converts $string into a string of Collation Elements
+sub _process_variable_weightings {
+	my ($self, @ce) = @_;
+	return @ce if $self->alternate() eq 'noignore';
+	
+	foreach my $ce (@ce) {
+		if ($ce->[0] le $self->max_variable) {
+			# Variable waighted codepoint
+			if ($self->alternate eq 'blanked') {
+				@$ce = map { chr() } qw(0 0 0);
+				
+			}
+			if ($self->alternate eq 'shifted') {
+				my $l4;
+				if ($ce->[0] eq "\0" && $ce->[1] eq "\0" && $ce->[2] eq "\0") {
+					$ce->[3] = "\0";
+				}
+				else {
+					$ce->[3] = $ce->[1]; 
+				}
+				@$ce[0 .. 2] = map { chr() } qw (0 0 0);
+			}
+			$self->_in_variable_weigting(1);
+		}
+		else {
+			if ($self->_in_variable_weigting()) {
+				if( $ce->[0] eq "\0" && $self->alternate eq 'shifted' ) {
+					$ce->[3] = "\0";
+				}
+				elsif($ce->[0] ne "\0") {
+					$self->_in_variable_weigting(0);
+					if ( $self->alternate eq 'shifted' ) {
+						$ce->[3] = chr(0xFFFF)
+					}
+				}
+			}
+		}
+	}
+}
+
+# Converts $string into a sort key. Two sort keys can be correctly sorted by cmp
 sub getSortKey {
 	my ($self, $string) = @_;
 
 	$string = NFD($string) if $self->normalization eq 'true';
+
+	my @sort_key;
 	
-	my $entity_rx = $self->_get_sort_digraphs_rx();
+	my @ce = $self->get_collation_elements($string);
 
-	my @ce;
-	while (my ($grapheme) = $string =~ /($entity_rx)/g ) {
-		push @ce, $self->get_collation_element($grapheme)
+	for (my $count = 0; $count < $self->strength(); $count++ ) {
+		foreach my $ce (@ce) {
+			$ce = [ split //, $ce] unless ref $ce;
+			if (defined $ce->[$count] && $ce->[$count] ne "\0") {
+				push @sort_key, $ce->[$count];
+			}
+		}
 	}
-
-	return \@ce;
+	
+	return join "\0", @sort_key;
 }
 
 sub generate_ce {
 	my ($self, $character) = @_;
 	
-	my $base;
+	my $aaaa;
+	my $bbbb;
 	
-	if ($character =~ /\p{Unified_Ideograph}/) {
-		if ($character =~ /\p{Block=CJK_Unified_Ideographs}/ || $character =~ /\p{Block=CJK_Compatibility_Ideographs}/) {
-			$base = 0xFB40;
-		}
-		else {
-			$base = 0xFB80;
-		}
+	if ($^V ge v5.26 && eval q($character =~ /(?!\p{Cn})(?:\p{Block=Tangut}|\p{Block=Tangut_Components})/)) {
+		$aaaa = 0xFB00;
+		$bbbb = (ord($character) - 0x17000) | 0x8000;
+	}
+	# Block Nushu was added in Perl 5.28
+	elsif ($^V ge v5.28 && eval q($character =~ /(?!\p{Cn})\p{Block=Nushu}/)) {
+		$aaaa = 0xFB01;
+		$bbbb = (ord($character) - 0x1B170) | 0x8000;
+	}
+	elsif ($character =~ /(?=\p{Unified_Ideograph=True})(?:\p{Block=CJK_Unified_Ideographs}|\p{Block=CJK_Compatibility_Ideographs})/) {
+		$aaaa = 0xFB40 + (ord($character) >> 15);
+		$bbbb = (ord($character) & 0x7FFFF) | 0x8000;
+	}
+	elsif ($character =~ /(?=\p{Unified_Ideograph=True})(?!\p{Block=CJK_Unified_Ideographs})(?!\p{Block=CJK_Compatibility_Ideographs})/) {
+		$aaaa = 0xFB80 + (ord($character) >> 15);
+		$bbbb = (ord($character) & 0x7FFFF) | 0x8000;
 	}
 	else {
-		$base = 0xFBC0;
+		$aaaa = 0xFBC0 + (ord($character) >> 15);
+		$bbbb = (ord($character) & 0x7FFFF) | 0x8000;
 	}
-	
-	my $aaaa = $base + unpack( 'L', (pack ('L', ord($character)) >> 15));
-	my $bbbb = unpack('L', (pack('L', ord($character)) & 0x7FFF) | 0x8000);
-	
-	return join '', map {chr($_)} $aaaa, 0x0020, 0x0002,0, $bbbb,0,0,0;
+	return join '', map {chr($_)} $aaaa, 0x0020, 0x0002, $LEVEL_SEPARATOR, $bbbb, 0, 0;
 }
 
 # sorts a list according to the locales collation rules
@@ -6965,4 +6877,3 @@ no Moo;
 1;
 
 # vim: tabstop=4
-
