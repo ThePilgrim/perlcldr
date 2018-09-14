@@ -515,9 +515,10 @@ push @transformation_list, 'Locale::CLDR::Transformations';
 
 say "Copying base collation file" if $verbose;
 open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'));
+open (my $Fractional_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
 open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
 process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef, File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'), 1);
-process_collation_base($Allkeys_in, $Allkeys_out);
+process_collation_base($Fractional_in, $Allkeys_in, $Allkeys_out);
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
 close $Allkeys_out;
@@ -885,10 +886,22 @@ EOT
 }
 
 sub process_collation_base {
-	my ($Allkeys_in, $Allkeys_out) = @_;
+	my ($Fractional_in, $Allkeys_in, $Allkeys_out) = @_;
 	my %characters;
 	my @multi;
 	
+    # Get block ranges
+    my %block;
+    my $old_name;
+    my $fractional = join '', <$Fractional_in>;
+    while (my ($end, $name, $start ) = $fractional =~ /(\p{hex}{4,6});.+?\nFDD1.*?# (\S+).*?\n(\p{hex}{4,6})/gs ) {
+        if ($old_name) {
+            $block{$old_name}{end} = $end;
+        }
+        $old_name = $name;
+        $block{$name}{start} = $start;
+    }
+
 	while (my $line = <$Allkeys_in>) {
 		next if $line =~ /^\s*$/; # Empty lines
 		next if $line =~ /^#/; # Comments
