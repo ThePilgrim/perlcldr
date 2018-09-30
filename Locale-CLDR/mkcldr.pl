@@ -38,8 +38,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '33'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 0; # This is the build number against the CLDR revision
+my $CLDR_VERSION = '33.1'; # This needs to match the revision number of the CLDR revision being generated against
+my $REVISION = 1; # This is the build number against the CLDR revision
 my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
@@ -521,6 +521,7 @@ process_header($Allkeys_out, 'Locale::CLDR::CollatorBase', $CLDR_VERSION, undef,
 process_collation_base($Fractional_in, $Allkeys_in, $Allkeys_out);
 process_footer($Allkeys_out,1);
 close $Allkeys_in;
+close $Fractional_in;
 close $Allkeys_out;
 
 # Main directory
@@ -848,6 +849,8 @@ sub process_header {
 	my $header = '';
 	if ($language) {
 		print $file <<EOT;
+=encoding utf8
+
 =head1
 
 $class - Package for language $language
@@ -890,18 +893,6 @@ sub process_collation_base {
 	my %characters;
 	my @multi;
 	
-    # Get block ranges
-    my %block;
-    my $old_name;
-    my $fractional = join '', <$Fractional_in>;
-    while (my ($end, $name, $start ) = $fractional =~ /(\p{hex}{4,6});.+?\nFDD1.*?# (\S+).*?\n(\p{hex}{4,6})/gs ) {
-        if ($old_name) {
-            $block{$old_name}{end} = $end;
-        }
-        $old_name = $name;
-        $block{$name}{start} = $start;
-    }
-
 	while (my $line = <$Allkeys_in>) {
 		next if $line =~ /^\s*$/; # Empty lines
 		next if $line =~ /^#/; # Comments
@@ -917,7 +908,28 @@ sub process_collation_base {
 			$characters{$character} = process_collation_element($collation_element);
 		}
 	}
-	
+
+    # Get block ranges
+    my %block;
+    my $old_name;
+    my $fractional = join '', <$Fractional_in>;
+    while ($fractional =~ /(\p{hex}{4,6});[^;]+?(?:\nFDD0 \p{hex}{4,6};[^;]+?)?\nFDD1.*?# (.+?) first.*?\n(\p{hex}{4,6});/gs ) {
+		my ($end, $name, $start ) = ($1, $2, $3);
+        if ($old_name) {
+            $block{$old_name}{end} = $characters{chr hex $end} // generate_ce(chr hex $end);
+			$block{Meroitic_Hieroglyphs}{end} = $characters{chr hex $end}
+				if $old_name eq 'HIRAGANA';
+			$block{KATAKANA}{end} = $characters{chr hex $end}
+				if $old_name eq 'Meroitic_Cursive';
+        }
+        $old_name = $name;
+        $block{$name}{start} = $characters{chr hex $start} // generate_ce(chr hex $start);
+		$block{KATAKANA}{start} = $characters{chr hex $start}
+				if $old_name eq 'HIRAGANA';
+		$block{Meroitic_Hieroglyphs}{start} = $characters{chr hex $start}
+				if $old_name eq 'Meroitic_Cursive';
+    }
+
 	print $Allkeys_out <<EOT;
 has multi_class => (
 	is => 'ro',
@@ -984,7 +996,67 @@ EOT
 	}
 );
 
+has collation_sections => (
+	is => 'ro',
+	isa => HashRef,
+	init_arg => undef,
+	default => sub {
+		return {
 EOT
+	foreach my $block (sort keys %block) {
+		my $end = defined $block{$block}{end} 
+			? 'q(' . (
+				ref $block{$block}{end} 
+				? join("\x{0001}", map { join '', @$_} @{$block{$block}{end}}) 
+				: $block{$block}{end}) . ')' 
+			: 'undef';
+		
+		my $start = defined $block{$block}{start} 
+			? 'q(' . (
+				ref $block{$block}{start} 
+				? join("\x{0001}", map { join '', @$_} @{$block{$block}{start}}) 
+				: $block{$block}{start}) . ')' 
+			: 'undef';
+		
+		$block = lc $block;
+		$block =~ tr/ -/_/;
+		print $Allkeys_out "\t\t\t$block => [ $start, $end ],\n";
+	}
+	print $Allkeys_out <<EOT;
+		}
+	}
+);
+EOT
+}
+
+sub generate_ce {
+	my ($character) = @_;
+	my $LEVEL_SEPARATOR = "\x{0001}";
+	my $aaaa;
+	my $bbbb;
+	
+	if ($^V ge v5.26 && eval q($character =~ /(?!\p{Cn})(?:\p{Block=Tangut}|\p{Block=Tangut_Components})/)) {
+		$aaaa = 0xFB00;
+		$bbbb = (ord($character) - 0x17000) | 0x8000;
+	}
+	# Block Nushu was added in Perl 5.28
+	elsif ($^V ge v5.28 && eval q($character =~ /(?!\p{Cn})\p{Block=Nushu}/)) {
+		$aaaa = 0xFB01;
+		$bbbb = (ord($character) - 0x1B170) | 0x8000;
+	}
+	elsif ($character =~ /(?=\p{Unified_Ideograph=True})(?:\p{Block=CJK_Unified_Ideographs}|\p{Block=CJK_Compatibility_Ideographs})/) {
+		$aaaa = 0xFB40 + (ord($character) >> 15);
+		$bbbb = (ord($character) & 0x7FFFF) | 0x8000;
+	}
+	elsif ($character =~ /(?=\p{Unified_Ideograph=True})(?!\p{Block=CJK_Unified_Ideographs})(?!\p{Block=CJK_Compatibility_Ideographs})/) {
+		$aaaa = 0xFB80 + (ord($character) >> 15);
+		$bbbb = (ord($character) & 0x7FFFF) | 0x8000;
+	}
+	else {
+		$aaaa = 0xFBC0 + (ord($character) >> 15);
+		$bbbb = (ord($character) & 0x7FFFF) | 0x8000;
+	}
+	return join '', map {chr($_)} $aaaa, 0x0020, 0x0002, ord ($LEVEL_SEPARATOR), $bbbb, 0, 0;
 }
 
 sub process_collation_element {
@@ -6799,7 +6871,7 @@ sub generate_ce {
 		$aaaa = 0xFBC0 + (ord($character) >> 15);
 		$bbbb = (ord($character) & 0x7FFFF) | 0x8000;
 	}
-	return join '', map {chr($_)} $aaaa, 0x0020, 0x0002, $LEVEL_SEPARATOR, $bbbb, 0, 0;
+	return join '', map {chr($_)} $aaaa, 0x0020, 0x0002, ord($LEVEL_SEPARATOR), $bbbb, 0, 0;
 }
 
 # sorts a list according to the locales collation rules

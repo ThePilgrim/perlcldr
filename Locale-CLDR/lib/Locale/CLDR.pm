@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.33.0
+Version 0.33.1
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.33.0');
+our $VERSION = version->declare('v0.33.1');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -64,7 +64,6 @@ use Locale::CLDR::Collator();
 use File::Spec();
 use Scalar::Util qw(blessed);
 use Unicode::Regex::Set();
-#no warnings "experimental::regex_sets";
 
 # Backwards compatibility
 BEGIN {
@@ -1202,7 +1201,7 @@ my $has_Line_Break_E_Modifier = eval '1 !~ /\p{Line_Break=E_Modifier}/';
 sub _fix_missing_unicode_properties {
 	my $regex = shift;
 	
-	return unless defined $regex;
+	return '' unless defined $regex;
 	
 	$regex =~ s/\\(p)\{emoji\}/\\${1}{IsCLDREmpty}/ig
 		unless $has_emoji;
