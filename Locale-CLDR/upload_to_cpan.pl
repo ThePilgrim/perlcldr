@@ -10,6 +10,9 @@ use List::Util qw( uniq );
 
 my $last = shift;
 
+die "Config file upload_config.txt not found\n"
+    unless -f './upload_config.txt';
+
 my $config = CPAN::Uploader->read_config_file('./upload_config.txt');
 
 my $uploader = CPAN::Uploader->new($config);
