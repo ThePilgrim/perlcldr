@@ -39,14 +39,14 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '33.1'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 1; # This is the build number against the CLDR revision
+my $REVISION = 2; # This is the build number against the CLDR revision
 my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 # Set up the names for the directory structure for the build. Using File::Spec here to maximise portability
 chdir $FindBin::Bin;
@@ -132,7 +132,7 @@ my $vf = XML::XPath->new(
 
 say "Checking CLDR version" if $verbose;
 my $cldrVersion = $vf->findnodes('/ldml/identity/version')
-    ->get_node
+    ->get_node(1)
     ->getAttribute('cldrVersion');
 
 die "Incorrect CLDR Version found $cldrVersion. It should be $CLDR_VERSION"
@@ -782,7 +782,7 @@ sub output_file_name {
     foreach my $name (qw( language script territory variant )) {
         my $nodes = findnodes($xpath, "/ldml/identity/$name");
         if ($nodes->size) {;
-            push @nodes, $nodes->get_node->getAttribute('type');
+            push @nodes, $nodes->get_node(1)->getAttribute('type');
         }
         else {
             push @nodes, 'Any';
@@ -1826,15 +1826,15 @@ sub process_display_pattern {
     my $display_pattern = 
         findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localePattern');
     return unless $display_pattern->size;
-    $display_pattern = $display_pattern->get_node->string_value;
+    $display_pattern = $display_pattern->get_node(1)->string_value;
 
     my $display_seperator = 
         findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeSeparator');
-    $display_seperator = $display_seperator->size ? $display_seperator->get_node->string_value : '';
+    $display_seperator = $display_seperator->size ? $display_seperator->get_node(1)->string_value : '';
 
     my $display_key_type = 
         findnodes($xpath, '/ldml/localeDisplayNames/localeDisplayPattern/localeKeyTypePattern');
-    $display_key_type = $display_key_type->size ? $display_key_type->get_node->string_value : '';
+    $display_key_type = $display_key_type->size ? $display_key_type->get_node(1)->string_value : '';
 
     return unless defined $display_pattern;
     foreach ($display_pattern, $display_seperator, $display_key_type) {
