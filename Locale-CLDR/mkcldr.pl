@@ -38,8 +38,8 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '33.1'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 2; # This is the build number against the CLDR revision
+my $CLDR_VERSION = '34'; # This needs to match the revision number of the CLDR revision being generated against
+my $REVISION = 0; # This is the build number against the CLDR revision
 my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
