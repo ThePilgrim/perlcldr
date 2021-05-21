@@ -4639,6 +4639,7 @@ sub process_plurals {
 				my $t = length $f ? $f + 0 : '';
 				my $v = length $f;
 				my $w = length $t;
+				$f ||= 0;
 				$t ||= 0;
 
 EOT
