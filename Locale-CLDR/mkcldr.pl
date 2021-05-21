@@ -1,4 +1,4 @@
-﻿#!/usr/bin/perl
+#!/usr/bin/perl
 
 # There are two optional parameters to this script -v which turns on verbose logging and a file name
 # which should be the last successfully processed file should you wish to restart the script after
@@ -4640,6 +4640,7 @@ sub process_plurals {
 				my $t = length $f ? $f + 0 : '';
 				my $v = length $f;
 				my $w = length $t;
+				$f ||= 0;
 				$t ||= 0;
 
 EOT
