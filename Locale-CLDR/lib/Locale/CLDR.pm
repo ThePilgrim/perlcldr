@@ -4277,12 +4277,6 @@ formatted according to that rule.
 This method formats the number $number using the default currency and currency format for the locale.
 If $for_cash is a true value then cash rounding will be used otherwise financial rounding will be used. 
 
-=item default_currency_formt
-
-This method returns the currency format for the current locale
-
-It takes no paramaters
-
 =item add_currency_symbol($format, $symbol)
 
 This method returns the format with the currency symbol $symbol correctly inserted
