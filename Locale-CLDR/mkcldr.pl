@@ -6180,6 +6180,7 @@ sub round {
 	my ($self, $number, $increment, $decimal_digits) = @_;
 
 	if ($increment ) {
+		$increment /= 10 ** $decimal_digits;
 		$number /= $increment;
 		$number = int ($number + .5 );
 		$number *= $increment;
