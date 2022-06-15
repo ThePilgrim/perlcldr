@@ -38,7 +38,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '35'; # This needs to match the revision number of the CLDR revision being generated against
+my $CLDR_VERSION = '38.1'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION = 0; # This is the build number against the CLDR revision
 my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
@@ -2486,7 +2486,7 @@ sub process_units {
 				$aliases{$length}{$unit_type_name} = $type;
 				next;
 			}
-			$unit_type_name =~ s/^[^\-]+-//;
+
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
 
@@ -4622,7 +4622,29 @@ sub process_plurals {
 		}
 	}
 	
-	say  $file "my %_plurals = (";
+	say  $file <<'EOT';
+sub _parse_number_plurals {
+	my $number = shift;
+	my $e = my $c = ($number =~ /[ce](.*)$/ // 0);
+	if ($e) {
+		$number =~ s/[ce].*$//;
+	}
+	my $n = abs($number);
+	my $i = int($n);
+	$number *= 10 ^ $e
+		if $e;
+	my ($f) = $number =~ /\.(.*)$/;
+	$f //= '';
+	my $t = length $f ? $f + 0 : '';
+	my $v = length $f;
+	my $w = length $t;
+	$t ||= 0;
+	
+	return ( $n, $i, $v, $w, $f, $t, $c, $e );
+}
+
+my %_plurals = (
+EOT
 	
 	foreach my $type (sort keys %plurals) {
 		say $file "\t$type => {";
@@ -4642,7 +4664,6 @@ sub process_plurals {
 				my $w = length $t;
 				$f ||= 0;
 				$t ||= 0;
-
 EOT
 				say $file "\t\t\t\t", get_format_rule( $plurals{$type}{$region}{$count});
 				say $file "\t\t\t},";
@@ -4728,7 +4749,7 @@ sub get_format_rule {
 	return 1 unless $rule =~ /\S/; 
 	
 	# Basic substitutions
-	$rule =~ s/\b([niftvw])\b/\$$1/g;
+	$rule =~ s/\b([niftvwce])\b/\$$1/g;
 	
 	my $digit = qr/[0123456789]/;
 	my $value = qr/$digit+/;
@@ -5338,6 +5359,10 @@ sub convert {
 	if ($normal) {
 		return $set;
 	}
+	
+	# Unicode::Regex::Set needs spacs around opperaters
+	$set=~s/&/ & /g;
+	$set=~s/([\}\]])-(\[|\\[pP])/$1 - $2/g;
 	
 	return Unicode::Regex::Set::parse($set);
 

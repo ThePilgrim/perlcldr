@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.34
+Version 0.38
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.34');
+our $VERSION = version->declare('v0.38');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -2590,6 +2590,16 @@ sub all_units {
 	return keys %units;
 }
 
+# maps the unit name after `per` to the full unit name
+sub _per_unit_map {
+	my $self = shift;
+	my @units = $self->all_units;
+	
+	my %map = map { s/^.*?-(.*)$/$1/r, $_ } @units;
+	
+	return %map;
+}
+
 =item unit($number, $unit, $width)
 
 Returns the localised string for the given number and unit formatted for the 
@@ -2641,7 +2651,7 @@ sub unit {
 	}
 	
 	# Check for a compound unit that we don't specifically have
-	if (! $format && (my ($dividend, $divisor) = $what =~ /^(.+)-per-(.+)$/)) {
+	if (! $format && (my ($dividend, $divisor) = $what =~ /^[^\-]+-(.+)-per-(.+)$/)) {
 		return $self->_unit_compound($number, $dividend, $divisor, $type);
 	}
 	
@@ -3909,7 +3919,11 @@ sub {
 	if ($normal) {
 		return "$set";
 	}
-	
+
+	# Unicode::Regex::Set needs spacs around opperaters
+	$set=~s/&/ & /g;
+	$set=~s/([\}\]])-(\[|\\[pP])/$1 - $2/g;
+
 	return Unicode::Regex::Set::parse($set);
 }
 

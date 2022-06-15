@@ -111,6 +111,7 @@ my $all_languages = {
 	'car' => 'karibština',
 	'cay' => 'kajugština',
 	'cch' => 'atsam',
+	'ccp' => 'čakma',
 	'ce' => 'čečenština',
 	'ceb' => 'cebuánština',
 	'cgg' => 'kiga',
@@ -169,7 +170,6 @@ my $all_languages = {
 	'en_GB' => 'angličtina (Velká Británie)',
 	'en_GB@alt=short' => 'angličtina (VB)',
 	'en_US' => 'angličtina (USA)',
-	'en_US@alt=short' => 'angličtina (USA)',
 	'enm' => 'angličtina (středověká)',
 	'eo' => 'esperanto',
 	'es' => 'španělština',
@@ -621,6 +621,7 @@ my $all_languages = {
 	'yo' => 'jorubština',
 	'yrl' => 'nheengatu',
 	'yue' => 'kantonština',
+	'yue@alt=menu' => 'jüe',
 	'za' => 'čuangština',
 	'zap' => 'zapotéčtina',
 	'zbl' => 'bliss systém',
@@ -628,7 +629,10 @@ my $all_languages = {
 	'zen' => 'zenaga',
 	'zgh' => 'tamazight (standardní marocký)',
 	'zh' => 'čínština',
+	'zh@alt=menu' => 'standardní čínština',
 	'zh_Hans' => 'čínština (zjednodušená)',
+	'zh_Hans@alt=long' => 'standardní čínština (zjednodušená)',
+	'zh_Hant@alt=long' => 'standardní čínština (tradiční)',
 	'zu' => 'zuluština',
 	'zun' => 'zunijština',
 	'zxx' => 'žádný jazykový obsah',
@@ -1009,8 +1013,7 @@ my $all_regions = {
 	'MF' => 'Svatý Martin (Francie)',
 	'MG' => 'Madagaskar',
 	'MH' => 'Marshallovy ostrovy',
-	'MK' => 'Makedonie',
-	'MK@alt=variant' => 'Makedonie (FYROM)',
+	'MK' => 'Severní Makedonie',
 	'ML' => 'Mali',
 	'MM' => 'Myanmar (Barma)',
 	'MN' => 'Mongolsko',
@@ -1083,6 +1086,7 @@ my $all_regions = {
 	'SX' => 'Svatý Martin (Nizozemsko)',
 	'SY' => 'Sýrie',
 	'SZ' => 'Svazijsko',
+	'SZ@alt=variant' => 'Eswatini',
 	'TA' => 'Tristan da Cunha',
 	'TC' => 'Turks a Caicos',
 	'TD' => 'Čad',
@@ -1092,6 +1096,7 @@ my $all_regions = {
 	'TJ' => 'Tádžikistán',
 	'TK' => 'Tokelau',
 	'TL' => 'Východní Timor',
+	'TL@alt=variant' => 'Timor-Leste',
 	'TM' => 'Turkmenistán',
 	'TN' => 'Tunisko',
 	'TO' => 'Tonga',
@@ -1118,6 +1123,8 @@ my $all_regions = {
 	'VU' => 'Vanuatu',
 	'WF' => 'Wallis a Futuna',
 	'WS' => 'Samoa',
+	'XA' => 'simulovaná diakritika',
+	'XB' => 'simulovaný obousměrný zápis',
 	'XK' => 'Kosovo',
 	'YE' => 'Jemen',
 	'YT' => 'Mayotte',
@@ -1131,7 +1138,7 @@ is_deeply($locale->all_regions(), $all_regions, 'All Regions');
 
 is($locale->variant_name('SCOTLAND'), 'angličtina (Skotsko)', 'Variant name from string');
 
-is($locale->key_name('colCaseLevel'), 'Rozlišovaní velkých a malých písmen při řazení', 'Key name from string');
+is($locale->key_name('colCaseLevel'), 'Rozlišování velkých a malých písmen při řazení', 'Key name from string');
 
 is($locale->type_name(colCaseFirst => 'lower'), 'Nejdříve řadit malá písmena', 'Type name from string');
 
