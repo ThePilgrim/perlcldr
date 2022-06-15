@@ -3384,29 +3384,43 @@ has 'day_period_data' => (
 \t\tSWITCH:
 \t\tfor (\$type) {
 EOT
-        foreach my $ctype (keys  %{$calendars{day_period_data}}) {
+        foreach my $ctype (sort keys %{$calendars{day_period_data}}) {
             say $file "\t\t\tif (\$_ eq '$ctype') {";
-			foreach my $day_period_type (keys  %{$calendars{day_period_data}{$ctype}}) {
+			foreach my $day_period_type (sort keys %{$calendars{day_period_data}{$ctype}}) {
 				say $file "\t\t\t\tif(\$day_period_type eq '$day_period_type') {";
-				foreach my $type (sort
-					{ 
-						my $return = 0; 
-						$return = -1 if $a eq 'noon' || $a eq 'midnight';
-						$return = 1 if $b eq 'noon' || $b eq 'midnight';
-						return $return;
-					} keys  %{$calendars{day_period_data}{$ctype}{$day_period_type}}) {
-					# Sort 'at' periods to the top of the list so they are printed first
+                my %type_boundries;
+                my @type_with_boundry_at;
+                my @type_without_boundry_at;
+				foreach my $type (keys %{$calendars{day_period_data}{$ctype}{$day_period_type}}) {
 					my %boundries = map {@$_} @{$calendars{day_period_data}{$ctype}{$day_period_type}{$type}};
 					if (exists $boundries{at}) {
-						my ($hm) = $boundries{at};
+                        push @type_with_boundry_at, $type;
+                    } else {
+                        push @type_without_boundry_at, $type;
+                    }
+                    $type_boundries{$type} = \%boundries;
+                }
+
+                # Sort 'at' periods to the top of the list so they are printed first,
+                # as they compare with an absolute value that might be inside a range
+                # for other types
+                my @sorted = (
+                    (sort @type_with_boundry_at),
+                    (sort @type_without_boundry_at),
+                );
+
+				foreach my $type (@sorted) {
+					my $boundries = $type_boundries{$type};
+					if (exists $boundries->{at}) {
+						my ($hm) = $boundries->{at};
 						$hm =~ s/://;
 						$hm = $hm + 0;
 						say $file "\t\t\t\t\treturn '$type' if \$time == $hm;";
 						next;
 					}
 
-					my $stime = $boundries{from};
-					my $etime = $boundries{before};
+					my $stime = $boundries->{from};
+					my $etime = $boundries->{before};
 
 					foreach ($stime, $etime) {
 						s/://;
@@ -3466,7 +3480,7 @@ EOT
 					next;
 				}
 				
-                foreach my $width (keys %{$calendars{day_periods}{$ctype}{$type}}) {
+                foreach my $width (sort keys %{$calendars{day_periods}{$ctype}{$type}}) {
                     say $file "\t\t\t\t'$width' => {";
 					if (exists $calendars{day_periods}{$ctype}{$type}{$width}{alias}) {
 						say $file "\t\t\t\t\t'alias' => {";
@@ -3477,7 +3491,7 @@ EOT
 						next;
 					}
 				
-                    foreach my $period (keys %{$calendars{day_periods}{$ctype}{$type}{$width}}) {
+                    foreach my $period (sort keys %{$calendars{day_periods}{$ctype}{$type}{$width}}) {
                         say $file "\t\t\t\t\t'$period' => q{$calendars{day_periods}{$ctype}{$type}{$width}{$period}},"
                     }
                     say $file "\t\t\t\t},";
@@ -3604,7 +3618,7 @@ has 'datetime_formats_available_formats' => (
 \tinit_arg\t=> undef,
 \tdefault\t\t=> sub { {
 EOT
-        foreach my $ctype (keys %{$calendars{datetime_formats}}) {
+        foreach my $ctype (sort keys %{$calendars{datetime_formats}}) {
 			if (exists $calendars{datetime_formats}{$ctype}{alias}) {
 				say $file "\t\t'$ctype' => {";
 				say $file "\t\t\t'alias' => q{$calendars{datetime_formats}{$ctype}{alias}},";
@@ -3631,7 +3645,7 @@ has 'datetime_formats_append_item' => (
 \tdefault\t\t=> sub { {
 EOT
 
-        foreach my $ctype (keys %{$calendars{datetime_formats}}) {
+        foreach my $ctype (sort keys %{$calendars{datetime_formats}}) {
 			if (exists $calendars{datetime_formats}{$ctype}{alias}) {
 				say $file "\t\t'$ctype' => {";
 				say $file "\t\t\t'alias' => q{$calendars{datetime_formats}{$ctype}{alias}},";
@@ -3658,7 +3672,7 @@ has 'datetime_formats_interval' => (
 \tdefault\t\t=> sub { {
 EOT
 
-        foreach my $ctype (keys %{$calendars{datetime_formats}}) {
+        foreach my $ctype (sort keys %{$calendars{datetime_formats}}) {
 			if (exists $calendars{datetime_formats}{$ctype}{alias}) {
 				say $file "\t\t'$ctype' => {";
 				say $file "\t\t\t'alias' => q{$calendars{datetime_formats}{$ctype}{alias}},";
@@ -6206,6 +6220,7 @@ sub round {
 	my ($self, $number, $increment, $decimal_digits) = @_;
 
 	if ($increment ) {
+		$increment /= 10 ** $decimal_digits;
 		$number /= $increment;
 		$number = int ($number + .5 );
 		$number *= $increment;
