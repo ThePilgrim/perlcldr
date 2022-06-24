@@ -106,7 +106,7 @@ $date_format = $locale->date_format_short;
 is($date_format, 'd/M/yy', 'Islamic Date Format Short');
 
 my $time_format = $locale->time_format_full;
-is($time_format, 'H:mm:ss zzzz', 'Islamic Time Format Full');
+is($time_format, 'H:mm:ss (zzzz)', 'Islamic Time Format Full');
 $time_format = $locale->time_format_long;
 is($time_format, 'H:mm:ss z', 'Islamic Time Format Long');
 $time_format = $locale->time_format_medium;
@@ -115,7 +115,7 @@ $time_format = $locale->time_format_short;
 is($time_format, 'H:mm', 'Islamic Time Format Short');
 
 my $date_time_format = $locale->datetime_format_full;
-is($date_time_format, "EEEE, d MMMM 'de' y 'a' 'les' H:mm:ss zzzz", 'Islamic Date Time Format Full');
+is($date_time_format, "EEEE, d MMMM 'de' y 'a' 'les' H:mm:ss (zzzz)", 'Islamic Date Time Format Full');
 $date_time_format = $locale->datetime_format_long;
 is($date_time_format, "d MMMM 'de' y 'a' 'les' H:mm:ss z", 'Islamic Date Time Format Long');
 $date_time_format = $locale->datetime_format_medium;

@@ -38,7 +38,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '38.1'; # This needs to match the revision number of the CLDR revision being generated against
+my $CLDR_VERSION = '40'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION = 0; # This is the build number against the CLDR revision
 my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
@@ -141,20 +141,6 @@ die "Incorrect CLDR Version found $cldrVersion. It should be $CLDR_VERSION"
 say "Processing files"
     if $verbose;
 
-my $file_name = File::Spec->catfile($base_directory,
-    'supplemental',
-    'likelySubtags.xml'
-);
-
-my $xml = XML::XPath->new(
-	parser => XML::Parser->new(
-		NoLWP => 1,
-		ErrorContext => 2,
-		ParseParamEnt => 1,
-	),
-    filename => File::Spec->catfile($file_name)
-);
-
 # Note that the Number Formatter code comes before the collator in the data section
 # so this needs to be done first
 # Number Formatter
@@ -169,9 +155,22 @@ close $file;
 }
 
 # Likely sub-tags
-open $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
+my $file_name = File::Spec->catfile($base_directory,
+    'supplemental',
+    'likelySubtags.xml'
+);
+
+my $xml = XML::XPath->new(
+	parser => XML::Parser->new(
+		NoLWP => 1,
+		ErrorContext => 2,
+		ParseParamEnt => 1,
+	),
+    filename => File::Spec->catfile($file_name)
+);
 
 say "Processing file $file_name" if $verbose;
+open $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
 
 # Note: The order of these calls is important
 process_header($file, 'Locale::CLDR::LikelySubtags', $CLDR_VERSION, $xml, $file_name, 1);
@@ -2562,7 +2561,17 @@ EOT
     foreach my $length (sort keys %units) {
         say $file "\t\t\t\t'",$length,"' => {";
         foreach my $type (sort keys %{$units{$length}}) {
+			say $file "\t\t\t\t\t# Long Unit Identifier";
             say $file "\t\t\t\t\t'$type' => {";
+                foreach my $count (sort keys %{$units{$length}{$type}}) {
+                    say $file "\t\t\t\t\t\t'$count' => q(",
+                        $units{$length}{$type}{$count},
+                        "),";
+                }
+            say $file "\t\t\t\t\t},";
+			say $file "\t\t\t\t\t# Core Unit Identifier";
+			my $core_type = $type =~ s/^[^-]+-//r;
+            say $file "\t\t\t\t\t'$core_type' => {";
                 foreach my $count (sort keys %{$units{$length}{$type}}) {
                     say $file "\t\t\t\t\t\t'$count' => q(",
                         $units{$length}{$type}{$count},
@@ -4638,15 +4647,19 @@ sub process_plurals {
 	
 	say  $file <<'EOT';
 sub _parse_number_plurals {
+	use bignum;
 	my $number = shift;
 	my $e = my $c = ($number =~ /[ce](.*)$/ // 0);
+	
 	if ($e) {
 		$number =~ s/[ce].*$//;
 	}
+	
+	$number *= 10 ** $e
+		if $e;
+	
 	my $n = abs($number);
 	my $i = int($n);
-	$number *= 10 ^ $e
-		if $e;
 	my ($f) = $number =~ /\.(.*)$/;
 	$f //= '';
 	my $t = length $f ? $f + 0 : '';
@@ -4666,19 +4679,8 @@ EOT
 			say $file "\t\t$region => {";
 			foreach my $count ( sort keys %{$plurals{$type}{$region}} ) {
 				say $file "\t\t\t$count => sub {";
-				print $file <<'EOT';
-				
-				my $number = shift;
-				my $n = abs($number);
-				my $i = int($n);
-				my ($f) = $number =~ /\.(.*)$/;
-				$f //= '';
-				my $t = length $f ? $f + 0 : '';
-				my $v = length $f;
-				my $w = length $t;
-				$f ||= 0;
-				$t ||= 0;
-EOT
+				say $file "\t\t\t\tmy \$number = shift;";
+				say $file "\t\t\t\t" . 'my ( $n, $i, $v, $w, $f, $t, $c, $e ) = _parse_number_plurals( $number );';
 				say $file "\t\t\t\t", get_format_rule( $plurals{$type}{$region}{$count});
 				say $file "\t\t\t},";
 			}

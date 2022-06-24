@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.34.1
+Version 0.40.0
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.34.1');
+our $VERSION = version->declare('v0.40.0');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -1313,7 +1313,7 @@ sub BUILDARGS {
 				(?:[-_]([a-zA-Z]{4}))?
 				(?:[-_]([a-zA-Z]{2,3}))?
 				(?:[-_]([a-zA-Z0-9]+))?
-				(?:[-_]u[_-](.+))?
+				(?:[-_][uU][_-](.+))?
 			$/x;
 
 		if (! defined $script && length $language == 4) {
@@ -1450,8 +1450,8 @@ after 'BUILD' => sub {
 	my ($likely_language_id, $likely_script_id, $likely_region_id);
 	if ($likely_subtag) {
 		($likely_language_id, $likely_script_id, $likely_region_id) = split /_/, $likely_subtag;
-		$likely_language_id		= $language_id 	unless $language_id eq 'und';
-		$likely_script_id		= $script_id	if length $script_id;
+		$likely_language_id	= $language_id 	unless $language_id eq 'und';
+		$likely_script_id	= $script_id	if length $script_id;
 		$likely_region_id	= $region_id	if length $region_id;
 		$self->_set_likely_subtag(__PACKAGE__->new(join '_',$likely_language_id, $likely_script_id, $likely_region_id));
 	}
@@ -1561,14 +1561,11 @@ sub _build_id {
 
 sub _get_english {
 	my $self = shift;
-	my $english;
-	if ($self->language_id eq 'en') {
-		$english = $self;
-	}
-	else {
-		$english = Locale::CLDR->new('en_Latn_US');
-	}
+	use feature 'state';
+	state $english;
 
+	$english //= Locale::CLDR->new('en_Latn_US');
+	
 	return $english;
 }
 
@@ -2283,10 +2280,10 @@ sub _split {
 =item is_exemplar_character($character)
 
 Tests if the given character is used in the locale. There are 
-three possible types; C<main>, C<auxiliary> and C<punctuation>.
-If no type is given C<main> is assumed. Unless the C<index> type
-is given you will have to have a Perl version of 5.18 or above
-to use this method
+four possible types; C<main>, C<auxiliary>, C<punctuation> and
+C<index>. If no type is given C<main> is assumed. Unless the
+C<index> type is given you will have to have a Perl version of
+5.18 or above to use this method
 
 =cut
 
@@ -2651,7 +2648,7 @@ sub unit {
 	}
 	
 	# Check for a compound unit that we don't specifically have
-	if (! $format && (my ($dividend, $divisor) = $what =~ /^[^\-]+-(.+)-per-(.+)$/)) {
+	if (! $format && (my ($dividend, $divisor) = $what =~ /^(?:[^\-]+-)?(.+)-per-(.+)$/)) {
 		return $self->_unit_compound($number, $dividend, $divisor, $type);
 	}
 	
