@@ -179,6 +179,7 @@ my $all_languages = {
 	'ewo' => 'ewondo',
 	'ext' => 'extremadurština',
 	'fa' => 'perština',
+	'fa_AF' => 'darí',
 	'fan' => 'fang',
 	'fat' => 'fantština',
 	'ff' => 'fulbština',

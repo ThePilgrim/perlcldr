@@ -1922,7 +1922,7 @@ sub variant_name {
 	$name //= $self;
 
 	if (! ref $name ) {
-		$name = __PACKAGE__->new(language_id=> 'und', variant_id => $name);
+		$name = __PACKAGE__->new(language_id=> $self->language_id, script_id => $self->script_id, variant_id => $name);
 	}
 
 	return '' unless $name->variant_id;
@@ -3115,6 +3115,7 @@ sub _build_any_month {
 	my ($self, $type, $width) = @_;
 	my $default_calendar = $self->default_calendar();
 	my @bundles = $self->_find_bundle('calendar_months');
+	my $result = [];
 	BUNDLES: {
 		foreach my $bundle (@bundles) {
 			my $months = $bundle->calendar_months;
@@ -3128,9 +3129,16 @@ sub _build_any_month {
 				redo BUNDLES;
 			}
 			
-			my $result = $months->{$default_calendar}{$type}{$width}{nonleap};
-			return $result if defined $result;
+			my $results = $months->{$default_calendar}{$type}{$width}{nonleap};
+			if ($results) {
+				for(my $count = 0; $count < @$results; $count++) {
+					$result->[$count] //= $results->[$count];
+				}
+			}
 		}
+		
+		return $result if @$result;
+		
 		if ($default_calendar ne 'gregorian') {
 			$default_calendar = 'gregorian';
 			redo BUNDLES;

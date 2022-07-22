@@ -28,7 +28,7 @@ foreach my $distribution (@Distributions) {
 		map { File::Spec->catfile($distributions_directory, $distribution, 't', $_) } 
 		grep { -f File::Spec->catfile($distributions_directory, $distribution, 't', $_) } 
 		sort readdir $test_dir;
-	close $test_dir;
+	closedir $test_dir;
 	
 	$harness->lib(
 		[ map { "-I$_" } (

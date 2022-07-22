@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# There are two optional parameters to this script -v which turns on verbose logging and a file name
+# There are two optional parameters to this script -v which turns on verbose output and a file name
 # which should be the last successfully processed file should you wish to restart the script after
 # a crash or some other stoppage
 
@@ -713,8 +713,7 @@ sub get_language_bundle_data {
 	}
 	else {
 		push @packages, File::Spec->catfile($directory_name, $language)
-	
-	if -f File::Spec->catfile($directory_name, $language);
+			if -f File::Spec->catfile($directory_name, $language);
 	}
 	return @packages;
 }
@@ -1187,7 +1186,7 @@ sub process_valid_variants {
     say "Processing Valid Variants"
         if $verbose;
 
-    my $variants = findnodes($xpath, '/supplementalData/idValidity/id[@type="variant"][@idStatus!="deprecated"]');
+    my $variants = findnodes($xpath, '/supplementalData/idValidity/id[@type="variant"]');
 
     my @variants =
 		map {"$_\n"}
@@ -1283,10 +1282,11 @@ sub process_valid_units {
     say "Processing Valid Units"
         if $verbose;
 
-    my $units = findnodes($xpath, '/supplementalData/idValidity/id[@type="unit"][@idStatus!="deprecated"]');
+    my $units = findnodes($xpath, '/supplementalData/idValidity/id[@type="unit"]');
 
     my @units =
 		map {"$_\n"}
+		map { $_, s/^[^-]+-//r } # Create long and core identifiers 
 		map { expand_text($_) } 
 		map {$_->string_value } 
 		$units->get_nodelist;
@@ -2488,6 +2488,10 @@ sub process_units {
 
 			foreach my $unit_pattern ($unit_type->getChildNodes) {
 				next if $unit_pattern->isTextNode;
+				
+				# Currently I'm ignoring case and gender
+				next if $unit_pattern->getAttribute('case');
+				next if $unit_pattern->getAttribute('gender');
 
 				my $count = $unit_pattern->getAttribute('count') || 1;
 				$count = 'name' if $unit_pattern->getLocalName eq 'displayName';
@@ -3243,6 +3247,8 @@ EOT
                             my $month = $_ // '';
                             $month =~ s/'/\\'/g;
                             $month = "'$month'";
+							$month = 'undef()' if $month eq q(''); 
+							$month;
                         } @{$calendars{months}{$type}{$context}{$width}{nonleap}};
                     print $file "\t\t\t\t\t\t],\n\t\t\t\t\t\tleap => [\n\t\t\t\t\t\t\t";
 
@@ -3251,6 +3257,7 @@ EOT
                             my $month = $_ // '';
                             $month =~ s/'/\\'/g;
                             $month = "'$month'";
+							$month = 'undef()' if $month eq q('');
                         } @{$calendars{months}{$type}{$context}{$width}{leap}};
                     say $file "\t\t\t\t\t\t],";
                     say $file "\t\t\t\t\t},";
@@ -5877,9 +5884,15 @@ sub build_language_distributions {
 		make_path(File::Spec->catdir($distribution, qw(Locale CLDR Locales)))
 			unless -d File::Spec->catdir($distribution, qw(Locale CLDR Locales));
 		copy($source_name, $destination_name);
-		
+		my $parent;
+		if ( $parent = $parent_locales{"Locale::CLDR::Locales::$language"} ) {
+			my @parent = split /::/, $parent;
+			$parent = [$locales_directory, $parent[-1]];
+			$parent->[-1].='.pm';
+		}
 		my @files = (
-			get_files_recursive(File::Spec->catdir($locales_directory, $language))
+			get_files_recursive(File::Spec->catdir($locales_directory, $language)),
+			( $parent // ())
 		);
 
 		# This construct attempts to copy tests from the t directory and
@@ -5889,9 +5902,15 @@ sub build_language_distributions {
 
 		foreach my $file (@files) {
 			my $source_name = File::Spec->catfile(@$file);
-			my $destination_name = File::Spec->catdir($distribution, qw(Locale CLDR Locales), $language, @{$file}[1 .. @$file - 2]);
-			make_path($destination_name)
-				unless -d $destination_name;
+			my $destination_name;
+			if($file->[0]=~/Locales$/) {
+				$destination_name = File::Spec->catfile($distribution, qw(Locale CLDR Locales), $file->[1]);
+			}
+			else {
+				$destination_name = File::Spec->catdir($distribution, qw(Locale CLDR Locales), $language, @{$file}[1 .. @$file - 2]);
+				make_path($destination_name)
+					unless -d $destination_name;
+			}
 			copy($source_name, $destination_name);
 		}
 	
@@ -5915,9 +5934,15 @@ diag( "Testing Locale::CLDR $Locale::CLDR::VERSION, Perl \$], \$^X" );
 use ok Locale::CLDR::Locales::$distribution, 'Can use locale file Locale::CLDR::Locales::$distribution';
 EOT
 	foreach my $locale (@$files) {
-		my (undef, @names) = @$locale;
+		my ($base, @names) = @$locale;
 		$names[-1] =~ s/\.pm$//;
-		my $full_name = join '::', $distribution, @names;
+		my $full_name;
+		if ($base =~ /Locales$/) {
+			$full_name = $names[-1];
+		}
+		else {
+			$full_name = join '::', $distribution, @names;
+		}
 		$full_name =~ s/\.pm$//;
 		$test_file_contents .= "use ok Locale::CLDR::Locales::$full_name, 'Can use locale file Locale::CLDR::Locales::$full_name';\n";
 	}
