@@ -559,6 +559,32 @@ The following methods can be called on the locale object
 
 =over 4
 
+=item installed_languages()
+
+Returns an array ref containing the sorted list of installed language identfiers
+
+=cut
+
+# Method to return all installed languages
+sub installed_languages {
+	my $self = shift;
+	use feature qw(state);
+	state $languages //= [];
+	
+	return $languages if @$languages;
+	
+	my $path = $INC{'Locale/CLDR.pm'};
+	my (undef,$directories) = File::Spec->splitpath($path);
+	$path = File::Spec->catdir($directories, 'CLDR', 'Locales');
+	opendir(my $dir, $path);
+	@{$languages} = sort map { s/\.pm//r } grep {/.pm$/ && $_ ne 'Root.pm'} readdir($dir);
+	closedir $dir;
+	
+	return $languages;
+}
+
+
+
 =item id()
 
 The local identifier. This is what you get if you attempt to
