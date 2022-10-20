@@ -247,6 +247,174 @@ Minguo Calendar
 
 =back
 
+=item cf
+
+This overrides the default currency format. It can be set to one of
+C<standard> or C<account>
+
+=item co
+
+=item collation
+
+The default collation order. Two collation orders are universal
+
+=over 12
+
+=item standard
+
+The standard collation order for the local
+
+=item search
+
+A collation type just used for comparing two strings to see if they match 
+
+=back
+
+There are other collation keywords but they are dependant on the local being used
+see L<Unicode Collation Identifier|https://www.unicode.org/reports/tr35/tr35-66/tr35.html#UnicodeCollationIdentifier>
+
+=item cu
+
+=item currency
+
+This extention overrides the default currency symbol for the locale.
+It's value is any valid currency identifyer.
+
+=item dx
+
+Dictionary break script exclusions: specifies scripts to be excluded from dictionary-based text break (for words and lines).
+
+=item em
+
+Emoji presentation style, can be one of
+
+=over 12
+
+=item emoji
+
+Use an emoji presentation for emoji characters if possible.
+
+=item text
+
+Use a text presentation for emoji characters if possible.
+
+=item default
+
+Use the default presentation for emoji characters as specified in UTR #51 Section 4, Presentation Style.
+
+=back
+
+=item fw
+
+This extention overrides the first day of the week. It can be set to 
+one of
+
+=over 12
+
+=item mon
+
+=item tue
+
+=item wed
+
+=item thu
+
+=item fri
+
+=item sat
+
+=item sun
+
+=back
+
+=item hc
+
+A Unicode Hour Cycle Identifier defines the preferred time cycle. Can be one of
+
+=over 12
+
+=item h12
+
+Hour system using 1–12; corresponds to 'h' in patterns
+
+=item h23
+
+Hour system using 0–23; corresponds to 'H' in patterns
+
+=item h11
+
+Hour system using 0–11; corresponds to 'K' in patterns
+
+=item h24
+
+Hour system using 1–24; corresponds to 'k' in patterns
+
+=back
+
+=item lb
+
+A Unicode Line Break Style Identifier defines a preferred line break style corresponding to the CSS level 3 line-break option. Can be one of
+
+=over 12
+
+=item strict
+
+CSS level 3 line-break=strict, e.g. treat CJ as NS
+
+=item normal
+
+CSS level 3 line-break=normal, e.g. treat CJ as ID, break before hyphens for ja,zh
+
+=item loose
+
+CSS level 3 line-break=loose
+
+=back
+
+=item lw
+
+A Unicode Line Break Word Identifier defines preferred line break word handling behavior corresponding to the CSS level 3 word-break option. Can be one of
+
+=over 12
+
+=item normal
+
+CSS level 3 word-break=normal, normal script/language behavior for midword breaks
+
+=item breakall
+
+CSS level 3 word-break=break-all, allow midword breaks unless forbidden by lb setting
+
+=item keepall
+
+CSS level 3 word-break=keep-all, prohibit midword breaks except for dictionary breaks
+
+=item phrase
+
+Prioritize keeping natural phrases (of multiple words) together when breaking, used in short text like title and headline
+
+=back
+
+=item ms
+
+Measurement system. Can be one of
+
+=over 12
+
+=item metric
+
+Metric System
+
+=item ussystem
+
+US System of measurement: feet, pints, etc.; pints are 16oz
+
+=item uksystem
+
+UK System of measurement: feet, pints, etc.; pints are 20oz
+
+=back
+
 =item nu
 
 =item numbers
@@ -505,40 +673,37 @@ Vai Digits
 
 =back
 
-=item cu
+=item rg
 
-=item currency
+Region Override
 
-This extention overrides the default currency symbol for the locale.
-It's value is any valid currency identifyer.
+=item sd
 
-=item cf
+Regional Subdivision
 
-This overrides the default currency format. It can be set to one of
-C<standard> or C<account>
+=item ss
 
-=item fw
-
-This extention overrides the first day of the week. It can be set to 
-one of
+Sentence break suppressions. Can be one of
 
 =over 12
 
-=item mon
+=item none
 
-=item tue
+Don’t use sentence break suppressions data (the default).
 
-=item wed
+=item standard
 
-=item thu
-
-=item fri
-
-=item sat
-
-=item sun
+Use sentence break suppressions data of type "standard"
 
 =back
+
+=item tz
+
+Time zone
+
+=item va
+
+Common variant type
 
 =back
 
@@ -1342,7 +1507,7 @@ sub BUILDARGS {
 				(?:[-_][uU][_-](.+))?
 			$/x;
 
-		if (! defined $script && length $language == 4) {
+		if (! defined $script && length $language == 4 && lc $language ne 'root') { # root is a special case and is the only 4 letter language ID
 			$script = $language;
 			$language = undef;
 		}
@@ -1381,7 +1546,7 @@ sub BUILDARGS {
 	$args{variant_id}	= uc $args{variant_id}			if defined $args{variant_id};
 	
 	# Set up undefined language
-	$args{language_id} ||= 'und';
+	$args{language_id} //= 'und';
 
 	$self->SUPER::BUILDARGS(%args, %internal_args);
 }
@@ -1485,7 +1650,7 @@ after 'BUILD' => sub {
 	# Fix up extension overrides
 	my $extensions = $self->extensions;
 	
-	foreach my $extention ( qw( ca cf co cu em fw hc lb lw ms nu rg sd ss tz va ) ) {
+	foreach my $extention ( qw( ca cf co cu dx em fw hc lb lw ms nu rg sd ss tz va ) ) {
 		if (exists $extensions->{$extention}) {
 			my $default = "_set_default_$extention";
 			$self->$default($extensions->{$extention});
@@ -1496,7 +1661,7 @@ after 'BUILD' => sub {
 # Defaults get set by the -u- extension
 # Calendar, currency format, collation order, etc.
 # but not nu as that is done in the Numbering systems role
-foreach my $default (qw( ca cf co cu em fw hc lb lw ms rg sd ss tz va)) {
+foreach my $default (qw( ca cf co cu dx em fw hc lb lw ms rg sd ss tz va)) {
 	has "_default_$default" => (
 		is			=> 'ro',
 		isa			=> Str,

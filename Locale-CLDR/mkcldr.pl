@@ -37,12 +37,12 @@ $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
 
 use version;
-my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION = '40'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 0; # This is the build number against the CLDR revision
-my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
-our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
-my $CLDR_PATH = $CLDR_VERSION;
+my $API_VERSION     = 0; # This will get bumped if a release is not backwards compatible with the previous release
+my $CLDR_VERSION    = '40'; # This needs to match the revision number of the CLDR revision being generated against
+my $REVISION        = 0; # This is the build number against the CLDR revision
+my $TRIAL_REVISION  = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+our $VERSION        = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
+my $CLDR_PATH       = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a
 # full release or 'unstable' for a developer release
@@ -98,7 +98,6 @@ sub psay {
     my ($count, $num) = (0, 0);
     if (ref $_[-1] eq 'HASH' && $_[-1]{num}) {
         my %args = %{pop @_};
-        $DB::single = 1;
         ($count, $num) = @args{qw( count num )};
         my $percent = $count / $num * 100;
         vsay sprintf("Processing file %s: $count of $num, %.2f%% done", $_[0], $percent);
@@ -138,21 +137,21 @@ die <<EOM
 I successfully unzipped the core.zip file but don't have a 'common'
 directory. Is this version $CLDR_VERSION of the Unicode core.zip file?
 EOM
-
     unless -d File::Spec->catdir($base_directory);
 
 # We look at the root.xml data file to get the cldr version number
 my $xml_parser = XML::Parser->new(
-    NoLWP => 1,
-    ParseParamEnt => 1,
+    NoLWP           => 1,
+    ParseParamEnt   => 1,
 );
 
 my $vf = XML::XPath->new(
-    parser => $xml_parser,
-    filename => File::Spec->catfile(
-    $base_directory,
-    'main',
-    'root.xml'),
+    parser      => $xml_parser,
+    filename    => File::Spec->catfile(
+        $base_directory,
+        'main',
+        'root.xml'
+    ),
 );
 
 vsay "Checking CLDR version";
@@ -172,7 +171,8 @@ open my $file, '>', File::Spec->catfile($lib_directory, 'NumberFormatter.pm');
 write_out_number_formatter($file);
 close $file;
 
-{# Collator
+# Collator
+{
     open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
     write_out_collator($file);
     close $file;
@@ -198,8 +198,8 @@ sub process_file {
     );
 
     my $xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile($file_name)
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile($file_name)
     );
 
     open my $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
@@ -224,8 +224,8 @@ sub process_file {
     );
 
     my $xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile($file_name)
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile($file_name)
     );
 
     open my $file, '>', File::Spec->catfile($lib_directory, 'NumberingSystems.pm');
@@ -250,8 +250,8 @@ sub process_file {
     );
 
     my $plural_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile($file_name)
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile($file_name)
     );
 
     $file_name = File::Spec->catfile(
@@ -261,8 +261,8 @@ sub process_file {
     );
 
     my $ordanal_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile($file_name)
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile($file_name)
     );
 
     $file_name = File::Spec->catfile(
@@ -272,8 +272,8 @@ sub process_file {
     );
 
     my $plural_ranges_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile($file_name)
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile($file_name)
     );
 
     open $file, '>', File::Spec->catfile($lib_directory, 'Plurals.pm');
@@ -301,8 +301,8 @@ sub process_file {
     );
 
     my $xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'validity',
             'language.xml',
@@ -310,8 +310,8 @@ sub process_file {
     );
 
     my $script_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'validity',
             'script.xml',
@@ -319,8 +319,8 @@ sub process_file {
     );
 
     my $region_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'validity',
             'region.xml',
@@ -328,8 +328,8 @@ sub process_file {
     );
 
     my $variant_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'validity',
             'variant.xml',
@@ -337,8 +337,8 @@ sub process_file {
     );
 
     my $currency_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'validity',
             'currency.xml',
@@ -346,8 +346,8 @@ sub process_file {
     );
 
     my $subdivision_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'validity',
             'subdivision.xml',
@@ -355,8 +355,8 @@ sub process_file {
     );
 
     my $unit_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'validity',
             'unit.xml',
@@ -366,8 +366,8 @@ sub process_file {
 # The supplemental/supplementalMetaData.xml file contains a list of all valid
 # aliases and keys
     my $alias_xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'supplemental',
             'supplementalMetadata.xml',
@@ -401,8 +401,8 @@ my %parent_locales = ();
 # Suplimental data
 {
     my $xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile(
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile(
             $base_directory,
             'supplemental',
             'supplementalData.xml',
@@ -529,12 +529,13 @@ rewinddir $dir;
 my @transformation_list;
 
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
-    my $percent = ++$count_files / $num_files * 100;
-    my $full_file_name = File::Spec->catfile($transform_directory, $file_name);
+    my $percent         = ++$count_files / $num_files * 100;
+    my $full_file_name  = File::Spec->catfile($transform_directory, $file_name);
+    
     vsay sprintf("Processing Transformation File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent);
     my $xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => $full_file_name
+        parser      => $xml_parser,
+        filename    => $full_file_name
     );
 
     process_transforms($transformations_directory, $xml, $full_file_name);
@@ -564,36 +565,37 @@ push @transformation_list, 'Locale::CLDR::Transformations';
 
 # Perl older than 5.16 can't handle all the utf8 encoded code points, so we need a version of Locale::CLDR::CollatorBase
 # that does not have the characters as raw utf8
-
-vsay "Copying base collation file";
-open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'));
-open (my $Fractional_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
-open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
-process_file(
-    file    => $Allkeys_out,
-    package => 'Locale::CLDR::CollatorBase',
-    name    => File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'),
-    is_role => 1,
-    subs    => [
-        sub { process_collation_base($Fractional_in, $Allkeys_in, $Allkeys_out) },
-    ],
-);
-close $Allkeys_in;
-close $Fractional_in;
-close $Allkeys_out;
+{
+    vsay "Copying base collation file";
+    open (my $Allkeys_in, '<', File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'));
+    open (my $Fractional_in, '<', File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'));
+    open (my $Allkeys_out, '>', File::Spec->catfile($lib_directory, 'CollatorBase.pm'));
+    process_file(
+        file    => $Allkeys_out,
+        package => 'Locale::CLDR::CollatorBase',
+        name    => File::Spec->catfile($base_directory, 'uca', 'FractionalUCA_SHORT.txt'),
+        is_role => 1,
+        subs    => [
+            sub { process_collation_base($Fractional_in, $Allkeys_in, $Allkeys_out) },
+        ],
+    );
+    close $Allkeys_in;
+    close $Fractional_in;
+    close $Allkeys_out;
+}
 
 # Main directory
 my $main_directory = File::Spec->catdir($base_directory, 'main');
 opendir ( $dir, $main_directory);
 
 # Count the number of files
-$num_files = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
-$num_files += 3; # We do root.xml, en.xml and en_US.xml twice
-$count_files = 0;
+$num_files      = grep { -f File::Spec->catfile($main_directory,$_)} readdir $dir;
+$num_files      += 3; # We do root.xml, en.xml and en_US.xml twice
+$count_files    = 0;
 rewinddir $dir;
 
-my $segmentation_directory = File::Spec->catdir($base_directory, 'segments');
-my $rbnf_directory = File::Spec->catdir($base_directory, 'rbnf');
+my $segmentation_directory  = File::Spec->catdir($base_directory, 'segments');
+my $rbnf_directory          = File::Spec->catdir($base_directory, 'rbnf');
 my %region_to_package;
 my $en;
 my $languages;
@@ -608,34 +610,34 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
     }
 
     my $xml = XML::XPath->new(
-        parser => $xml_parser,
-        filename => File::Spec->catfile($main_directory, $file_name)
+        parser      => $xml_parser,
+        filename    => File::Spec->catfile($main_directory, $file_name)
     );
 
     my $segment_xml = undef;
     if (-f File::Spec->catfile($segmentation_directory, $file_name)) {
         $segment_xml = XML::XPath->new(
-            parser => $xml_parser,
-            filename => File::Spec->catfile($segmentation_directory, $file_name)
+            parser      => $xml_parser,
+            filename    => File::Spec->catfile($segmentation_directory, $file_name)
         );
     }
 
     my $rbnf_xml = undef;
     if (-f File::Spec->catfile($rbnf_directory, $file_name)) {
         $rbnf_xml = XML::XPath->new(
-            parser => $xml_parser,
-            filename => File::Spec->catfile($rbnf_directory, $file_name)
+            parser      => $xml_parser,
+            filename    => File::Spec->catfile($rbnf_directory, $file_name)
         );
     }
 
-    my @output_file_parts = output_file_name($xml);
-    my $current_locale = lc $output_file_parts[0];
+    my @output_file_parts   = output_file_name($xml);
+    my $current_locale      = lc $output_file_parts[0];
 
     my $package = join '::', @output_file_parts;
 
-    $output_file_parts[-1] .= '.pm';
+    $output_file_parts[-1]  .= '.pm';
 
-    my $out_directory = File::Spec->catdir(
+    my $out_directory       = File::Spec->catdir(
         $locales_directory,
         @output_file_parts[0 .. $#output_file_parts - 1]
     );
@@ -712,12 +714,13 @@ my $region_contains = $en->region_contains();
 my $region_names = $en->all_regions();
 
 foreach my $region (keys %$region_names) {
-    $region_names->{$region} = ucfirst( lc $region ) . '.pm' unless exists $region_contains->{$region};
+    $region_names->{$region} = ucfirst( lc $region ) . '.pm'
+        unless exists $region_contains->{$region};
 }
 
 foreach my $region (sort keys %$region_contains) {
     my $name = lc ( $region_names->{$region} // '' );
-    $name=~tr/a-z0-9//cs; # Remove anything that isn't a to z or 0 to 0
+    $name=~tr/a-z0-9//cs; # Remove anything that isn't a to z or 0 to 9
     build_bundle($out_directory, $region_contains->{$region}, $name, $region_names);
 }
 
@@ -2980,20 +2983,20 @@ sub currency_fractions {
     my $currency_data = $self->_currency_fractions()->{$currency};
 
     $currency_data = {
-        digits             => 2,
-        cashdigits         => 2,
-        rounding         => 0,
+        digits          => 2,
+        cashdigits      => 2,
+        rounding        => 0,
         cashrounding    => 0,
     } unless $currency_data;
 
     return $currency_data;
 }
-
+    
 has '_default_currency' => (
-    is            => 'ro',
-    isa            => HashRef,
+    is          => 'ro',
+    isa         => HashRef,
     init_arg    => undef,
-    default        => sub { {
+    default     => sub { {
 EOT
 
     foreach my $region (sort keys %default_currency) {
