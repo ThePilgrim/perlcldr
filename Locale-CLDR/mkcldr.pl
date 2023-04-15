@@ -203,7 +203,7 @@ sub process_file {
     );
 
     open my $file, '>', File::Spec->catfile($lib_directory, 'LikelySubtags.pm');
-    process_file( 
+    process_file(
         file    => $file,
         package => 'Locale::CLDR::LikelySubtags',
         name    => $file_name,
@@ -415,7 +415,7 @@ my %parent_locales = ();
         'supplementalData.xml'
     );
 
-    # File for era boundaries    
+    # File for era boundaries
     {
         open my $file, '>', File::Spec->catfile($lib_directory, 'EraBoundries.pm');
 
@@ -462,7 +462,7 @@ my %parent_locales = ();
                 sub { process_region_containment_data($file, $xml) },
             ],
         );
-    
+
         close $file;
     }
 
@@ -520,6 +520,36 @@ my %parent_locales = ();
     %parent_locales = get_parent_locales($xml);
 }
 
+# Language Matching
+{
+    open my $file, '>', File::Spec->catfile($lib_directory, 'LanguageMatching.pm');
+
+    my $file_name = File::Spec->catfile(
+        $base_directory,
+        'supplemental',
+        'languageInfo.xml',
+    );
+
+    my $xml = XML::XPath->new(
+        parser      => $xml_parser,
+        filename    => $file_name,
+    );
+
+    process_file(
+        file    => $file,
+        package => 'Locale::CLDR::LanguageMatching',
+        name    => $file_name,
+        is_role => 1,
+        subs    => [
+            sub { process_paradigm_locales( $file, $xml ) },
+            sub { process_match_variable( $file, $xml ) },
+            sub { process_language_match( $file, $xml ) },
+        ],
+    );
+
+    close $file;
+}
+
 # Transformations
 make_path($transformations_directory) unless -d $transformations_directory;
 opendir (my $dir, $transform_directory);
@@ -531,7 +561,7 @@ my @transformation_list;
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     my $percent         = ++$count_files / $num_files * 100;
     my $full_file_name  = File::Spec->catfile($transform_directory, $file_name);
-    
+
     vsay sprintf("Processing Transformation File %s: $count_files of $num_files, %.2f%% done", $full_file_name, $percent);
     my $xml = XML::XPath->new(
         parser      => $xml_parser,
@@ -652,7 +682,7 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
     # If we have already created the US English module we can use it to produce the correct local
     # names in each modules documentation
     my $has_en = -e File::Spec->catfile($locales_directory, 'En', 'Any', 'Us.pm');
-    
+
     # If we have the en module and haven't loaded it yet, load it now
     if ($has_en && ! $en) {
         require lib;
@@ -831,7 +861,7 @@ sub findnodes {
 sub output_file_name {
     my $xpath = shift;
     my @nodes;
-    
+
     # Look for the 4 elements that we use to create the file name
     foreach my $name (qw( language script territory variant )) {
         my $nodes = findnodes($xpath, "/ldml/identity/$name");
@@ -839,7 +869,7 @@ sub output_file_name {
             push @nodes, $nodes->get_node(1)->getAttribute('type');
         }
         else {
-            # Non existant values are replaced with 'Any' to keep the directory 
+            # Non existant values are replaced with 'Any' to keep the directory
             # structure identical
             push @nodes, 'Any';
         }
@@ -902,10 +932,10 @@ sub process_header {
     # Strip of anything before Data in the file name. This keeps the file names consistant
     # and not determind on where the script was run.
     $xml_name =~s/^.*(Data.*)$/$1/;
-    
+
     my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
 
-    # If we know the language then print some usefull pod at the top 
+    # If we know the language then print some usefull pod at the top
     # of the file
     if ($language) {
         print $file <<EOT;
@@ -941,12 +971,12 @@ use Moo$isRole;
 
 EOT
 
-    # If this is a language file then calculate the parent class by 
+    # If this is a language file then calculate the parent class by
     # capturing everything before the last :: characters in the class name
     if (!$isRole && $class =~ /^Locale::CLDR::Locales::...?(?:::|$)/) {
         my ($parent) = $class =~ /^(.+)::/;
-        
-        # The ultimate parent is Locale::CLDR::Locales::Root so if we end up with a 
+
+        # The ultimate parent is Locale::CLDR::Locales::Root so if we end up with a
         # parent with no language id on it then use Locale::CLDR::Locales::Root instead
         $parent = 'Locale::CLDR::Locales::Root' if $parent eq 'Locale::CLDR::Locales';
         $parent = $parent_locales{$class} // $parent;
@@ -954,6 +984,100 @@ EOT
     }
 }
 
+sub process_paradigm_locales {
+    my ($file, $xpath) = @_;
+    vsay "Processing Paradigm Locals";
+    
+    my $paradigm_locales = 
+        findnodes($xpath, '/supplementalData/languageMatching/languageMatches/paradigmLocales');
+
+    my @locale_list = $paradigm_locales->get_nodelist();
+    
+    my $locale_string = $locale_list[0]->getAttribute('locles');
+    
+    my @locales = split /\s+/, $locale_string;
+    
+    my $locales = join ',', @locales;
+    
+    print $file <<EOT;
+has 'paradigm_locales' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArrayRef[Str]',
+\tinit_arg\t=> 'undef,
+\tdefault\t\t=> sub {
+\t\t[ $locales ],
+\t},
+);
+
+EOT
+}
+
+{
+    my %variables = ();
+    
+    sub expand_region {
+    }
+    
+    sub process_match_variable {
+        my ($file, $xpath) = @_;
+        vsay "Processing Match Variables";
+        
+        my $variables =
+            findnodes( $xpath, '/supplementalData/languageMatching/languageMatches/matchVariable');
+    
+        foreach my $variable ($variables->get_nodelist()) {
+            my $id      = $variable->getAttribute('id');
+            $id =~ s/^\$//;
+            my $value   = $variable->getAttribute('value');
+            $value =~ s/\+/|/g;
+            $variables{$id} = $value;
+        }
+    }
+    
+    sub process_language_match {
+        my ($file, $xpath) = @_;
+        vsay "Processing Language Match";
+        
+        my $language_match =
+            findnodes($xpath, '/supplementalData/languageMatching/languageMatches/');
+
+        my %language_distance = ();
+
+        foreach my $match ($languageMatch->get_nodelist) {
+            my $desired     = $match->getAttribute('desired');
+            my $supported   = $match->getAttribute('supported');
+            my $distance    = $match->getAttribute('distance');
+            my $oneway      = $match->getAttribute('oneway') eq 'true';
+            
+            my ($d_language, $d_script, $d_region) = split /_/, $desired;
+            my ($s_language, $s_script, $s_region) = split /_/, $supported;
+            
+            $d_script //= '*';
+            $s_script //= '*';
+            
+            $d_region //= '*';
+            $s_region //= '*';
+            
+            $d_region = expand_region( $d_region );
+            $s_region = expand_region( $s_region );
+            
+            $language_distance{$d_language}{$
+        }
+        
+        print $file <<'EOT';
+sub best_installed_language {
+    my ($language, $script, $region);
+    
+    if (@_ == 1) {
+        ($language, $script, $region) = split /_/, $_[0];
+    }
+    else {
+        ($language, $script, $region) = @_;
+    }
+}
+EOT
+    }
+}
 
 sub process_collation_base {
     my ($Fractional_in, $Allkeys_in, $Allkeys_out) = @_;
@@ -1143,7 +1267,7 @@ sub process_collation_element {
 }
 
 # The LDML specification has a mecanism to compress ranges of characters
-# using a ~ as a compression operator this mecanism alows a posible set of 
+# using a ~ as a compression operator this mecanism alows a posible set of
 # base characters followed by a range. So A~C expands to A B C and Fred~h
 # expands to Fred Free Fref Freg Freh
 sub expand_text {
@@ -2991,7 +3115,7 @@ sub currency_fractions {
 
     return $currency_data;
 }
-    
+
 has '_default_currency' => (
     is          => 'ro',
     isa         => HashRef,

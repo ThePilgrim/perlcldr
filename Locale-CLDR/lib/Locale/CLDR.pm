@@ -50,11 +50,11 @@ use Moo;
 use MooX::ClassAttribute;
 use Types::Standard qw( Str Int Maybe ArrayRef HashRef Object Bool InstanceOf );
 
-with 'Locale::CLDR::ValidCodes', 'Locale::CLDR::EraBoundries', 'Locale::CLDR::WeekData', 
-	'Locale::CLDR::MeasurementSystem', 'Locale::CLDR::LikelySubtags', 'Locale::CLDR::NumberingSystems',
-	'Locale::CLDR::NumberFormatter', 'Locale::CLDR::RegionContainment', 'Locale::CLDR::CalendarPreferences',
-	'Locale::CLDR::Currencies', 'Locale::CLDR::Plurals';
-	
+with 'Locale::CLDR::CalendarPreferences',   'Locale::CLDR::Currencies',         'Locale::CLDR::EraBoundries',
+     'Locale::CLDR::LanguageMatching',      'Locale::CLDR::LikelySubtags',      'Locale::CLDR::MeasurementSystem',
+     'Locale::CLDR::NumberFormatter',       'Locale::CLDR::NumberingSystems',   'Locale::CLDR::Plurals',
+     'Locale::CLDR::RegionContainment',     'Locale::CLDR::ValidCodes',         'Locale::CLDR::WeekData';
+
 use Class::Load;
 use namespace::autoclean;
 use List::Util qw(first);
