@@ -5815,7 +5815,7 @@ use ok( 'Locale::CLDR' );
 my \$locale;
 
 diag( "Testing Locale::CLDR $Locale::CLDR::VERSION, Perl \$], \$^X" );
-use ok Locale::CLDR::Locales::$distribution, 'Can use locale file Locale::CLDR::Locales::$distribution';
+use ok 'Locale::CLDR::Locales::$distribution';
 EOT
     foreach my $locale (@$files) {
         my ($base, @names) = @$locale;
@@ -5828,7 +5828,7 @@ EOT
             $full_name = join '::', $distribution, @names;
         }
         $full_name =~ s/\.pm$//;
-        $test_file_contents .= "use ok Locale::CLDR::Locales::$full_name, 'Can use locale file Locale::CLDR::Locales::$full_name';\n";
+        $test_file_contents .= "use ok 'Locale::CLDR::Locales::$full_name';\n";
     }
 
     $test_file_contents .= "\ndone_testing();\n";
