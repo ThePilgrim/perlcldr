@@ -39,14 +39,14 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '34'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 1; # This is the build number against the CLDR revision
-my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+my $REVISION = 2; # This is the build number against the CLDR revision
+my $TRIAL_REVISION = '1'; # This is the trial revision for unstable releases. Set to '1' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 # Set up the names for the directory structure for the build. Using File::Spec here to maximise portability
 chdir $FindBin::Bin;
@@ -5401,7 +5401,7 @@ sub convert {
 sub process_rbnf {
 	my ($file, $xml) = @_;
 	
-	use bignum;
+	use bigfloat;
 	
 	# valid_algorithmic_formats
 	my @valid_formats;
@@ -5460,7 +5460,7 @@ has 'algorithmic_number_format_data' => (
 	isa => HashRef,
 	init_arg => undef,
 	default => sub { 
-		use bignum;
+		use bigfloat;
 		return {
 EOT
 	foreach my $ruleset (sort keys %types) {
@@ -5666,6 +5666,7 @@ my \$builder = Module::Build->new(
         'namespace::autoclean'      => 0.16,
         'List::MoreUtils'           => 0,
 		'Unicode::Regex::Set'		=> 0,
+        'bigfloat'                  => 0,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
     dist_version_from   => 'lib/Locale/CLDR.pm',$dist_suffix
@@ -6615,7 +6616,7 @@ sub _process_algorithmic_number_data_fractions {
 sub _get_algorithmic_number_format {
 	my ($self, $number, $format_data) = @_;
 	
-	use bignum;
+	use bigfloat;
 	return $format_data->{'-x'} if $number =~ /^-/ && exists $format_data->{'-x'};
 	return $format_data->{'x.x'} if $number =~ /\./ && exists $format_data->{'x.x'};
 	return $format_data->{0} if $number == 0 || $number =~ /^-/;
