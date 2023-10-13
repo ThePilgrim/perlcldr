@@ -94,7 +94,10 @@ sub parse_bundle {
 	my @lines = <$file>;
 	close $file;
 	
+    my $contents = 0;
 	foreach my $line (@lines) {
+        next if ! $contents && $line !~ /CONTENTS/;
+        $contents = 1;
 		next unless $line =~ /^Bundle::/;
 		my ($new_bundle) = (split / /, $line =~ s/^Bundle::Locale::CLDR:://r )[0];
 		push @distributions, $new_bundle;
