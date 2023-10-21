@@ -5483,7 +5483,7 @@ EOT
         # Only put En and Root in the base bundle
         next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::Root';
         next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En';
-        say $file "$package $VERSION" ;
+        print $file "$package $VERSION\n\n" ;
     }
 
     print $file <<EOT;
