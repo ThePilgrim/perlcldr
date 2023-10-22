@@ -8,9 +8,12 @@ use v5.18;
 use strict;
 use warnings;
 
+# Turn all warnings into dies
 use warnings 'FATAL';
 no warnings "experimental::regex_sets";
 
+# Do all inputs and outputs in utf8. Make sure your 
+# command shell can handle that
 use open ':encoding(utf8)', ':std';
 
 use FindBin;
@@ -28,10 +31,11 @@ use List::MoreUtils qw( any );
 use List::Util qw( min max );
 use Unicode::Regex::Set();
 
-use lib $FindBin::Bin;
+use lib "${FindBin::Bin}/lib";
 
 my $start_time = time();
 
+# Simple way of handling paramaters
 our $verbose = 0;
 $verbose = 1 if grep /-v/, @ARGV;
 @ARGV = grep !/-v/, @ARGV;
@@ -93,7 +97,9 @@ else {
     *vsay = sub(@) {};
 }
 
-# Processing file gets said a lot
+# This function displays the Processing file message it takes the file name and an 
+# optional hash ref containing count => how far through the list of files we are and
+# num => the number of files in the list
 sub psay {
     my ($count, $num) = (0, 0);
     if (ref $_[-1] eq 'HASH' && $_[-1]{num}) {
@@ -165,13 +171,14 @@ die "Incorrect CLDR Version found $cldrVersion. It should be $CLDR_VERSION"
 vsay "Processing files";
 
 # Note that the Number Formatter code comes before the collator in the data section
-# so this needs to be done first
+# of this file so this needs to be done first
 # Number Formatter
 open my $file, '>', File::Spec->catfile($lib_directory, 'NumberFormatter.pm');
 write_out_number_formatter($file);
 close $file;
 
 # Collator
+# The Collater code needs a lot of work on it
 {
     open my $file, '>', File::Spec->catfile($lib_directory, 'Collator.pm');
     write_out_collator($file);
@@ -179,6 +186,17 @@ close $file;
 }
 
 # This subrouteen factors out the process_header and process_footer calls
+# which are used in every generated file it takes the following named arguments
+#   name => the name of the XML file the data id being generated from
+#   num => the optional number of files to process in the current directory
+#   count => the optional number of the currently processed file
+#   num and count are used to calculate tyhe percentage done display
+#   file => an open file handle to the outputted file
+#   packge => name of the package being generated
+#   is_role => a flag which if true will mahe this file a Moo::Role
+#   is_language => a flag which if true will add a comment with the language name to the generated file
+#   subs => an array ref of sub refs that will extract the required data from the given XPath and process it into Perl code then print it to the given output file.
+#   subs uses the closure facility to pass in the paramaters to the process_* subrouteens so when we actually call them we don't need to know the parameters
 sub process_file {
     my %args = @_;
     psay $args{name}, $args{num} ? { count => $args{count}, num => $args{num}} : ();
@@ -188,6 +206,10 @@ sub process_file {
     }
     process_footer(@args{ qw( file is_role) });
 }
+
+# The next 6 blocks go throughe various bits of supplemental data, 
+# data not tied to a specific locale, and convert the XML into 
+# Perl modules
 
 # Likely sub-tags
 {
@@ -551,11 +573,14 @@ my %parent_locales = ();
 }
 
 # Transformations
+# Transformation files hold data on how to perform translitteration between two scripts
 make_path($transformations_directory) unless -d $transformations_directory;
 opendir (my $dir, $transform_directory);
 my $num_files = grep { -f File::Spec->catfile($transform_directory,$_)} readdir $dir;
 my $count_files = 0;
 rewinddir $dir;
+
+# Each transformation package name is stored in the @transformation_list array so we can print them in the transformations bundle
 my @transformation_list;
 
 foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
@@ -571,7 +596,7 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     process_transforms($transformations_directory, $xml, $full_file_name);
 }
 
-# Write out a dummy transformation module to keep CPAN happy
+# Write out a dummy Locale::CLDR::Transformations module to keep CPAN happy
 {
     open my $file, '>', File::Spec->catfile($lib_directory, 'Transformations.pm');
     print $file <<EOT;
@@ -592,6 +617,7 @@ EOT
 push @transformation_list, 'Locale::CLDR::Transformations';
 
 #Collation
+# This needs more work on it
 
 # Perl older than 5.16 can't handle all the utf8 encoded code points, so we need a version of Locale::CLDR::CollatorBase
 # that does not have the characters as raw utf8
@@ -624,16 +650,23 @@ $num_files      += 3; # We do root.xml, en.xml and en_US.xml twice
 $count_files    = 0;
 rewinddir $dir;
 
+# Segmentation ruls describe how to break up text into sentances, lines, words and graphemes
 my $segmentation_directory  = File::Spec->catdir($base_directory, 'segments');
+
+# RBNF, Rule Based Number Formatting, gives a list of rules on how to display numbers in locales that dont use position
+# based digits such as roman numerals where 4 is formatted as IV
 my $rbnf_directory          = File::Spec->catdir($base_directory, 'rbnf');
+
 my %region_to_package;
-my $en;
-my $languages;
-my $regions;
+
+# The following three variables will be populated once we have generated the en_Any_US Locale data
+my $en; # Stores the Local::CLDR::Languages::En::Any::US object so we can generate valid output for names
+my $languages; # A hash ref of all language keys and their names in US English
+my $regions; # A hash ref of all region keys and their names in US English
 
 # We are going to process the root en and en_US locales twice the first time as the first three
 # locales so we can then use the data in the processed files to create names and other labels in
-# the local files
+# the locale files
 foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, readdir($dir) ) {
     if (@ARGV) { # Allow us to supply the last processed file for a restart after a crash
         next unless grep {$file_name eq $_} @ARGV;
@@ -764,6 +797,7 @@ foreach my $language (sort keys %$languages) {
     build_bundle($out_directory, \@packages, $language );
 }
 
+# This method gets the package name for each given file by looking for the first package keyword in the file
 sub convert_files_to_packages {
     my $files = shift;
     my @packages;
@@ -806,6 +840,7 @@ sub get_language_bundle_data {
 build_bundle($out_directory, \@transformation_list, 'Transformations');
 
 # Base bundle
+# This bundle contains the minimum number of packages to allow the test suite to pass
 my @base_bundle = (
     'Locale::CLDR',
     'Locale::CLDR::CalendarPreferences',
@@ -849,7 +884,7 @@ $duration[0] = int($duration/60);
 
 vsay "Duration: ", sprintf "%02i:%02i:%02i", @duration;
 
-# This sub looks for nodes along an xpath.
+# This sub looks for nodes along an xpath. It's probably redundent now but the code works so I don't want to remove it.
 sub findnodes {
     my ($xpath, $path ) = @_;
     my $nodes = $xpath->findnodes($path);
@@ -993,11 +1028,11 @@ sub process_paradigm_locales {
 
     my @locale_list = $paradigm_locales->get_nodelist();
     
-    my $locale_string = $locale_list[0]->getAttribute('locles');
+    my $locale_string = $locale_list[0]->getAttribute('locales');
     
     my @locales = split /\s+/, $locale_string;
     
-    my $locales = join ',', @locales;
+    my $locales = join ' ', @locales;
     
     print $file <<EOT;
 has 'paradigm_locales' => (
@@ -1005,7 +1040,7 @@ has 'paradigm_locales' => (
 \tisa\t\t\t=> 'ArrayRef[Str]',
 \tinit_arg\t=> 'undef,
 \tdefault\t\t=> sub {
-\t\t[ $locales ],
+\t\t[ qw( $locales ) ],
 \t},
 );
 
@@ -1016,6 +1051,49 @@ EOT
     my %variables = ();
     
     sub expand_region {
+        my $region = shift;
+        my @region;
+        
+        # Check if the region is a variable
+        # if so look it up
+        if ($region =~ /^\$!?/) {
+            $region =~ s/^\$!?//;
+            my $regions = $variables{$region};
+            @region = split ' ', $regions;
+        }
+        else {
+            @region = ($region);
+        }
+        
+        if (! exists &{'_expand_region'}) {
+            eval <<'EOT';
+package Locale::CLDR::expand {
+    use Moo;
+    with 'Locale::CLDR::RegionContainment';
+
+    sub expand_region {
+        my $self = shift;
+        my @region = @_;
+        my @return = ();
+        
+        foreach my $region (@region) {
+            if (my @expanded = @{$self->region_contains()->{$region} // []}) {
+                push @return, $self->expand_region(@expanded);
+            }
+            else {
+                push @return, $region;
+            }
+        }
+        
+        return @return;
+    };
+    
+    *main::_expand_region = sub { our $ExpandedRegion //= Locale::CLDR::expand->new(); return $ExpandedRegion->expand_region(@_) };
+}
+EOT
+        }
+
+        return _expand_region(@region);
     }
     
     sub process_match_variable {
@@ -1029,7 +1107,10 @@ EOT
             my $id      = $variable->getAttribute('id');
             $id =~ s/^\$//;
             my $value   = $variable->getAttribute('value');
-            $value =~ s/\+/|/g;
+            # Im going to cheat here, the spec says these are sets allowing both + and -
+            # however there are no - in the current data so I'm going to assume that 
+            # all the listed regions are valid
+            $value =~ s/\+/ /g;
             $variables{$id} = $value;
         }
     }
@@ -1038,43 +1119,81 @@ EOT
         my ($file, $xpath) = @_;
         vsay "Processing Language Match";
         
-        my $language_match =
-            findnodes($xpath, '/supplementalData/languageMatching/languageMatches/');
+        my $languageMatch =
+            findnodes($xpath, '/supplementalData/languageMatching/languageMatches/languageMatch');
 
-        my %language_distance = ();
+        my @language_distance = ();
 
         foreach my $match ($languageMatch->get_nodelist) {
             my $desired     = $match->getAttribute('desired');
             my $supported   = $match->getAttribute('supported');
             my $distance    = $match->getAttribute('distance');
-            my $oneway      = $match->getAttribute('oneway') eq 'true';
+            my $oneway      = ($match->getAttribute('oneway')  // 'false') eq 'true';
             
+            # Variables starting with d_ are the desired Locales
+            # Variables starting with s_ are the supplied Locales
             my ($d_language, $d_script, $d_region) = split /_/, $desired;
             my ($s_language, $s_script, $s_region) = split /_/, $supported;
             
-            $d_script //= '*';
-            $s_script //= '*';
+            $d_script ||= '*';
+            $s_script ||= '*';
             
-            $d_region //= '*';
-            $s_region //= '*';
+            $d_region ||= '*';
+            $s_region ||= '*';
             
-            $d_region = expand_region( $d_region );
-            $s_region = expand_region( $s_region );
+            my $ndr = $d_region =~ /!/ ? 1 : 0;
+            my $nsr = $s_region =~ /!/ ? 1 : 0;
+            my @d_region = expand_region( $d_region );
+            my @s_region = expand_region( $s_region );
             
-            $language_distance{$d_language}{$
+            foreach my $dr (@d_region) {
+                foreach my $sr (@s_region) {
+                    push @language_distance, {
+                        d_language  => $d_language,
+                        d_script    => $d_script,
+                        d_region    => $dr,
+                        not_dr      => $ndr,
+                        s_language  => $s_language,
+                        s_script    => $s_script,
+                        s_region    => $sr,
+                        not_sr      => $nsr,
+                        distance    => $distance,
+                    };
+                    push @language_distance, {
+                        d_language  => $s_language,
+                        d_script    => $s_script,
+                        d_region    => $sr,
+                        not_dr      => $nsr,
+                        s_language  => $d_language,
+                        s_script    => $d_script,
+                        s_region    => $dr,
+                        not_sr      => $ndr,
+                        distance    => $distance,
+                    }
+                        if $oneway eq 'false';
+                }
+            }
         }
         
-        print $file <<'EOT';
-sub best_installed_language {
-    my ($language, $script, $region);
-    
-    if (@_ == 1) {
-        ($language, $script, $region) = split /_/, $_[0];
+        print $file <<EOT;
+has 'language_match' => (
+\tis\t\t\t=> 'ro',
+\tisa\t\t\t=> 'ArayRef[HashRef]',
+\tinit_arg\t=> 'undef,
+\tdefault\t\t=> sub {
+\t\treturn [
+EOT
+foreach my $ld (@language_distance) {
+    say $file "\t\t\t{";
+    foreach my $key (sort keys %$ld ) {
+        say $file "\t\t\t\t$key\t=> '", $ld->{$key}, "',";
     }
-    else {
-        ($language, $script, $region) = @_;
-    }
+    say $file "\t\t\t},";
 }
+say $file <<EOT
+\t\t];
+\t},
+);
 EOT
     }
 }
@@ -1282,6 +1401,7 @@ sub expand_text {
 
     return map { ref $_ ? @$_ : $_ } @elements;
 }
+
 
 # Most of the valid id code is identicle so factor it out here
 sub process_valid_id {
@@ -1546,6 +1666,8 @@ print $file <<EOT;
 EOT
 }
 
+# Now we get lots of process_* functions, each one processes part of the XML and 
+# generates code to be output into the file
 sub process_numbering_systems {
     my ($file, $xpath) = @_;
 
@@ -4663,7 +4785,7 @@ sub process_plurals {
 
     say  $file <<'EOT';
 sub _parse_number_plurals {
-    use bignum;
+    use bigfloat;
     my $number = shift;
     my $e = my $c = ($number =~ /[ce](.*)$/ // 0);
 
@@ -4773,6 +4895,7 @@ sub plural_range {
 EOT
 }
 
+# Convert format rules into Perl code
 sub get_format_rule {
     my $rule = shift;
 
@@ -5397,6 +5520,7 @@ sub convert {
 
     return Unicode::Regex::Set::parse($set);
 
+# This was my hacked up code until I got Unicode::Regex::Set to work
 =comment
 
     my $inner_set = qr/(?(DEFINE)
@@ -5444,7 +5568,7 @@ sub convert {
 sub process_rbnf {
     my ($file, $xml) = @_;
 
-    use bignum;
+    use bigfloat;
 
     # valid_algorithmic_formats
     my @valid_formats;
@@ -5503,7 +5627,7 @@ has 'algorithmic_number_format_data' => (
     isa => HashRef,
     init_arg => undef,
     default => sub {
-        use bignum;
+        use bigfloat;
         return {
 EOT
     foreach my $ruleset (sort keys %types) {
@@ -5708,7 +5832,7 @@ my \$builder = Module::Build->new(
         'DateTime::Locale'          => 0,
         'namespace::autoclean'      => 0.16,
         'List::MoreUtils'           => 0,
-        'Unicode::Regex::Set'        => 0,
+        'Unicode::Regex::Set'       => 0,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
     dist_version_from   => 'lib/Locale/CLDR.pm',$dist_suffix
@@ -6024,6 +6148,7 @@ sub build_bundle_distributions {
     }
 }
 
+# Below are the number formatter code and the Colation code. They are stored hear to keep git out of the CLDR directory
 __DATA__
 
 use v5.10.1;
@@ -6676,7 +6801,7 @@ sub _process_algorithmic_number_data_fractions {
 sub _get_algorithmic_number_format {
     my ($self, $number, $format_data) = @_;
 
-    use bignum;
+    use bigfloat;
     return $format_data->{'-x'} if $number =~ /^-/ && exists $format_data->{'-x'};
     return $format_data->{'x.x'} if $number =~ /\./ && exists $format_data->{'x.x'};
     return $format_data->{0} if $number == 0 || $number =~ /^-/;
