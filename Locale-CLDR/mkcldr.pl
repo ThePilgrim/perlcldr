@@ -602,7 +602,9 @@ foreach my $file_name ( sort grep /^[^.]/, readdir($dir) ) {
     print $file <<EOT;
 package Locale::CLDR::Transformations;
 
-=head1 Locale::CLDR::Transformations - Dummy base class to keep CPAN happy
+=head1 NAME
+
+Locale::CLDR::Transformations - Dummy base class to keep CPAN happy
 
 =cut
 
@@ -976,7 +978,7 @@ sub process_header {
         print $file <<EOT;
 =encoding utf8
 
-=head1
+=head1 NAME
 
 $class - Package for language $language
 
@@ -5721,7 +5723,9 @@ use version;
 
 our \$VERSION = version->declare('v$VERSION');
 
-=head1 NAME Bundle::Locale::CLDR::$name
+=head1 NAME
+
+Bundle::Locale::CLDR::$name
 
 =head1 CONTENTS
 
