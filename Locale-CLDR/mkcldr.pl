@@ -1039,10 +1039,10 @@ sub process_paradigm_locales {
     print $file <<EOT;
 has 'paradigm_locales' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArrayRef[Str]',
-\tinit_arg\t=> 'undef,
+\tisa\t\t\t=> ArrayRef,
+\tinit_arg\t=> undef,
 \tdefault\t\t=> sub {
-\t\t[ qw( $locales ) ],
+\t\treturn [ qw( $locales ) ],
 \t},
 );
 
@@ -1180,8 +1180,8 @@ EOT
         print $file <<EOT;
 has 'language_match' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> 'ArayRef[HashRef]',
-\tinit_arg\t=> 'undef,
+\tisa\t\t\t=> ArrayRef,
+\tinit_arg\t=> undef,
 \tdefault\t\t=> sub {
 \t\treturn [
 EOT
