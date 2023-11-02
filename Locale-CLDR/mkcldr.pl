@@ -39,14 +39,14 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION = '34'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION = 2; # This is the build number against the CLDR revision
-my $TRIAL_REVISION = ''; # This is the trial revision for unstable releases. Set to '1' for the first trial release after that start counting from 1
+my $REVISION = 3; # This is the build number against the CLDR revision
+my $TRIAL_REVISION = '1'; # This is the trial revision for unstable releases. Set to '1' for the first trial release after that start counting from 1
 our $VERSION = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a 
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 # Set up the names for the directory structure for the build. Using File::Spec here to maximise portability
 chdir $FindBin::Bin;
@@ -671,7 +671,7 @@ foreach my $region (keys %$region_names) {
 foreach my $region (sort keys %$region_contains) {
 	my $name = lc ( $region_names->{$region} // '' );
 	$name=~tr/a-z0-9//cs;
-	build_bundle($out_directory, $region_contains->{$region}, $name, $region_names);
+	build_bundle($out_directory, [ $region, @{$region_contains->{$region}} ], $name, $region_names);
 }
 
 # Language bundles
@@ -5565,9 +5565,15 @@ Bundle::Locale::CLDR::$name
 EOT
 
 	foreach my $package (@$packages) {
-		# Only put En and Root in the base bundle
+		# Only put En_US and it's parents and Root in the base bundle
 		next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::Root';
 		next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En';
+        next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En::Any';
+        next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En::Any::Us';
+
+        # Don't include the package in it's own bundle
+        next if "Bundle::Locale::CLDR::$name" eq $package;
+
 		say $file "$package $VERSION" ;
 	}
 
@@ -5591,8 +5597,7 @@ sub expand_regions {
 			my $package = 'Bundle::Locale::CLDR::' . ucfirst lc (($names->{$region} ) =~ s/[^a-zA-Z0-9]//gr);
 			$packages{$package} = ();
 		}
-		else {
-			my $packages = $region_to_package{lc $region};
+        if (my $packages = $region_to_package{lc $region}) {
 			foreach my $package (@$packages) {
 				eval "require $package";
 				my @packages = @{ mro::get_linear_isa($package) };
