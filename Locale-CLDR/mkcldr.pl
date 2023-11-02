@@ -190,11 +190,11 @@ close $file;
 #   name => the name of the XML file the data id being generated from
 #   num => the optional number of files to process in the current directory
 #   count => the optional number of the currently processed file
-#   num and count are used to calculate tyhe percentage done display
+#   num and count are used to calculate the percentage done display
 #   file => an open file handle to the outputted file
 #   packge => name of the package being generated
 #   is_role => a flag which if true will mahe this file a Moo::Role
-#   is_language => a flag which if true will add a comment with the language name to the generated file
+#   is_language => a flag which if true and containing the language name will add a comment with the language name to the generated file
 #   subs => an array ref of sub refs that will extract the required data from the given XPath and process it into Perl code then print it to the given output file.
 #   subs uses the closure facility to pass in the paramaters to the process_* subrouteens so when we actually call them we don't need to know the parameters
 sub process_file {
@@ -786,7 +786,7 @@ foreach my $region (keys %$region_names) {
 foreach my $region (sort keys %$region_contains) {
     my $name = lc ( $region_names->{$region} // '' );
     $name=~tr/a-z0-9//cs; # Remove anything that isn't a to z or 0 to 9
-    build_bundle($out_directory, $region_contains->{$region}, $name, $region_names);
+    build_bundle($out_directory, [ $region, @{$region_contains->{$region}} ], $name, $region_names);
 }
 
 # Language bundles
@@ -5732,9 +5732,15 @@ Bundle::Locale::CLDR::$name
 EOT
 
     foreach my $package (@$packages) {
-        # Only put En and Root in the base bundle
+        # Only put En_US and it's parents and Root in the base bundle
         next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::Root';
         next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En';
+        next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En::Any';
+        next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En::Any::Us';
+        
+        # Don't include the package in it's own bundle
+        next if "Bundle::Locale::CLDR::$name" eq $package;
+
         print $file "$package $VERSION\n\n" ;
     }
 
@@ -5758,8 +5764,7 @@ sub expand_regions {
             my $package = 'Bundle::Locale::CLDR::' . ucfirst lc (($names->{$region} ) =~ s/[^a-zA-Z0-9]//gr);
             $packages{$package} = ();
         }
-        else {
-            my $packages = $region_to_package{lc $region};
+        if (my $packages = $region_to_package{lc $region}) {
             foreach my $package (@$packages) {
                 eval "require $package";
                 my @packages = @{ mro::get_linear_isa($package) };
