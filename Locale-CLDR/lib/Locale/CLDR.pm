@@ -1418,7 +1418,6 @@ sub BUILD {
 }
 
 after 'BUILD' => sub {
-
 	my $self = shift;
 	
 	# Fix up likely sub tags
@@ -1427,7 +1426,7 @@ after 'BUILD' => sub {
 	my $likely_subtag;
 	my ($language_id, $script_id, $region_id) = ($self->language_id, $self->script_id, $self->region_id);
 	
-	unless ($language_id ne 'und' && $script_id && $region_id ) {
+	unless ($language_id && $script_id && $region_id ) {
 		$likely_subtag = $likely_subtags->{join '_', grep { length() } ($language_id, $script_id, $region_id)};
 		
 		if (! $likely_subtag ) {
