@@ -57,7 +57,7 @@ with 'Locale::CLDR::CalendarPreferences',   'Locale::CLDR::Currencies',         
 
 use Class::Load;
 use namespace::autoclean;
-use List::Util qw(first);
+use List::Util qw(first uniq);
 use DateTime::Locale;
 use Unicode::Normalize();
 use Locale::CLDR::Collator();
@@ -724,30 +724,79 @@ The following methods can be called on the locale object
 
 =over 4
 
-=item installed_languages()
+=item installed_locales()
 
-Returns an array ref containing the sorted list of installed language identfiers
+Returns an array ref containing the sorted list of installed locale identfiers
 
 =cut
 
-# Method to return all installed languages
-sub installed_languages {
+# Method to return all installed locales
+sub installed_locales {
+    $DB::single = 1;
 	my $self = shift;
 	use feature qw(state);
-	state $languages //= [];
+	state $locales //= [];
 	
-	return $languages if @$languages;
+	return $locales if @$locales;
 	
 	my $path = $INC{'Locale/CLDR.pm'};
+    # Check if we are running a test script
+    my $t_path = '';
+    if ($INC{'Test/More.pm'}) {
+        my $key = quotemeta('Locale/CLDR/Locales/' . ucfirst $self->id . '.pm');
+        ($key) = grep /${key}\z/, keys %INC;
+        $t_path = $INC{$key};
+    }
 	my (undef,$directories) = File::Spec->splitpath($path);
+    my (undef,$t_directories) = File::Spec->splitpath($t_path) if $t_path;
 	$path = File::Spec->catdir($directories, 'CLDR', 'Locales');
-	opendir(my $dir, $path);
-	@{$languages} = sort map { s/\.pm//r } grep {/.pm$/ && $_ ne 'Root.pm'} readdir($dir);
-	closedir $dir;
+    $t_path = File::Spec->catdir($t_directories);
+    $locales = _get_installed_locals($path);
+    push @$locales, @{_get_installed_locals($t_path)} if $t_path;
 	
-	return $languages;
+	$locales = [ 
+        map {$_->[0]} 
+        sort { $a->[1][0] cmp $b->[1][0] || ($a->[1][1] // '') cmp ($b->[1][1] // '') || ($a->[1][2] // '') cmp ($b->[1][2] // '') }
+        map { [$_, [ split (/_/, $_) ]] }
+        @$locales ];
+        
+    return [ uniq @$locales ];
 }
 
+sub _get_installed_locals {
+    my $path = shift;
+    
+    my $locales = [];
+    opendir(my $dir, $path);
+	foreach my $file (readdir $dir) {
+        next if $file =~ /^\./;
+        next if $file eq 'Root.pm';
+        if (-d File::Spec->catdir($path, $file)) {
+            push @$locales, @{_get_installed_locals(File::Spec->catdir($path, $file))};
+        }
+        else {
+            open( my $package, '<', File::Spec->catfile($path, $file));
+            foreach my $line (<$package>) {
+                next unless $line =~ /^package/;
+                chomp($line);
+                ($line) = $line =~ /^package Locale::CLDR::Locales::(.*);/;
+                my ($language, $script, $region) = map { defined && $_ eq 'Any' ? 'und' : $_ } split( /::/, $line);
+                if ( $script && $script eq 'und' && ! $region) {
+                    $script = undef;
+                }
+                push @$locales, join '_', grep {defined()} ($language, $script, $region);
+                last;
+            }
+            close $package;
+        }
+    }
+	closedir $dir;
+	
+    return [ uniq @$locales ];
+}
+
+# Method to return the best fit of the installed locales to a given locale
+=item best_fit
 
 
 =item id()
@@ -1546,7 +1595,7 @@ sub BUILDARGS {
 	$args{variant_id}	= uc $args{variant_id}			if defined $args{variant_id};
 	
 	# Set up undefined language
-	$args{language_id} //= 'und';
+	$args{language_id} ||= 'und';
 
 	$self->SUPER::BUILDARGS(%args, %internal_args);
 }
@@ -1609,9 +1658,8 @@ sub BUILD {
 }
 
 after 'BUILD' => sub {
-
-	my $self = shift;
-	
+    my $self = shift;
+    
 	# Fix up likely sub tags
 	
 	my $likely_subtags = $self->likely_subtags;

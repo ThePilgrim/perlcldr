@@ -44,7 +44,7 @@ use version;
 my $API_VERSION     = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION    = '40'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION        = 0; # This is the build number against the CLDR revision
-my $TRIAL_REVISION  = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+my $TRIAL_REVISION  = '1'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION        = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH       = $CLDR_VERSION;
 
@@ -74,7 +74,7 @@ if ($TRIAL_REVISION && $RELEASE_STATUS eq 'stable') {
 
 my $dist_suffix = '';
 if ($TRIAL_REVISION && $RELEASE_STATUS eq 'unstable') {
-    $dist_suffix = "\n    dist_suffix         => 'TRIAL$TRIAL_REVISION',\n";
+    $dist_suffix = "\n    dist_suffix         => '_$TRIAL_REVISION',\n";
 }
 
 # Check if we have a Data directory
@@ -851,6 +851,7 @@ my @base_bundle = (
     'Locale::CLDR::Currencies',
     'Locale::CLDR::EraBoundries',
     'Locale::CLDR::LikelySubtags',
+    'Locale::CLDR::LanguageMatching',
     'Locale::CLDR::MeasurementSystem',
     'Locale::CLDR::NumberFormatter',
     'Locale::CLDR::NumberingSystems',
@@ -858,10 +859,10 @@ my @base_bundle = (
     'Locale::CLDR::RegionContainment',
     'Locale::CLDR::ValidCodes',
     'Locale::CLDR::WeekData',
+    'Locale::CLDR::Locales::Root',
     'Locale::CLDR::Locales::En',
     'Locale::CLDR::Locales::En::Any',
     'Locale::CLDR::Locales::En::Any::Us',
-    'Locale::CLDR::Locales::Root',
 );
 
 build_bundle($out_directory, \@base_bundle, 'Base');
@@ -1745,7 +1746,7 @@ EOT
 
 sub process_era_boundries {
     my ($file, $xpath) = @_;
-    say "Processing Era Boundries";
+    vsay "Processing Era Boundries";
 
     my $calendars = findnodes($xpath,
         q(/supplementalData/calendarData/calendar));
@@ -5849,6 +5850,7 @@ my \$builder = Module::Build->new(
         'ok'                => 0,
         'Test::Exception'   => 0,
         'Test::More'        => '0.98',
+        'File::Spec'        => 0,
     },
     add_to_cleanup      => [ 'Locale-CLDR-*' ],
     configure_requires => { 'Module::Build' => '0.40' },
