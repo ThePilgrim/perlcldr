@@ -1,7 +1,7 @@
 #!perl -T
 use Test::More tests => 6;
 
-use v5.024;
+use v5.10;
 use strict;
 use warnings;
 
