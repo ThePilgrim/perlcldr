@@ -51,7 +51,8 @@ use MooX::ClassAttribute;
 use Types::Standard qw( Str Int Maybe ArrayRef HashRef Object Bool InstanceOf );
 
 with 'Locale::CLDR::CalendarPreferences',   'Locale::CLDR::Currencies',         'Locale::CLDR::EraBoundries',
-     'Locale::CLDR::LanguageMatching',      'Locale::CLDR::LikelySubtags',      'Locale::CLDR::MeasurementSystem',
+#     'Locale::CLDR::LanguageMatching',
+                                            'Locale::CLDR::LikelySubtags',      'Locale::CLDR::MeasurementSystem',
      'Locale::CLDR::NumberFormatter',       'Locale::CLDR::NumberingSystems',   'Locale::CLDR::Plurals',
      'Locale::CLDR::RegionContainment',     'Locale::CLDR::ValidCodes',         'Locale::CLDR::WeekData';
 
@@ -794,10 +795,6 @@ sub _get_installed_locals {
 	
     return [ uniq @$locales ];
 }
-
-# Method to return the best fit of the installed locales to a given locale
-=item best_fit
-
 
 =item id()
 

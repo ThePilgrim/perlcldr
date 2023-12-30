@@ -542,7 +542,9 @@ my %parent_locales = ();
     %parent_locales = get_parent_locales($xml);
 }
 
-# Language Matching
+# Language Matching: Under development
+
+=begin comment
 {
     open my $file, '>', File::Spec->catfile($lib_directory, 'LanguageMatching.pm');
 
@@ -571,6 +573,10 @@ my %parent_locales = ();
 
     close $file;
 }
+
+=end comment
+
+=cut
 
 # Transformations
 # Transformation files hold data on how to perform translitteration between two scripts
