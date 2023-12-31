@@ -34,6 +34,7 @@ use Unicode::Regex::Set();
 use lib "${FindBin::Bin}/lib";
 
 my $start_time = time();
+my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
 
 # Simple way of handling paramaters
 our $verbose = 0;
@@ -976,8 +977,6 @@ sub process_header {
     # Strip of anything before Data in the file name. This keeps the file names consistant
     # and not determind on where the script was run.
     $xml_name =~s/^.*(Data.*)$/$1/;
-
-    my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
 
     # If we know the language then print some usefull pod at the top
     # of the file

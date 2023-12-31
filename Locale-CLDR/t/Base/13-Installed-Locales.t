@@ -11,4 +11,4 @@ use ok 'Locale::CLDR';
 
 my $locale = Locale::CLDR->new('en');
 
-is_deeply($locale->installed_locales, [qw(En En_und_Us)], 'Installed Locales');
+is ((grep {$_ eq 'En' || $_ eq 'En_und_Us'} @{$locale->installed_locales}), 2, 'Installed Locales');;

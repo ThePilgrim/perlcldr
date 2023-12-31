@@ -189,3 +189,4 @@ All dates are in ISO 8601 Format
 
 0.40.0
     Updated to use version 40 of CLDR
+    Added method to return all the installed locales as a prerequisite of locating the best match between installed locales and a requested locale 

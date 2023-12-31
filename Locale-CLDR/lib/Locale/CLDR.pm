@@ -733,7 +733,6 @@ Returns an array ref containing the sorted list of installed locale identfiers
 
 # Method to return all installed locales
 sub installed_locales {
-    $DB::single = 1;
 	my $self = shift;
 	use feature qw(state);
 	state $locales //= [];
@@ -741,12 +740,25 @@ sub installed_locales {
 	return $locales if @$locales;
 	
 	my $path = $INC{'Locale/CLDR.pm'};
-    # Check if we are running a test script
+    # Check if we are running a test script because the base distribution is in a different directory
+    # hirarichy than the language distributions
     my $t_path = '';
     if ($INC{'Test/More.pm'}) {
-        my $key = quotemeta('Locale/CLDR/Locales/' . ucfirst $self->id . '.pm');
+        my $key = quotemeta('Locale/CLDR/Locales/'
+            . join('/', 
+                map { ucfirst lc } 
+                ( 
+                    $self->language_id, 
+                    $self->region_id 
+                        ? $self->script_id || 'Any'
+                        : $self->script_id || (),
+                    $self->region_id || ()
+                )
+            )
+            . '.pm'
+        );
         ($key) = grep /${key}\z/, keys %INC;
-        $t_path = $INC{$key};
+        $t_path = $INC{$key} if $key;
     }
 	my (undef,$directories) = File::Spec->splitpath($path);
     my (undef,$t_directories) = File::Spec->splitpath($t_path) if $t_path;
@@ -766,8 +778,13 @@ sub installed_locales {
 
 sub _get_installed_locals {
     my $path = shift;
-    
     my $locales = [];
+    
+    # Windows does some wierd stuff with the recycle bin
+    # make sure we don't enter that directory.
+    my @path = File::Spec->splitdir($path);
+    return $locales if join ('/', @path) !~ m#/lib/Locale/CLDR/Locales#;
+
     opendir(my $dir, $path);
 	foreach my $file (readdir $dir) {
         next if $file =~ /^\./;
@@ -779,13 +796,12 @@ sub _get_installed_locals {
             open( my $package, '<', File::Spec->catfile($path, $file));
             foreach my $line (<$package>) {
                 next unless $line =~ /^package/;
-                chomp($line);
                 ($line) = $line =~ /^package Locale::CLDR::Locales::(.*);/;
-                my ($language, $script, $region) = map { defined && $_ eq 'Any' ? 'und' : $_ } split( /::/, $line);
+                my ($language, $script, $region, $variant) = map { defined && $_ eq 'Any' ? 'und' : $_ } split( /::/, $line);
                 if ( $script && $script eq 'und' && ! $region) {
                     $script = undef;
                 }
-                push @$locales, join '_', grep {defined()} ($language, $script, $region);
+                push @$locales, join '_', grep {defined()} ($language, $script, $region, $variant);
                 last;
             }
             close $package;
@@ -1663,7 +1679,7 @@ after 'BUILD' => sub {
 	my $likely_subtag;
 	my ($language_id, $script_id, $region_id) = ($self->language_id, $self->script_id, $self->region_id);
 	
-	unless ($language_id ne 'und' && $script_id && $region_id ) {
+	unless ($language_id && $script_id && $region_id ) {
 		$likely_subtag = $likely_subtags->{join '_', grep { length() } ($language_id, $script_id, $region_id)};
 		
 		if (! $likely_subtag ) {
