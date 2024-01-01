@@ -45,7 +45,7 @@ use version;
 my $API_VERSION     = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION    = '40'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION        = 0; # This is the build number against the CLDR revision
-my $TRIAL_REVISION  = '1'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+my $TRIAL_REVISION  = '2'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION        = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH       = $CLDR_VERSION;
 
@@ -75,7 +75,7 @@ if ($TRIAL_REVISION && $RELEASE_STATUS eq 'stable') {
 
 my $dist_suffix = '';
 if ($TRIAL_REVISION && $RELEASE_STATUS eq 'unstable') {
-    $dist_suffix = "\n    dist_suffix         => '_$TRIAL_REVISION',\n";
+    $dist_suffix = "\n    dist_suffix         => '_TRIAL$TRIAL_REVISION',\n";
 }
 
 # Check if we have a Data directory
@@ -939,7 +939,6 @@ sub process_class_any {
 
         next unless $path eq 'Any';
 
-        my $now = DateTime->now->strftime('%a %e %b %l:%M:%S %P');
         open my $file, '>:utf8', "$lib_path.pm";
         print $file <<EOT;
 package $package;
@@ -5848,6 +5847,7 @@ my \$builder = Module::Build->new(
         'namespace::autoclean'      => 0.16,
         'List::MoreUtils'           => 0,
         'Unicode::Regex::Set'       => 0,
+        'bigfloat'                  => 0,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},
     dist_version_from   => 'lib/Locale/CLDR.pm',$dist_suffix
