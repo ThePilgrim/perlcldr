@@ -1452,6 +1452,7 @@ my $has_Line_Break_E_Base_GAZ = eval '1 !~ /\p{Line_Break=E_Base_GAZ}/';
 my $has_Line_Break_E_Modifier = eval '1 !~ /\p{Line_Break=E_Modifier}/';
 my $has_Extended_Pictographic = eval '1 !~ /\p{Extended_Pictographic}/';
 my $has_Word_Break_WSegSpace = eval '1 !~ /\p{Word_Break=WSegSpace}/';
+my $has_Indic_Syllabic_Category_Consonant = eval '1 !~ /\p{Indic_Syllabic_Category=Consonant}/';
 
 sub _fix_missing_unicode_properties {
 	my $regex = shift;
@@ -1508,6 +1509,9 @@ sub _fix_missing_unicode_properties {
 	
 	$regex =~ s/\\(p)\{Word_Break=WSegSpace\}/\\${1}{IsCLDREmpty}/ig
 		unless $has_Word_Break_WSegSpace;
+
+    $regex =~ s/\\(p)\{Indic_Syllabic_Category=Consonant\}/\\${1}{IsCLDREmpty}/ig
+		unless $has_Indic_Syllabic_Category_Consonant;
 	
 	return $regex;
 }
@@ -2844,7 +2848,7 @@ sub _per_unit_map {
 	my $self = shift;
 	my @units = $self->all_units;
 	
-	my %map = map { s/^.*?-(.*)$/$1/r, $_ } @units;
+	my %map = map { my $res = $_; $res =~ s/^.*?-(.*)$/$1/; ($res, $_) } @units;
 	
 	return %map;
 }
@@ -4918,6 +4922,7 @@ sub _parse_localetext_text {
 	# loop over text to find the first bracket group
 	while (length $text) {
 		my ($raw) = $text =~ /^ ( (?: (?: ~~ )*+ ~ \[ | [^\[] )++ ) /x;
+        $raw //= '';
 		if (length $raw) {
 			$text =~ s/^ ( (?: (?: ~~ )*+ ~ \[ | [^\[] )++ ) //gx;
 			# Fix up escapes

@@ -1,6 +1,5 @@
 #!perl -T
 
-use v5.024;
 use strict;
 use warnings;
 

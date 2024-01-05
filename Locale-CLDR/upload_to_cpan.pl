@@ -52,7 +52,6 @@ foreach my $directory ( sort { $a eq 'Base' ? -1 : $b eq 'Base' ? 1 : $a cmp $b 
         sleep 300;
         redo;
     }
-
     sleep( ( $directory eq 'Base' ) ? 600 : 60 ); 
     # Sleep for 10 minutes after uploading the Base package and 1 minute after each of the other packages to give PAUSE time to process each package
 }
