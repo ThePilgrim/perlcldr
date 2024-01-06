@@ -4998,15 +4998,14 @@ sub _parse_localetext_text {
 
 sub _make_text_gnum {
 	my ($self, $number, $type, $gender, $declention) = @_;
-	no if $] >= 5.017011, warnings => 'experimental::smartmatch';
 	$type //= 'ordinal';
 	$gender //= 'neuter';
 	
 	die "Invalid number type ($type) in makelocale\n"
-		unless $type ~~ [qw(ordinal cardinal)];
+		unless grep { $type eq $_ } (qw(ordinal cardinal));
 	
 	die "Invalid gender ($gender) in makelocale\n"
-		unless $gender ~~ [qw(masculine feminine nuter)];
+        unless grep { $gender eq $_ } (qw(masculine feminine nuter));
 
 	my @names = (
 		( defined $declention ? "spellout-$type-$gender-$declention" : ()),
