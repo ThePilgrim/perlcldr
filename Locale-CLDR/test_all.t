@@ -33,7 +33,11 @@ foreach my $distribution (@Distributions) {
 	$harness->lib(
 		[ map { "-I$_" } (
 			File::Spec->catdir($distributions_directory, $distribution, 'lib'),
-			File::Spec->catdir($distributions_directory, 'Base', 'lib')
+            File::Spec->catdir($distributions_directory, 'En', 'lib'),
+            File::Spec->catdir($distributions_directory, 'Fr', 'lib'),
+            File::Spec->catdir($distributions_directory, 'No', 'lib'),
+            File::Spec->catdir($distributions_directory, 'Zh', 'lib'),
+			File::Spec->catdir($distributions_directory, 'Base', 'lib'),
 			)
 		]
 	);

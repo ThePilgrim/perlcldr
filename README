@@ -21,21 +21,19 @@ To install this module, run the following commands:
 Locale Data
 
 This package comes with the Locale data for en_US, other locale data can be found in the Locale::CLDR::Locales::*
-distributions
+distributions and there are Bundle files in Bundle::Locale::CLDR::* for various regions
 
-Building from github
+Building from github/gitlab
 
 The data is built with the mkcldr.pl script which I use to download the
 latest CLDR data file and process the data. This can be found on github at
-https://github.com/ThePilgrim/perlcldr either clone or get hold of the zip
-file and extract it to a new directory on your system.
+https://github.com/ThePilgrim/perlcldr or gitlab at https://gitlab.com/ThePilgrim1/perlcldr
+either clone or get hold of the zip file and extract it to a new directory on your system.
 
 The mkcldr.pl script is in the Locale-CLDR directory. Run the script with the
 optional -v (verbose) flag and come back in 40 minuites or so and you will have 
-a Distributions directory with each of the language cpan distributions in it.
-
-In the lib directory you will also find a Bundle directory that bundles the 
-data into regions
+a Distributions directory with each of the language cpan distributions in it and 
+a Distributions/Bundle directory with all the region bundles in it.
 
 SUPPORT AND DOCUMENTATION
 

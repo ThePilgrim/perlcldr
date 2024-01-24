@@ -43,15 +43,15 @@ $verbose = 1 if grep /-v/, @ARGV;
 
 use version;
 my $API_VERSION     = 0; # This will get bumped if a release is not backwards compatible with the previous release
-my $CLDR_VERSION    = '40'; # This needs to match the revision number of the CLDR revision being generated against
+my $CLDR_VERSION    = '44'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION        = 0; # This is the build number against the CLDR revision
-my $TRIAL_REVISION  = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+my $TRIAL_REVISION  = '1'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION        = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH       = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 # Set up the names for the directory structure for the build. Using File::Spec here to maximise portability
 chdir $FindBin::Bin;
@@ -188,13 +188,13 @@ close $file;
 
 # This subrouteen factors out the process_header and process_footer calls
 # which are used in every generated file it takes the following named arguments
-#   name => the name of the XML file the data id being generated from
+#   name => the name of the XML file the data is being generated from
 #   num => the optional number of files to process in the current directory
 #   count => the optional number of the currently processed file
 #   num and count are used to calculate the percentage done display
 #   file => an open file handle to the outputted file
 #   packge => name of the package being generated
-#   is_role => a flag which if true will mahe this file a Moo::Role
+#   is_role => a flag which if true will make this file a Moo::Role
 #   is_language => a flag which if true and containing the language name will add a comment with the language name to the generated file
 #   subs => an array ref of sub refs that will extract the required data from the given XPath and process it into Perl code then print it to the given output file.
 #   subs uses the closure facility to pass in the paramaters to the process_* subrouteens so when we actually call them we don't need to know the parameters
@@ -208,7 +208,7 @@ sub process_file {
     process_footer(@args{ qw( file is_role) });
 }
 
-# The next 6 blocks go throughe various bits of supplemental data, 
+# The next 6 blocks go through various bits of supplemental data, 
 # data not tied to a specific locale, and convert the XML into 
 # Perl modules
 
@@ -545,7 +545,6 @@ my %parent_locales = ();
 
 # Language Matching: Under development
 
-=begin comment
 {
     open my $file, '>', File::Spec->catfile($lib_directory, 'LanguageMatching.pm');
 
@@ -574,10 +573,6 @@ my %parent_locales = ();
 
     close $file;
 }
-
-=end comment
-
-=cut
 
 # Transformations
 # Transformation files hold data on how to perform translitteration between two scripts
@@ -659,17 +654,18 @@ $num_files      += 3; # We do root.xml, en.xml and en_US.xml twice
 $count_files    = 0;
 rewinddir $dir;
 
-# Segmentation ruls describe how to break up text into sentances, lines, words and graphemes
+# Segmentation rules describe how to break up text into sentances, lines, words and graphemes
 my $segmentation_directory  = File::Spec->catdir($base_directory, 'segments');
 
-# RBNF, Rule Based Number Formatting, gives a list of rules on how to display numbers in locales that dont use position
-# based digits such as roman numerals where 4 is formatted as IV
+# RBNF, Rule Based Number Formatting, gives a list of rules on how to display numbers in locales that don't use position
+# based digits such as roman numerals where 4 is formatted as IV, it also gives rules on how to turn digits into text for
+# ordanal and cardanal numbers
 my $rbnf_directory          = File::Spec->catdir($base_directory, 'rbnf');
 
 my %region_to_package;
 
-# The following three variables will be populated once we have generated the en_Any_US Locale data
-my $en; # Stores the Local::CLDR::Languages::En::Any::US object so we can generate valid output for names
+# The following three variables will be populated once we have generated the en_Latn_US Locale data
+my $en; # Stores the Local::CLDR::Languages::En::Latn::US object so we can generate valid output for names
 my $languages; # A hash ref of all language keys and their names in US English
 my $regions; # A hash ref of all region keys and their names in US English
 
@@ -723,7 +719,7 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
 
     # If we have already created the US English module we can use it to produce the correct local
     # names in each modules documentation
-    my $has_en = -e File::Spec->catfile($locales_directory, 'En', 'Any', 'Us.pm');
+    my $has_en = -e File::Spec->catfile($locales_directory, 'En', 'Latn', 'Us.pm');
 
     # If we have the en module and haven't loaded it yet, load it now
     if ($has_en && ! $en) {
@@ -736,9 +732,8 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
     }
 
     open my $file, '>', File::Spec->catfile($locales_directory, @output_file_parts);
-
     my $full_file_name = File::Spec->catfile($base_directory, 'main', $file_name);
-    process_class_any($locales_directory, @output_file_parts[0 .. $#output_file_parts -1]);
+    process_class_script($locales_directory, @output_file_parts[0 .. $#output_file_parts -1]);
 
     process_file(
         file        => $file,
@@ -868,8 +863,8 @@ my @base_bundle = (
     'Locale::CLDR::WeekData',
     'Locale::CLDR::Locales::Root',
     'Locale::CLDR::Locales::En',
-    'Locale::CLDR::Locales::En::Any',
-    'Locale::CLDR::Locales::En::Any::Us',
+    'Locale::CLDR::Locales::En::Latn',
+    'Locale::CLDR::Locales::En::Latn::Us',
 );
 
 build_bundle($out_directory, \@base_bundle, 'Base');
@@ -905,43 +900,45 @@ sub findnodes {
 # Calculate the output file name
 sub output_file_name {
     my $xpath = shift;
-    my @nodes;
+    my %nodes;
 
     # Look for the 4 elements that we use to create the file name
     foreach my $name (qw( language script territory variant )) {
         my $nodes = findnodes($xpath, "/ldml/identity/$name");
         if ($nodes->size) {;
-            push @nodes, $nodes->get_node(1)->getAttribute('type');
-        }
-        else {
-            # Non existant values are replaced with 'Any' to keep the directory
-            # structure identical
-            push @nodes, 'Any';
+            $nodes{$name} = $nodes->get_node(1)->getAttribute('type');
         }
     };
+    
+    if (!$nodes{script} && $nodes{territory}) {
+        ($nodes{script}) = get_likely_script(join '_', @nodes{qw( language territory )});
+    }
 
-    # Strip off Any's from end of list
-    pop @nodes while $nodes[-1] eq 'Any';
-
-    return map {ucfirst lc} @nodes;
+    return map {ucfirst lc} grep { length } @nodes{qw( language script territory variant )};
 }
 
-# Fill in any missing script or region with the pseudo class Any
-sub process_class_any {
+# Fill in any missing script with its default script
+sub process_class_script {
     my ($lib_path, @path_parts) = @_;
-
     my $package = 'Locale::CLDR::Locales';
-    foreach my $path (@path_parts) {
-        my $parent = $package;
-        $parent = 'Locale::CLDR::Locales::Root' if $parent eq 'Locale::CLDR::Locales';
-        $package .= "::$path";
-        $lib_path = File::Spec->catfile($lib_path, $path);
+    if ($path_parts[1] && length $path_parts[1] == 4 && ! $path_parts[2]) {
+        my $parent = "${package}::$path_parts[0]"; 
+        $package = join('::', @path_parts);
+        $lib_path = File::Spec->catfile($lib_path, @path_parts[0,1]);
+        $lib_path .= '.pm';
+        return if -e $lib_path;
 
-        next unless $path eq 'Any';
-
-        open my $file, '>:utf8', "$lib_path.pm";
+        open my $file, '>:utf8', $lib_path;
         print $file <<EOT;
-package $package;
+=encoding utf8
+
+=head1 NAME
+
+$package - Package for language $path_parts[0]
+
+=cut
+
+package Locale::CLDR::Locales::$package;
 
 # This file auto generated
 #\ton $now GMT
@@ -970,7 +967,6 @@ EOT
 sub process_header {
     my ($file, $class, $xml_name, $isRole, $language) = @_;
     vsay "Processing Header";
-
     $isRole = $isRole ? '::Role' : '';
 
     # Strip of anything before Data in the file name. This keeps the file names consistant
@@ -1014,14 +1010,19 @@ use Moo$isRole;
 EOT
 
     # If this is a language file then calculate the parent class by
-    # capturing everything before the last :: characters in the class name
+    # capturing everything before the last :: characters in the class name.
+    # However the parent class might have been in the suplimental data
+    # so check %parent_locales as well
     if (!$isRole && $class =~ /^Locale::CLDR::Locales::...?(?:::|$)/) {
         my ($parent) = $class =~ /^(.+)::/;
 
         # The ultimate parent is Locale::CLDR::Locales::Root so if we end up with a
         # parent with no language id on it then use Locale::CLDR::Locales::Root instead
         $parent = 'Locale::CLDR::Locales::Root' if $parent eq 'Locale::CLDR::Locales';
+        $class =~ s/Locale::CLDR::Locales:://;
+        $class = join '_', split /::/, $class;
         $parent = $parent_locales{$class} // $parent;
+        $parent = "Locale::CLDR::Locale::$parent" unless $parent =~ /^Locale::CLDR/;
         say $file "extends('$parent');";
     }
 }
@@ -2574,20 +2575,52 @@ EOT
 EOT
 }
 
+sub get_likely_script {
+    my $id = shift;
+    
+    if (!  defined &_likely_subtags ) {
+        eval <<EOT;
+package Locale::CLDR::Likely_subtags {
+    use Moo;
+    with "Locale::CLDR::LikelySubtags";
+};
+
+*main::_likely_subtags = sub {Locale::CLDR::Likely_subtags->new->likely_subtags};
+EOT
+    }
+    
+    my $likely_subtags = _likely_subtags();
+    
+    my ($language_id, $script_id, $region_id) = split /_/, $id;
+    return $id unless $language_id && $script_id && ! $region_id && length $script_id != 4;
+    $region_id = $script_id;
+    $script_id = undef;
+    my $likely_subtag = $likely_subtags->{$id};
+    if (! $likely_subtag) {
+        $likely_subtag = $likely_subtags->{$language_id};
+    }
+
+	my ($likely_language_id, $likely_region_id, $likely_script_id);
+	if ($likely_subtag) {
+		($likely_language_id, $likely_script_id, $likely_region_id) = split /_/, $likely_subtag;
+		$likely_language_id	= $language_id 	unless $language_id eq 'und';
+		$likely_region_id	= $region_id	if length $region_id;
+	}
+
+    return ($likely_script_id) if wantarray;
+    return join '_', $likely_language_id // (), $likely_script_id // (), $likely_region_id // ();
+}
+
 sub get_parent_locales {
     my $xpath = shift;
+    
     my $parentData = findnodes($xpath, '/supplementalData/parentLocales/*');
     my %parents;
     foreach my $parent_node ($parentData->get_nodelist) {
-        my $parent = $parent_node->getAttribute('parent');
+        my $parent = join '::', map { ucfirst lc } split /_/, scalar get_likely_script($parent_node->getAttribute('parent'));
         my @locales = split / /, $parent_node->getAttribute('locales');
-        foreach my $locale (@locales, $parent) {
-            my @path = split /_/, $locale;
-            @path = ($path[0], 'Any', $path[1])
-                if ( @path == 2 );
-            $locale = join '::', 'Locale::CLDR::Locales', map { ucfirst lc } @path;
-        }
-        @parents{@locales} = ($parent) x @locales;
+        @locales = map { join '_', map { ucfirst lc } split /_/, scalar get_likely_script($_) } @locales;
+        @parents{@locales} = ("Locale::CLDR::Locales::$parent") x @locales;
     }
 
     return %parents;
@@ -2784,8 +2817,7 @@ sub process_list_patterns {
     my ($file, $xpath) = @_;
 
     vsay "Processing List Patterns";
-
-    my $patterns = findnodes($xpath, '/ldml/listPatterns/listPattern/listPatternPart');
+    my $patterns = findnodes($xpath, '/ldml/listPatterns/listPattern[not(@type)]/listPatternPart');
 
     return unless $patterns->size;
 
@@ -5211,7 +5243,7 @@ sub process_transform_conversion {
                     (?<!\\)   # Not preceded by a single back slash
                     (?>\\\\)* # After we eat an even number of 0 or more backslashes
                     |
-                    (?1)     # Recurs capture group 1
+                    (?1)     # Recurse capture group 1
                 )*
                 \]           # Followed by the terminating ]
                 )
@@ -5249,7 +5281,7 @@ sub process_transform_conversion {
                         (?<!\\)   # Not preceded by a single back slash
                         (?>\\\\)* # After we eat an even number of 0 or more backslashes
                         |
-                        (?1)      # Recurs capture group 1
+                        (?1)      # Recurse capture group 1
                     )*
                 \]                # Followed by the terminating ]
                 )
@@ -5741,8 +5773,8 @@ EOT
         # Only put En_US and it's parents and Root in the base bundle
         next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::Root';
         next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En';
-        next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En::Any';
-        next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En::Any::Us';
+        next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En::Latn';
+        next if $name ne 'Base' && $package eq 'Locale::CLDR::Locales::En::Latn::Us';
         
         # Don't include the package in it's own bundle
         next if "Bundle::Locale::CLDR::$name" eq $package;
@@ -5893,7 +5925,7 @@ EOT
 }
 
 sub build_text {
-    my ($module, $version) = @_;
+    my ($module, $version, @other_required) = @_;
     $file = $module;
     $module =~ s/\.pm$//;
     my $is_bundle = $module =~ /^Bundle::/ ? 1 : 0;
@@ -5917,6 +5949,7 @@ sub build_text {
     my $module_cleanup = $is_bundle ? '' : 'Locale-CLDR-';
     my $requires_base = $is_bundle ? '' : "'Locale::CLDR'              => '$VERSION'";
     my $dist_version = $is_bundle ? "dist_version        => '$VERSION'" : "dist_version_from   => 'lib/Locale/CLDR/$file$version'";
+    my $required = join ",\n", $requires_base, map { "\t\t'$_'\t\t=> '$VERSION'" } @other_required;
     my $build_text = <<EOT;
 use strict;
 use warnings;
@@ -5934,7 +5967,7 @@ my \$builder = Module::Build->new(
         'MooX::ClassAttribute'      => '0.011',
         'Type::Tiny'                => 0,
         'perl'                      => '5.10.1',
-        $requires_base,
+        $required,
     },
     dist_author         => q{John Imrie <john.imrie1\@gmail.com>},$dist_suffix
     $dist_version,
@@ -6023,9 +6056,12 @@ sub build_language_distributions {
         my $distribution = File::Spec->catdir($distributions_directory, $language, 'lib');
         make_path($distribution)
             unless -d $distribution;
-
+            
+        # Check to see if this Language pack has dependences on an other language pack
+        my @parent_keys = grep { /^\u$language(?:_|$)/ } keys %parent_locales;
+        my @parents = grep { ! /^\u$language(?:_|$)/ } grep { $_ ne "Locale::CLDR::Locales::$language" } @parent_locales{@parent_keys};
         open my $build_file, '>', File::Spec->catfile($distributions_directory, $language,'Build.PL');
-        print $build_file build_text("Locales::$file");
+        print $build_file build_text("Locales::$file",undef, @parents);
         close $build_file;
 
         my $source_name = File::Spec->catfile($locales_directory, $file);
@@ -6033,15 +6069,9 @@ sub build_language_distributions {
         make_path(File::Spec->catdir($distribution, qw(Locale CLDR Locales)))
             unless -d File::Spec->catdir($distribution, qw(Locale CLDR Locales));
         copy($source_name, $destination_name);
-        my $parent;
-        if ( $parent = $parent_locales{"Locale::CLDR::Locales::$language"} ) {
-            my @parent = split /::/, $parent;
-            $parent = [$locales_directory, $parent[-1]];
-            $parent->[-1].='.pm';
-        }
+        
         my @files = (
-            get_files_recursive(File::Spec->catdir($locales_directory, $language)),
-            ( $parent // ())
+            get_files_recursive(File::Spec->catdir($locales_directory, $language))
         );
 
         # This construct attempts to copy tests from the t directory and
@@ -6082,6 +6112,7 @@ my \$locale;
 diag( "Testing Locale::CLDR $Locale::CLDR::VERSION, Perl \$], \$^X" );
 use ok 'Locale::CLDR::Locales::$distribution';
 EOT
+
     foreach my $locale (@$files) {
         my ($base, @names) = @$locale;
         $names[-1] =~ s/\.pm$//;
@@ -6092,7 +6123,6 @@ EOT
         else {
             $full_name = join '::', $distribution, @names;
         }
-        $full_name =~ s/\.pm$//;
         $test_file_contents .= "use ok 'Locale::CLDR::Locales::$full_name';\n";
     }
 

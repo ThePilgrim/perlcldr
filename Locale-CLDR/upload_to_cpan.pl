@@ -26,7 +26,29 @@ my @directories = grep { -d File::Spec->catdir($distributions_directory,$_) } so
 closedir($dir);
 
 # Do distributions, sort Base to be the first distribution uploaded
-foreach my $directory ( sort { $a eq 'Base' ? -1 : $b eq 'Base' ? 1 : $a cmp $b } @directories ) {
+foreach my $directory ( sort {
+    $a eq 'Base' 
+        ? -1 
+        : $b eq 'Base' 
+            ? 1 
+            : $a eq 'En' 
+                ? -1 
+                : $b eq 'En' 
+                    ? 1 
+                    : $a eq 'Fr'
+                        ? -1
+                        : $b eq 'Fr'
+                            ? 1
+                            : $a eq 'No'
+                                ? -1
+                                : $b eq 'No'
+                                    ? 1
+                                    : $a eq 'Zh'
+                                        ? -1
+                                        : $b eq 'Zh'
+                                            ? 1
+                                            : $a cmp $b
+    } @directories ) {
     # Skip bundles until all distributions uploaded
     next if ($directory eq 'Bundles');
     next if $directory =~ /^\./;
@@ -52,7 +74,7 @@ foreach my $directory ( sort { $a eq 'Base' ? -1 : $b eq 'Base' ? 1 : $a cmp $b 
         sleep 300;
         redo;
     }
-    sleep( ( $directory eq 'Base' ) ? 600 : 60 ); 
+    sleep( ( $directory eq 'Base' || $directory eq 'En' || $directory eq 'Fr' || $directory eq 'No') ? 600 : 60 ); 
     # Sleep for 10 minutes after uploading the Base package and 1 minute after each of the other packages to give PAUSE time to process each package
 }
 

@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.40.0
+Version 0.44.0
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ or
 
 use v5.10.1;
 use version;
-our $VERSION = version->declare('v0.40.0');
+our $VERSION = version->declare('v0.44.0');
 
 use open ':encoding(utf8)';
 use utf8;
@@ -1435,85 +1435,53 @@ sub IsCLDREmpty {
 }
 
 # Test for missing Unicode properties
-my $has_emoji = eval '1 !~ /\p{emoji}/';
-my $has_Grapheme_Cluster_Break_ZWJ = eval '1 !~ /\p{Grapheme_Cluster_Break=ZWJ}/';
-my $has_Grapheme_Cluster_Break_E_Base = eval '1 !~ /\p{Grapheme_Cluster_Break=E_Base}/';
-my $has_Grapheme_Cluster_Break_E_Base_GAZ = eval '1 !~ /\p{Grapheme_Cluster_Break=E_Base_GAZ}/';
-my $has_Grapheme_Cluster_Break_E_Modifier = eval '1 !~ /\p{Grapheme_Cluster_Break=E_Modifier}/';
-my $has_Word_Break_ZWJ = eval '1 !~ /\p{Word_Break=ZWJ}/';
-my $has_Word_Break_E_Base = eval '1 !~ /\p{Word_Break=E_Base}/';
-my $has_Word_Break_E_Base_GAZ = eval '1 !~ /\p{Word_Break=E_Base_GAZ}/';
-my $has_Word_Break_E_Modifier = eval '1 !~ /\p{Word_Break=E_Modifier}/';
-my $has_Word_Break_Hebrew_Letter = eval '1 !~ \p{Word_Break=Hebrew_Letter}/';
-my $has_Word_Break_Single_Quote = eval '1 !~ \p{Word_Break=Single_Quote}/';
-my $has_Line_Break_ZWJ = eval '1 !~ /\p{Line_Break=ZWJ}/';
-my $has_Line_Break_E_Base = eval '1 !~ /\p{Line_Break=E_Base}/';
-my $has_Line_Break_E_Base_GAZ = eval '1 !~ /\p{Line_Break=E_Base_GAZ}/';
-my $has_Line_Break_E_Modifier = eval '1 !~ /\p{Line_Break=E_Modifier}/';
-my $has_Extended_Pictographic = eval '1 !~ /\p{Extended_Pictographic}/';
-my $has_Word_Break_WSegSpace = eval '1 !~ /\p{Word_Break=WSegSpace}/';
-my $has_Indic_Syllabic_Category_Consonant = eval '1 !~ /\p{Indic_Syllabic_Category=Consonant}/';
+my @properties = (qw(
+    emoji
+    Extended_Pictographic
+    Grapheme_Cluster_Break=E_Base
+    Grapheme_Cluster_Break=E_Base_GAZ
+    Grapheme_Cluster_Break=E_Modifier
+    Grapheme_Cluster_Break=ZWJ
+    Indic_Conjunct_Break=Consonant
+    Indic_Conjunct_Break=Extend
+    Indic_Conjunct_Break=Linker
+    Indic_Syllabic_Category=Consonant
+    Line_Break=Aksara
+    Line_Break=Aksara_Prebase
+    Line_Break=Aksara_Start
+    Line_Break=E_Base
+    Line_Break=E_Base_GAZ
+    Line_Break=E_Modifier
+    Line_Break=Virama
+    Line_Break=Virama_Final
+    Line_Break=ZWJ
+    Word_Break=E_Base
+    Word_Break=E_Base_GAZ
+    Word_Break=E_Modifier
+    Word_Break=Hebrew_Letter
+    Word_Break=Single_Quote
+    Word_Break=WSegSpace
+    Word_Break=ZWJ
+));
+
+my %missing_unicode_properties = ();
+
+foreach my $missing (@properties) {
+    $missing_unicode_properties{$missing} = 1
+        unless eval "1 !~ /\\p{$missing}/";
+}
 
 sub _fix_missing_unicode_properties {
 	my $regex = shift;
 	
 	return '' unless defined $regex;
 	
-	$regex =~ s/\\(p)\{emoji\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_emoji;
-		
-	$regex =~ s/\\(p)\{Grapheme_Cluster_Break=ZWJ\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Grapheme_Cluster_Break_ZWJ;
-		
-	$regex =~ s/\\(p)\{Grapheme_Cluster_Break=E_Base\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Grapheme_Cluster_Break_E_Base;
-	
-	$regex =~ s/\\(p)\{Grapheme_Cluster_Break=E_Base_GAZ\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Grapheme_Cluster_Break_E_Base_GAZ;
-
-	$regex =~ s/\\(p)\{Grapheme_Cluster_Break=E_Modifier\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Grapheme_Cluster_Break_E_Modifier;
-		
-	$regex =~ s/\\(p)\{Word_Break=ZWJ\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Word_Break_ZWJ;
-
-	$regex =~ s/\\(p)\{Word_Break=E_Base\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Word_Break_E_Base;
-
-	$regex =~ s/\\(p)\{Word_Break=E_Base_GAZ\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Word_Break_E_Base_GAZ;
-
-	$regex =~ s/\\(p)\{Word_Break=E_Modifier\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Word_Break_E_Modifier;
-
-	$regex =~ s/\\(p)\{Word_Break=Hebrew_Letter\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Word_Break_Hebrew_Letter;
-
-	$regex =~ s/\\(p)\{Word_Break=Single_Quote\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Word_Break_Single_Quote;
-		
-	$regex =~ s/\\(p)\{Line_Break=ZWJ\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Line_Break_ZWJ;
-
-	$regex =~ s/\\(p)\{Line_Break=E_Base\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Line_Break_E_Base;
-
-	$regex =~ s/\\(p)\{Line_Break=E_Base_GAZ\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Line_Break_E_Base_GAZ;
-
-	$regex =~ s/\\(p)\{Line_Break=E_Modifier\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Line_Break_E_Modifier;
-
-	$regex =~ s/\\(p)\{Extended_Pictographic\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Extended_Pictographic;
-	
-	$regex =~ s/\\(p)\{Word_Break=WSegSpace\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Word_Break_WSegSpace;
-
-    $regex =~ s/\\(p)\{Indic_Syllabic_Category=Consonant\}/\\${1}{IsCLDREmpty}/ig
-		unless $has_Indic_Syllabic_Category_Consonant;
-	
-	return $regex;
+    foreach my $missing (keys %missing_unicode_properties) {
+        $regex =~ s/\\(p)\{$missing\}/\\${1}{IsCLDREmpty}/ig
+            if $missing_unicode_properties{$missing};
+    }
+    
+    return $regex;
 }
 
 sub _build_break_rules {
@@ -4634,7 +4602,9 @@ sub currency_format {
 	}
 	
 	$default_currency_format = 'accounting' if $default_currency_format eq 'account';
-	
+	if ($default_currency_format eq 'accounting' && ! $format->{$default_numbering_system}{pattern}{default}{accounting}{positive}) {
+        return $self->currency_format('standard');
+    }
 	return join ';',
 		$format->{$default_numbering_system}{pattern}{default}{$default_currency_format}{positive},
 		defined $format->{$default_numbering_system}{pattern}{default}{$default_currency_format}{negative}
@@ -5267,13 +5237,8 @@ sub _collation_max_variable {
 =head1 Locales
 
 Other locales can be found on CPAN. You can install Language packs from the 
-Locale::CLDR::Locales::* packages. You will in future be able to install language
-packs for a given region by looking for a Bundle::Locale::CLDR::* package.
-
-If you are looking for a language pack that is not yet published then get hold of
-the version 0.25.4 from http://search.cpan.org/CPAN/authors/id/J/JG/JGNI/Locale-CLDR-v0.25.4.tar.gz
-which has data for all locals alternatively you can get hold of the latest version of the
-code from git hub at https://github.com/ThePilgrim/perlcldr
+Locale::CLDR::Locales::* packages. You can install language packs for a given 
+region by looking for a Bundle::Locale::CLDR::* package.
 
 =head1 AUTHOR
 
@@ -5323,7 +5288,7 @@ regex engine.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009-2015 John Imrie.
+Copyright 2009-2024 John Imrie and others.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
