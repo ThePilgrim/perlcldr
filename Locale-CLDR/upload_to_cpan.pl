@@ -21,12 +21,14 @@ my $distributions_directory   = File::Spec->catdir($FindBin::Bin, 'Distributions
 
 opendir(my $dir, $distributions_directory);
 
-my @directories = grep { -d File::Spec->catdir($distributions_directory,$_) } sort readdir $dir;
+my @directories = grep { -d File::Spec->catdir($distributions_directory,$_) } grep { ! /^\./ } readdir $dir;
 
 closedir($dir);
 
-# Do distributions, sort Base to be the first distribution uploaded
-foreach my $directory ( sort {
+# Do distributions, sort Base to be the first distribution uploaded then sort languages 
+# that can be the parents of other languages. This is done in order to have thes avaliable 
+# for testing by the CPAN teasters
+@directories = sort {
     $a eq 'Base' 
         ? -1 
         : $b eq 'Base' 
@@ -48,10 +50,11 @@ foreach my $directory ( sort {
                                         : $b eq 'Zh'
                                             ? 1
                                             : $a cmp $b
-    } @directories ) {
+    } @directories;
+
+foreach my $directory ( @directories ) {
     # Skip bundles until all distributions uploaded
     next if ($directory eq 'Bundles');
-    next if $directory =~ /^\./;
 
     if ($last) {
         next unless $last eq $directory;
@@ -74,8 +77,9 @@ foreach my $directory ( sort {
         sleep 300;
         redo;
     }
-    sleep( ( $directory eq 'Base' || $directory eq 'En' || $directory eq 'Fr' || $directory eq 'No') ? 600 : 60 ); 
-    # Sleep for 10 minutes after uploading the Base package and 1 minute after each of the other packages to give PAUSE time to process each package
+    sleep( ( $directory eq 'Base' || $directory eq 'En' || $directory eq 'Fr' || $directory eq 'No' || $directory eq 'Zh') ? 600 : 60 ); 
+    # Sleep for 10 minutes after uploading the Base package and each of the parent packages and 1 minute after each of the other
+    # packages to give PAUSE time to process each package
 }
 
 # Do bundles

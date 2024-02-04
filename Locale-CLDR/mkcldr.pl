@@ -5979,7 +5979,7 @@ my \$builder = Module::Build->new(
     add_to_cleanup      => [ '$module_cleanup$cleanup-*' ],
     configure_requires => { 'Module::Build' => '0.40' },
     release_status => '$RELEASE_STATUS',
-    dist_abstract => 'Locale::CLDR - Data Package ( $name )',
+    dist_abstract => q<Locale::CLDR - Data Package ( $name )>,
     meta_add => {
         keywords => [ qw( locale CLDR locale-data-pack ) ],
         resources => {
