@@ -1532,7 +1532,6 @@ sub _parse_string_extensions {
     my @values = ();
     
     my $key = '';
-    $DB::single = 1;
     foreach my $extension (@extensions) {
         if (! $key ) { # This should be a new key
             $key = $extension;
@@ -1839,7 +1838,7 @@ sub _build_id {
 	if (defined $self->extensions) {
 		$string.= '_u';
 		foreach my $key (sort keys %{$self->extensions}) {
-			my $value = $self->extensions->{$key};
+			my $value = join '_', sort @{$self->extensions->{$key}};
 			$string .= "_${key}_$value";
 		}
 		$string =~ s/_u$//;
