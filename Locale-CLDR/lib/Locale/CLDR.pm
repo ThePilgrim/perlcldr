@@ -278,7 +278,7 @@ see L<Unicode Collation Identifier|https://www.unicode.org/reports/tr35/tr35-66/
 
 =item currency
 
-This extention overrides the default currency symbol for the locale.
+This extension overrides the default currency symbol for the locale.
 It's value is any valid currency identifyer.
 
 =item dx
@@ -307,7 +307,7 @@ Use the default presentation for emoji characters as specified in UTR #51 Sectio
 
 =item fw
 
-This extention overrides the first day of the week. It can be set to 
+This extension overrides the first day of the week. It can be set to 
 one of
 
 =over 12
@@ -750,7 +750,7 @@ sub installed_locales {
                 ( 
                     $self->language_id, 
                     $self->region_id 
-                        ? $self->script_id || 'Any'
+                        ? $self->script_id
                         : $self->script_id || (),
                     $self->region_id || ()
                 )
@@ -1521,6 +1521,48 @@ sub _build_break_rules {
 	return \@rules;
 }
 
+sub _parse_string_extensions {
+    my ($self, $extensions) = @_;
+    return '' unless length $extensions;
+    my @extensions = split /[-_]/, $extensions;
+    my $vo = ref $self ? $self : $self->new();
+    my %keys = ($vo->valid_keys , $vo->key_names );
+    my @extension_keys = keys %keys;
+    my %extensions;
+    my @values = ();
+    
+    my $key = '';
+    $DB::single = 1;
+    foreach my $extension (@extensions) {
+        if (! $key ) { # This should be a new key
+            $key = $extension;
+            @values = ();
+            die "Invalid extension key $key\n" unless grep { $_ eq $key } @extension_keys;
+        }
+        else {
+            my $value = $extension;
+            my $next_key = '';
+            if (!@values && grep { $_ eq $value } @extension_keys) { # We have a new key where we where expecting a value
+                                                                    # Assume the real value is true as per CLDR rules on extensions
+                $next_key = $value;
+                push @values,'true';
+            }
+            elsif(! grep { $_ eq $value } @extension_keys) { # have a value to add to the key
+                push @values, $value;
+            }
+            else { # we have a new key and values so assign the values and reset the key
+                $extensions{$key} = [@values];
+                $key = $next_key || $value;
+                @values = ();
+            }
+        }
+    }
+    # Add the last key value pair
+    push @values,'true' unless @values;
+    $extensions{$key} = \@values;
+    return \%extensions;
+}
+
 sub BUILDARGS {
 	my $self = shift;
 	my %args;
@@ -1532,22 +1574,24 @@ sub BUILDARGS {
 	}
 
 	if (1 == @_ && ! ref $_[0]) {
-		my ($language, $script, $region, $variant, $extensions)
+		my ($language, $script, $region, $variant, @extensions)
 		 	= $_[0]=~/^
 				([a-zA-Z]+)
 				(?:[-_]([a-zA-Z]{4}))?
 				(?:[-_]([a-zA-Z]{2,3}))?
 				(?:[-_]([a-zA-Z0-9]+))?
-				(?:[-_][uU][_-](.+))?
+				(?:[-_]([uUtT](?:[_-][a-zA-Z0-9]{2,})+)){0,2}
 			$/x;
-
+            
+        my ($extensions, $transforms) = sort { $a =~ /^u/i ? -1 : 1 } @extensions;
+        
 		if (! defined $script && length $language == 4 && lc $language ne 'root') { # root is a special case and is the only 4 letter language ID
 			$script = $language;
 			$language = undef;
 		}
 		
-		foreach ($language, $script, $region, $variant) {
-			$_ = '' unless defined $_;
+		foreach ($language, $script, $region, $variant, $extensions, $transforms) {
+			$_ //= '';
 		}
 
 		%args = (
@@ -1555,7 +1599,8 @@ sub BUILDARGS {
 			script_id	=> $script,
 			region_id	=> $region,
 			variant_id	=> $variant,
-			extensions	=> $extensions,
+			extensions	=> $extensions =~ s/^[uU][-_]//r,
+            transforms  => $transforms =~ s/^[tT][-_]//r,
 		);
 	}
 
@@ -1565,13 +1610,10 @@ sub BUILDARGS {
 			: @_
 	}
 
-	# Split up the extensions
-	if ( defined $args{extensions} && ! ref $args{extensions} ) {
-		$args{extensions} = {
-			map {lc}
-			split /[_-]/, $args{extensions}
-		};
-	}
+    # Split up the extensions
+	if ( ! ref $args{extensions} ) {
+		$args{extensions} = $self->_parse_string_extensions($args{extensions});
+    }
 
 	# Fix casing of args
 	$args{language_id}	= lc $args{language_id}			if defined $args{language_id};
@@ -1581,6 +1623,11 @@ sub BUILDARGS {
 	
 	# Set up undefined language
 	$args{language_id} ||= 'und';
+    
+    # Convert empty extensions and transforms back to undef
+    foreach (@args{qw(extensions transforms)}) {
+        $_ = undef if defined && $_ eq '';
+    }
 
 	$self->SUPER::BUILDARGS(%args, %internal_args);
 }
@@ -1615,16 +1662,17 @@ sub BUILD {
 		my @keys = keys %{$args->{extensions}};
 
 		foreach my $key ( @keys ) {
-			my $canonical_key = exists $key_aliases{$key} ? $key_aliases{$key} : undef;
-			$canonical_key //= $key;
+			my $canonical_key = exists $key_aliases{$key} ? $key_aliases{$key} : $key;
 			if ($canonical_key ne $key) {
 				$args->{extensions}{$canonical_key} = delete $args->{extensions}{$key};
 			}
 
 			$key = $canonical_key;
 			die "Invalid extension name" unless exists $valid_keys{$key};
-			die "Invalid extension value" unless 
-				first { $_ eq $args->{extensions}{$key} } @{$valid_keys{$key}};
+            foreach my $value (@{$args->{extensions}{$key}}) {
+                die "Invalid extension value $value\n" unless 
+                    first { $_ eq $value } @{$valid_keys{$key}};
+            }
 		}
 
 		$self->_set_extensions($args->{extensions});
@@ -1683,10 +1731,10 @@ after 'BUILD' => sub {
 	# Fix up extension overrides
 	my $extensions = $self->extensions;
 	
-	foreach my $extention ( qw( ca cf co cu dx em fw hc lb lw ms nu rg sd ss tz va ) ) {
-		if (exists $extensions->{$extention}) {
-			my $default = "_set_default_$extention";
-			$self->$default($extensions->{$extention});
+	foreach my $extension ( qw( ca cf co cu dx em fw hc lb lw ms mu nu rg sd ss tz va ) ) {
+		if (exists $extensions->{$extension}) {
+			my $default = "_set_default_$extension";
+			$self->$default($extensions->{$extension});
 		}
 	}
 };
@@ -1694,15 +1742,32 @@ after 'BUILD' => sub {
 # Defaults get set by the -u- extension
 # Calendar, currency format, collation order, etc.
 # but not nu as that is done in the Numbering systems role
-foreach my $default (qw( ca cf co cu dx em fw hc lb lw ms rg sd ss tz va)) {
+foreach my $default (qw( ca cf co cu dx em fw hc lb lw ms mu rg sd ss tz va)) {
 	has "_default_$default" => (
 		is			=> 'ro',
-		isa			=> Str,
+		isa			=> ArrayRef,
 		init_arg	=> undef,
-		default		=> '',
+		default		=> sub {[]},
 		writer		=> "_set_default_$default",
 	);
 	
+    around "_default_$default" => sub {
+        my ($orij, $self) = @_;
+        
+        if (wantarray) {
+            return @{$self->$orij};
+        }
+        else {
+            return $self->$orij->[0];
+        }
+    };
+    
+    around "_set_default_$default" => sub {
+        my ($orij, $self, $value) = @_;
+        $value = [ $value ] unless ref $value;
+        return $self->$orij($value);
+    };
+    
 	no strict 'refs';
 	*{"_test_default_$default"} = sub {
 		my $self = shift;
@@ -4291,7 +4356,7 @@ sub week_data_first_day {
 	my ($self, $region_id) = @_;
 	
 	if ($self->_test_default_fw) {
-		return $self->_default_fw;
+		return scalar $self->_default_fw;
 	}
 	
 	my $week_data_hash = $self->_week_data_first_day();
@@ -4694,7 +4759,7 @@ If no region id is given then the current locale's is used
 sub default_currency {
 	my ($self, $region_id) = @_;
 	
-	return $self->_default_cu if $self->_test_default_cu();
+	return scalar $self->_default_cu if $self->_test_default_cu();
 	
 	$region_id //= $self->region_id;
 	

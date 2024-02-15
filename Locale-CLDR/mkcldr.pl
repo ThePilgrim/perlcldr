@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 
 # There are two optional parameters to this script -v which turns on verbose output and a file name
-# which should be the last successfully processed file should you wish to restart the script after
-# a crash or some other stoppage
+# which should be the first failed file should you wish to restart the script after a crash or some
+# other stoppage
 
 use v5.18;
 use strict;
@@ -45,7 +45,7 @@ use version;
 my $API_VERSION     = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION    = '44'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION        = 0; # This is the build number against the CLDR revision
-my $TRIAL_REVISION  = '1'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+my $TRIAL_REVISION  = '2'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION        = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH       = $CLDR_VERSION;
 
@@ -1072,7 +1072,11 @@ EOT
         else {
             @region = ($region);
         }
-        
+
+# The _expand_region() function is dependent on the Locale::CLDR::RegionContainment package which
+# doesn't exist when the script is first compiled and thus the 'with Locale::CLDR::RegionContainment'
+# line would cause an error. To get around this I hold the code for the function in a string and eval 
+# it after the Locale::CLDR::RegionContainment package has been generated.
         if (! exists &{'_expand_region'}) {
             eval <<'EOT';
 package Locale::CLDR::expand {
@@ -1115,7 +1119,7 @@ EOT
             my $id      = $variable->getAttribute('id');
             $id =~ s/^\$//;
             my $value   = $variable->getAttribute('value');
-            # Im going to cheat here, the spec says these are sets allowing both + and -
+            # I'm going to cheat here, the spec says these are sets allowing both + and -
             # however there are no - in the current data so I'm going to assume that 
             # all the listed regions are valid
             $value =~ s/\+/ /g;
@@ -1676,7 +1680,7 @@ EOT
 }
 
 # Now we get lots of process_* functions, each one processes part of the XML and 
-# generates code to be output into the file
+# generates code and outputs it into the file
 sub process_numbering_systems {
     my ($file, $xpath) = @_;
 
@@ -1716,18 +1720,37 @@ print $file <<EOT;
 
 has '_default_numbering_system' => (
 \tis\t\t\t=> 'ro',
-\tisa\t\t\t=> Str,
+\tisa\t\t\t=> ArrayRef,
 \tinit_arg\t=> undef,
-\tdefault\t=> '',
+\tdefault\t=> sub {[]},
 \tclearer\t=> '_clear_default_nu',
 \twriter\t=> '_set_default_numbering_system',
 );
 
 sub _set_default_nu {
     my (\$self, \$system) = \@_;
-    my \$default = \$self->_default_numbering_system // '';
-    \$self->_set_default_numbering_system("\$default\$system");
+    \$system = [ \$system ] unless ref \$system;
+    die "Unknown numbering system \$system\\n"
+        unless exists \$self->numbering_system->{\$system->[0]};
+    \$self->_set_default_numbering_system(\$system);
 }
+
+around _default_numbering_system => sub {
+    my (\$orij, \$self) = \@_;
+
+    if (wantarray) {
+        return \@{\$self->\$orij};
+    }
+    else {
+        return \$self->\$orij->[0];
+    }
+};
+
+around _set_default_numbering_system => sub {
+    my (\$orij, \$self, \$value) = \@_;
+    \$value = [ \$value ] unless ref \$value;
+    return \$self->\$orij(\$value);
+};
 
 sub _test_default_nu {
     my \$self = shift;
@@ -5877,7 +5900,8 @@ my \$builder = Module::Build->new(
         'Type::Tiny'                => 0,
         'Class::Load'               => 0,
         'DateTime::Locale'          => 0,
-        'namespace::autoclean'      => 0.16,
+        'namespace::autoclean'      => '0.16',
+        'List::Util'                => '1.45',
         'List::MoreUtils'           => 0,
         'Unicode::Regex::Set'       => 0,
         'bigfloat'                  => 0,
