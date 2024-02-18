@@ -207,3 +207,5 @@ All dates are in ISO 8601 Format
     Corrected spellings of some comments and variables
     Added code to correctly parse an extension string added to a locale using the -u- mechanism
     Fixed code to allow an extension to have multiple values
+    Added code so that the parent of a module can be altered on the fly to allow for segmentations to have a different parent than the rest of the module
+    Added Chinease segmentation test to test the above 

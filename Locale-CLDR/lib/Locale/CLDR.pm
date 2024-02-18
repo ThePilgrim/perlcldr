@@ -1397,11 +1397,40 @@ has 'likely_subtag' => (
 	predicate => '_has_likely_subtag',
 );
 
+has 'old_isa' => (
+    is => 'rw',
+    isa => ArrayRef,
+    init_arg => undef,
+    default => sub {[]},
+);
+
+sub _fixup_segmentation_parent {
+    my $self = shift;
+    my $module_ref = ref $self->module;
+    no strict 'refs';
+
+    $self->old_isa([@{"${module_ref}::ISA"}]) unless @{$self->old_isa};
+
+    my $parent = $self->module->segmentation_parent;
+    no strict 'refs';
+    @{ ref ($self->module) . '::ISA'} = ($parent);
+}
+
+sub _return_parent {
+    my $self = shift;
+    my @parents = @{ $self->old_isa };
+    $self->old_isa([]);
+    no strict 'refs';
+    @{ ref ($self->module) . '::ISA'} = @parents;
+}
+
 sub _build_break {
 	my ($self, $what) = @_;
-
+    # We might need to change the class hierarchy here
+    $self->_fixup_segmentation_parent;
 	my $vars = $self->_build_break_vars($what);
 	my $rules = $self->_build_break_rules($vars, $what);
+    $self->_return_parent;
 	return $rules;
 }
 

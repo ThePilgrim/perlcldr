@@ -45,7 +45,7 @@ use version;
 my $API_VERSION     = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION    = '44'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION        = 0; # This is the build number against the CLDR revision
-my $TRIAL_REVISION  = '2'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+my $TRIAL_REVISION  = '3'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION        = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH       = $CLDR_VERSION;
 
@@ -420,6 +420,7 @@ sub process_file {
 }
 
 my %parent_locales = ();
+my %segmentation_parent = ();
 
 # Suplimental data
 {
@@ -541,6 +542,7 @@ my %parent_locales = ();
 
     # Parent data
     %parent_locales = get_parent_locales($xml);
+    %segmentation_parent = get_parent_locales($xml, 'segmentations');
 }
 
 # Language Matching: Under development
@@ -743,7 +745,7 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
         count       => ++$count_files,
         num         => $num_files,
         subs        => [
-            $segment_xml    ? sub { process_segments($file, $segment_xml) } : (),
+            $segment_xml    ? sub { process_segments($file, $segment_xml, $package) } : (),
             $rbnf_xml       ? sub { process_rbnf($file, $rbnf_xml) } : (),
             sub { process_display_pattern($file, $xml) },
             sub { process_display_language($file, $xml) },
@@ -2636,8 +2638,16 @@ EOT
 
 sub get_parent_locales {
     my $xpath = shift;
+    my $type  = shift;
     
-    my $parentData = findnodes($xpath, '/supplementalData/parentLocales/*');
+    if ($type) {
+        $type = qq(\@component='$type');
+    }
+    else {
+        $type = 'not(@*)';
+    }
+    
+    my $parentData = findnodes($xpath, "/supplementalData/parentLocales[$type]/*");
     my %parents;
     foreach my $parent_node ($parentData->get_nodelist) {
         my $parent = join '::', map { ucfirst lc } split /_/, scalar get_likely_script($parent_node->getAttribute('parent'));
@@ -5000,9 +5010,43 @@ sub process_footer {
 
 # Segmentation
 sub process_segments {
-    my ($file, $xpath) = @_;
+    my ($file, $xpath, $class) = @_;
     vsay "Processing Segments";
 
+    $class = join '_', split /::/, $class;
+    if (my $parent = $segmentation_parent{$class}) {
+        print $file <<EOT;
+has 'segmentation_parent' => (
+\tis => 'ro',
+\tisa => Str,
+\tinit_arg => undef,
+\tdefault => sub {
+\t\tmy \$self = shift;
+\t\tmy \$mod_ref = ref \$self;
+\t\treturn '$parent' if \$mod_ref eq __PACKAGE__;
+\t\tno strict 'refs';
+\t\treturn \${ "\${mod_ref}::ISA" }[0];
+\t}
+);
+EOT
+    }
+    
+    if ($class eq 'Root') {
+        print $file <<EOT;
+has 'segmentation_parent' => (
+\tis => 'ro',
+\tisa => Str,
+\tinit_arg => undef,
+\tdefault => sub {
+    my \$self = shift;
+    my \$mod_ref = ref \$self;
+    no strict 'refs';
+    return \${ "\${mod_ref}::ISA" }[0];
+},
+);
+
+EOT
+    }
     foreach my $type (qw( GraphemeClusterBreak WordBreak SentenceBreak LineBreak )) {
         my $variables = findnodes($xpath, qq(/ldml/segmentations/segmentation[\@type="$type"]/variables/variable));
         next unless $variables->size;
