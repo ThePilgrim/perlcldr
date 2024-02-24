@@ -783,7 +783,7 @@ sub _get_installed_locals {
     # Windows does some wierd stuff with the recycle bin
     # make sure we don't enter that directory.
     my @path = File::Spec->splitdir($path);
-    return $locales if join ('/', @path) !~ m#/lib/Locale/CLDR/Locales#;
+    return $locales if join ('/', @path) !~ m#/lib/.*Locale/CLDR/Locales#;
 
     opendir(my $dir, $path);
 	foreach my $file (readdir $dir) {
