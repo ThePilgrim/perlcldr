@@ -45,13 +45,13 @@ use version;
 my $API_VERSION     = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION    = '44'; # This needs to match the revision number of the CLDR revision being generated against
 my $REVISION        = 0; # This is the build number against the CLDR revision
-my $TRIAL_REVISION  = '5'; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
+my $TRIAL_REVISION  = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION        = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH       = $CLDR_VERSION;
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'unstable';
+my $RELEASE_STATUS = 'stable';
 
 # Set up the names for the directory structure for the build. Using File::Spec here to maximise portability
 chdir $FindBin::Bin;
