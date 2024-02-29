@@ -28,7 +28,7 @@ use DateTime;
 use XML::Parser;
 use Text::ParseWords;
 use List::MoreUtils qw( any );
-use List::Util qw( min max );
+use List::Util qw( min max uniq);
 use Unicode::Regex::Set();
 
 use lib "${FindBin::Bin}/lib";
@@ -44,7 +44,7 @@ $verbose = 1 if grep /-v/, @ARGV;
 use version;
 my $API_VERSION     = 0; # This will get bumped if a release is not backwards compatible with the previous release
 my $CLDR_VERSION    = '44'; # This needs to match the revision number of the CLDR revision being generated against
-my $REVISION        = 0; # This is the build number against the CLDR revision
+my $REVISION        = 1; # This is the build number against the CLDR revision
 my $TRIAL_REVISION  = ''; # This is the trial revision for unstable releases. Set to '' for the first trial release after that start counting from 1
 our $VERSION        = version->parse(join '.', $API_VERSION, ($CLDR_VERSION=~s/^([^.]+).*/$1/r), $REVISION);
 my $CLDR_PATH       = $CLDR_VERSION;
@@ -6127,7 +6127,13 @@ sub build_language_distributions {
             
         # Check to see if this Language pack has dependences on an other language pack
         my @parent_keys = grep { /^\u$language(?:_|$)/ } keys %parent_locales;
-        my @parents = grep { ! /^\u$language(?:_|$)/ } grep { $_ ne "Locale::CLDR::Locales::$language" } @parent_locales{@parent_keys};
+        my @parents = 
+            grep { $_ ne 'Locale::CLDR::Locales::Root' }
+            uniq 
+            grep { ! /^\u$language(?:_|$)/ } 
+            grep { ! /^Locale::CLDR::Locales::$language/ } 
+            @parent_locales{@parent_keys};
+
         open my $build_file, '>', File::Spec->catfile($distributions_directory, $language,'Build.PL');
         print $build_file build_text("Locales::$file",undef, @parents);
         close $build_file;
