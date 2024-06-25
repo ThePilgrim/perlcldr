@@ -1497,7 +1497,7 @@ my %missing_unicode_properties = ();
 
 foreach my $missing (@properties) {
     $missing_unicode_properties{$missing} = 1
-        unless eval "1 !~ /\\p{$missing}/";
+        unless eval "qr/\\p{$missing}/";
 }
 
 sub _fix_missing_unicode_properties {
@@ -5142,8 +5142,6 @@ sub localetext {
 
 This method returns a Locale::CLDR::Collator object. This is still in development. Future releases will
 try and match the API from L<Unicode::Collate> as much as possible and add tailoring for locales.
-
-=back
 
 =cut
 
