@@ -21,7 +21,7 @@ is($locale->language_name('fr'), 'French', 'Language name from string');
 my $all_languages = {
 	'aa' => 'Afar',
 	'ab' => 'Abkhazian',
-	'ace' => 'Achinese',
+	'ace' => 'Acehnese',
 	'ach' => 'Acoli',
 	'ada' => 'Adangme',
 	'ady' => 'Adyghe',

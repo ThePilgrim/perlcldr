@@ -191,8 +191,8 @@ All dates are in ISO 8601 Format
     Updated to use version 40 of CLDR
     Added method to return all the installed locales as a prerequisite of locating the best match between installed locales and a requested locale
 
-0.44.0
-    Updated to use version 44 of CLDR
+0.45.0
+    Updated to use version 45 of CLDR
     *WARNING* There are several language packs that have as parents locales in other language packs. You wont notice
     this if you are installing from CPAN with one of the CPAN clients but if you are installing manually you will have
     to resolve these dependancies

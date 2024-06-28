@@ -25,7 +25,7 @@ is($locale->language_name($other_locale), 'English', 'Language name from other l
 my $all_languages = {
     'aa' => 'Afar',
     'ab' => 'Abkhazian',
-    'ace' => 'Achinese',
+    'ace' => 'Acehnese',
     'ach' => 'Acoli',
     'ada' => 'Adangme',
     'ady' => 'Adyghe',

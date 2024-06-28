@@ -49,18 +49,18 @@ use version;
 my $API_VERSION     = 0;
 
 # This needs to match the revision number of the CLDR revision being generated against
-my $CLDR_VERSION    = '44';
+my $CLDR_VERSION    = '45';
 
 # This is the build number against the CLDR revision
-my $REVISION        = 1;
+my $REVISION        = 0;
 
 # This is the trial revision for unstable releases. Set to '' for the first trial release
 # after that start counting from 1
-my $TRIAL_REVISION  = '';
+my $TRIAL_REVISION  = '1';
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a
 # full release or 'unstable' for a developer release
-my $RELEASE_STATUS = 'stable';
+my $RELEASE_STATUS = 'unstable';
 
 # USER CHANGEABLE VARIABLES END
 
@@ -70,17 +70,30 @@ my $CLDR_PATH       = $CLDR_VERSION;
 # Set up the names for the directory structure for the build. Using File::Spec here to maximise portability
 chdir $FindBin::Bin;
 my $data_directory                  = File::Spec->catdir($FindBin::Bin, 'Data');
-my $core_filename                   = File::Spec->catfile($data_directory, 'core.zip');
-my $base_directory                  = File::Spec->catdir($data_directory, 'common');
-my $transform_directory             = File::Spec->catdir($base_directory, 'transforms');
-my $collation_tailoring_directory   = File::Spec->catdir($base_directory, 'collation');
-my $build_directory                 = File::Spec->catdir($FindBin::Bin, 'lib');
-my $lib_directory                   = File::Spec->catdir($build_directory, 'Locale', 'CLDR');
-my $locales_directory               = File::Spec->catdir($lib_directory, 'Locales');
-my $bundles_directory               = File::Spec->catdir($build_directory, 'Bundle', 'Locale', 'CLDR');
-my $transformations_directory       = File::Spec->catdir($lib_directory, 'Transformations');
 my $distributions_directory         = File::Spec->catdir($FindBin::Bin, 'Distributions');
 my $tests_directory                 = File::Spec->catdir($FindBin::Bin, 't');
+
+my $core_filename                   = File::Spec->catfile($data_directory, 'core.zip');
+
+my $base_directory                  = File::Spec->catdir($data_directory, 'common');
+
+my $transform_directory             = File::Spec->catdir($base_directory, 'transforms');
+my $collation_tailoring_directory   = File::Spec->catdir($base_directory, 'collation');
+my $main_directory                  = File::Spec->catdir($base_directory, 'main');
+
+# Segmentation rules describe how to break up text into sentances, lines, words and graphemes
+my $segmentation_directory          = File::Spec->catdir($base_directory, 'segments');
+
+# RBNF, Rule Based Number Formatting, gives a list of rules on how to display numbers in locales that don't use position
+# based digits such as roman numerals where 4 is formatted as IV, it also gives rules on how to turn digits into text for
+# ordanal and cardanal numbers
+my $rbnf_directory                  = File::Spec->catdir($base_directory, 'rbnf');
+
+my $build_directory                 = File::Spec->catdir($FindBin::Bin, 'lib');
+my $lib_directory                   = File::Spec->catdir($build_directory, 'Locale', 'CLDR');
+my $bundles_directory               = File::Spec->catdir($build_directory, 'Bundle', 'Locale', 'CLDR');
+my $locales_directory               = File::Spec->catdir($lib_directory, 'Locales');
+my $transformations_directory       = File::Spec->catdir($lib_directory, 'Transformations');
 
 # Some sanity checks on the revision and status
 if ($TRIAL_REVISION && $RELEASE_STATUS eq 'stable') {
@@ -652,7 +665,7 @@ push @transformation_list, 'Locale::CLDR::Transformations';
         name    => File::Spec->catfile($base_directory, 'uca', 'allkeys_CLDR.txt'),
         is_role => 1,
         subs    => [
-            sub { process_collation_base($Fractional_in, $Allkeys_in, $Allkeys_out) },
+            sub { process_collation_base($Allkeys_in, $Fractional_in, $Allkeys_out) },
         ],
     );
     close $Allkeys_in;
@@ -660,8 +673,19 @@ push @transformation_list, 'Locale::CLDR::Transformations';
     close $Allkeys_out;
 }
 
+# Load in the base collation code
+package CollatorBase {
+    use Moo;
+    use FindBin;
+    use lib "$FindBin::Bin/lib";
+    with 'Locale::CLDR::CollatorBase';
+};
+
+sub collation_elements {
+    CollatorBase->new->collation_elements;
+}
+
 # Main directory
-my $main_directory = File::Spec->catdir($base_directory, 'main');
 opendir ( $dir, $main_directory);
 
 # Count the number of files
@@ -669,14 +693,6 @@ $num_files      = grep { -f File::Spec->catfile($main_directory,$_)} readdir $di
 $num_files      += 3; # We do root.xml, en.xml and en_US.xml twice
 $count_files    = 0;
 rewinddir $dir;
-
-# Segmentation rules describe how to break up text into sentances, lines, words and graphemes
-my $segmentation_directory  = File::Spec->catdir($base_directory, 'segments');
-
-# RBNF, Rule Based Number Formatting, gives a list of rules on how to display numbers in locales that don't use position
-# based digits such as roman numerals where 4 is formatted as IV, it also gives rules on how to turn digits into text for
-# ordanal and cardanal numbers
-my $rbnf_directory          = File::Spec->catdir($base_directory, 'rbnf');
 
 my %region_to_package;
 
@@ -714,6 +730,14 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
         );
     }
 
+    my $collation_tailoring_xml = undef;
+    if (-f File::Spec->catfile($collation_tailoring_directory, $file_name)) {
+        $collation_tailoring_xml = XML::XPath->new(
+            parser      => $xml_parser,
+            filename    => File::Spec->catfile($collation_tailoring_directory, $file_name)
+        );
+    }
+    
     my @output_file_parts   = output_file_name($xml);
     my $current_locale      = lc $output_file_parts[0];
 
@@ -759,8 +783,9 @@ foreach my $file_name ( 'root.xml', 'en.xml', 'en_US.xml', sort grep /^[^.]/, re
         count       => ++$count_files,
         num         => $num_files,
         subs        => [
-            $segment_xml    ? sub { process_segments($file, $segment_xml, $package) } : (),
-            $rbnf_xml       ? sub { process_rbnf($file, $rbnf_xml) } : (),
+            $segment_xml                ? sub { process_segments($file, $segment_xml, $package) }               : (),
+            $rbnf_xml                   ? sub { process_rbnf($file, $rbnf_xml) }                                : (),
+            $collation_tailoring_xml    ? sub { process_collation_tailoring($file, $collation_tailoring_xml) }  : (),
             sub { process_display_pattern($file, $xml) },
             sub { process_display_language($file, $xml) },
             sub { process_display_script($file, $xml) },
@@ -1227,7 +1252,7 @@ EOT
 }
 
 sub process_collation_base {
-    my ($Fractional_in, $Allkeys_in, $Allkeys_out) = @_;
+    my ($Allkeys_in, $Fractional_in, $Allkeys_out) = @_;
     my %characters;
     
     my $max_variable_weight = 0;
@@ -1255,6 +1280,7 @@ sub process_collation_base {
     }
 
     # Get block ranges
+    $DB::single = 1;
     my %block;
     my $old_name;
     my $fractional = join '', <$Fractional_in>;
@@ -4209,7 +4235,6 @@ sub process_quarters {
 sub process_day_period_data {
     my $locale = shift;
 
-    use feature 'state';
     state %day_period_data;
 
     unless (keys %day_period_data) {
@@ -5774,6 +5799,40 @@ EOT
 EOT
 }
 
+sub reset_tailoring {
+    state $default_collation = collation_elements();
+}
+
+sub process_tailoring_rules {
+    my $rules = shift;
+}
+
+sub process_collation_tailoring {
+    my $file = shift;
+    my $collation_tailoring_xml = shift;
+    
+    my $default_collation = findnodes($collation_tailoring_xml, '/ldml/collations/defaultCollation/text()');
+    my $collations = findnodes($collation_tailoring_xml, '/ldml/collations/collation');
+    my %collations;
+    foreach my $collation ($collations->get_nodelist()) {
+        reset_tailoring();
+        my $type = $collation->getAttribute('type');
+        my $tailoring = findnodes($collation_tailoring_xml, "/ldml/collations/collation[\@type='$type']/cr/text()");
+        $collations{$type} = process_tailoring_rules($tailoring);
+    }
+    
+    if ($default_collation) {
+        say $file <<EOT;
+has default_collation => (
+    is => 'ro',
+    isa => Str,
+    init_arg => undef,
+    default => sub { '$default_collation' },
+);
+EOT
+    }
+}
+
 sub write_out_number_formatter {
     # In order to keep git out of the CLDR directory we need to
     # write out the code for the CLDR::NumberFormater module
@@ -6950,7 +7009,7 @@ no Moo::Role;
 
 # vim: tabstop=4
 __DATA__
-#line 6953
+#line 7010
 use Unicode::Normalize('NFD');
 use Moo;
 use Types::Standard qw(Str Int Maybe ArrayRef InstanceOf RegexpRef Bool);
@@ -7193,7 +7252,7 @@ sub get_sort_key {
     my $ces = $self->get_collation_elements($string);
 
     for (my $count = 0; $count < $self->strength(); $count++ ) {
-        if ($count == 1 && $self->backward) {
+        if ($count == 1 && $self->backwards ne 'noignore') {
             foreach my $ce (reverse @$ces) {
                 if ($ce->[$count]) {
                     push @sort_key, $ce->[$count];
