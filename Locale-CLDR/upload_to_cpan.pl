@@ -27,7 +27,7 @@ closedir($dir);
 
 # Do distributions, sort Base to be the first distribution uploaded then sort languages 
 # that can be the parents of other languages. This is done in order to have thes avaliable 
-# for testing by the CPAN teasters
+# for testing by the CPAN testers
 @directories = sort {
     $a eq 'Base' 
         ? -1 
@@ -77,8 +77,8 @@ foreach my $directory ( @directories ) {
         sleep 300;
         redo;
     }
-    sleep( ( $directory eq 'Base' || $directory eq 'En' || $directory eq 'Fr' || $directory eq 'No' || $directory eq 'Zh') ? 600 : 60 ); 
-    # Sleep for 10 minutes after uploading the Base package and each of the parent packages and 1 minute after each of the other
+    sleep( ( $directory eq 'Base' || $directory eq 'En' || $directory eq 'Fr' || $directory eq 'No' || $directory eq 'Zh') ? 600 : 120 ); 
+    # Sleep for 10 minutes after uploading the Base package and each of the parent packages and 2 minutes after each of the other
     # packages to give PAUSE time to process each package
 }
 
