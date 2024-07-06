@@ -1551,7 +1551,8 @@ sub _build_break_rules {
 }
 
 sub _parse_string_extensions {
-    my ($self, $extensions) = @_;
+    my $self = shift;
+    my $extensions = shift // '';
     return '' unless length $extensions;
     my @extensions = split /[-_]/, $extensions;
     my $vo = ref $self ? $self : $self->new();
@@ -1803,7 +1804,7 @@ foreach my $default (qw( ca cf co cu dx em fw hc lb lw ms mu rg sd ss tz va)) {
 	*{"_test_default_$default"} = sub {
 		my $self = shift;
 		my $method = "_default_$default";
-		return length $self->$method;
+		return length ($self->$method // '');
 	};
 }
 
@@ -1811,6 +1812,7 @@ sub default_calendar {
 	my ($self, $region) = @_;
 
 	my $default = '';
+    
 	if ($self->_test_default_ca) {
 		$default = $self->_default_ca();
 	}
@@ -2552,11 +2554,11 @@ sub _split {
 		my $rule_number = 0;
 		my $first;
 		foreach my $rule (@$rules) {
-			unless( ($first) = $string =~ m{
-				\G
+			unless( ($first) = $string =~ _fix_missing_unicode_properties("(?msx:
+				\\G
 				($rule->[0])
 				$rule->[1]
-			}msx) {
+			)")) {
 				$rule_number++;
 				next;
 			}

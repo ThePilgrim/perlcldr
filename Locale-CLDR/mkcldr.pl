@@ -56,7 +56,7 @@ my $REVISION        = 0;
 
 # This is the trial revision for unstable releases. Set to '' for the first trial release
 # after that start counting from 1
-my $TRIAL_REVISION  = '1';
+my $TRIAL_REVISION  = '3';
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a
 # full release or 'unstable' for a developer release
@@ -1777,7 +1777,7 @@ around _default_numbering_system => sub {
         return \@{\$self->\$orij};
     }
     else {
-        return \$self->\$orij->[0];
+        return \$self->\$orij->[0] // '';
     }
 };
 
@@ -7009,7 +7009,7 @@ no Moo::Role;
 
 # vim: tabstop=4
 __DATA__
-#line 7010
+#line 7012
 use Unicode::Normalize('NFD');
 use Moo;
 use Types::Standard qw(Str Int Maybe ArrayRef InstanceOf RegexpRef Bool);
@@ -7219,7 +7219,8 @@ sub get_collation_elements {
         }
     
         if ($matched) {
-            if (my ($ccc) = $string =~ /^(\P{ccc=0}+)/) {
+            my $regex = eval 'qr/^(\P{ccc=0}+)/' || eval 'qr/\p{ccc}/' || '';
+            if ($regex && (my ($ccc) = $string =~ $regex)) {
                 foreach my $cp (split //, $ccc) {
                     my $new_match = "$matched$cp";
                     if ($self->collation_elements->{$new_match}) {
