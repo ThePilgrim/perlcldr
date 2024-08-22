@@ -56,7 +56,7 @@ my $REVISION        = 0;
 
 # This is the trial revision for unstable releases. Set to '' for the first trial release
 # after that start counting from 1
-my $TRIAL_REVISION  = '3';
+my $TRIAL_REVISION  = '7';
 
 # $RELEASE_STATUS relates to the CPAN status it can be one of 'stable', for a
 # full release or 'unstable' for a developer release
@@ -1280,7 +1280,6 @@ sub process_collation_base {
     }
 
     # Get block ranges
-    $DB::single = 1;
     my %block;
     my $old_name;
     my $fractional = join '', <$Fractional_in>;
@@ -1380,7 +1379,6 @@ EOT
         $block =~ tr/ -/_/;
         print $Allkeys_out "\t\t\t$block => [ $start, $end ],\n";
     }
-    $DB::single = 1;
     print $Allkeys_out <<EOT;
         }
     }
@@ -7020,27 +7018,32 @@ sub IsCLDREmpty {
 }
 
 # Test for missing Unicode properties
-my @properties = (qw(
-    Block=Tangut
-    Block=Tangut_Components
-    Block=Tangut_Supplement
-    Block=Nushu
-    Block=Khitan_Small_Script
-    Unified_Ideograph=True
-    Block=CJK_Unified_Ideograph
-    Block=CJK_Compatibility_Ideographs
-));
+BEGIN {
+    our %missing_unicode_properties = ();
+    my @properties = (qw(
+        Block=Tangut
+        Block=Tangut_Components
+        Block=Tangut_Supplement
+        Block=Nushu
+        Block=Khitan_Small_Script
+        Unified_Ideograph=True
+        Block=CJK_Unified_Ideograph
+        Block=CJK_Compatibility_Ideographs
+        ccc=0
+        ccc
+    ));
 
-my %missing_unicode_properties = ();
-
-foreach my $missing (@properties) {
-    $missing_unicode_properties{$missing} = 1
-        unless eval "qr/\\p{$missing}/";
+    foreach my $missing (@properties) {
+        $missing_unicode_properties{$missing} = 1
+            unless eval "'a' =~ qr/\\p{$missing}|a/";
+    }
 }
 
 sub _fix_missing_unicode_properties {
-    my $self = shift;
-	my $regex = shift;
+    my $self    = shift;
+    my $regex   = shift;
+	our %missing_unicode_properties;
+    
 	
 	return '' unless defined $regex;
 	
@@ -7219,7 +7222,13 @@ sub get_collation_elements {
         }
     
         if ($matched) {
-            my $regex = eval 'qr/^(\P{ccc=0}+)/' || eval 'qr/\p{ccc}/' || '';
+            my $regex = '';
+            if (_fix_missing_unicode_properties('ccc=0') !~ /IsCLDREmpty/) {
+                $regex = eval 'qr/^(\\P{ccc=0}+)/';
+            }
+            elsif (_fix_missing_unicode_properties('ccc') !~ /IsCLDREmpty/) {
+                $regex = eval 'qr/^(\\p{ccc}+)/';
+            }
             if ($regex && (my ($ccc) = $string =~ $regex)) {
                 foreach my $cp (split //, $ccc) {
                     my $new_match = "$matched$cp";
