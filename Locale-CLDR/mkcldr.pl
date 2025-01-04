@@ -27,8 +27,7 @@ use Archive::Extract;
 use DateTime;
 use XML::Parser;
 use Text::ParseWords;
-use List::MoreUtils qw( any );
-use List::Util qw( min max uniq);
+use List::Util qw( any min max uniq);
 use Unicode::Regex::Set();
 
 use lib "${FindBin::Bin}/lib";
@@ -6010,7 +6009,6 @@ my \$builder = Module::Build->new(
         'DateTime::Locale'          => 0,
         'namespace::autoclean'      => '0.16',
         'List::Util'                => '1.45',
-        'List::MoreUtils'           => 0,
         'Unicode::Regex::Set'       => 0,
         'bigfloat'                  => 0,
     },
