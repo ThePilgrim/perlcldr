@@ -8,7 +8,7 @@ Locale::CLDR - A Module to create locale objects with localisation data from the
 
 =head1 VERSION
 
-Version 0.45.0
+Version 0.46.0
 
 =head1 SYNOPSIS
 
@@ -37,13 +37,12 @@ or
  
 =cut
 
-use v5.10.1;
+use v5.12.0;
 use version;
-our $VERSION = version->declare('v0.45.0');
+our $VERSION = version->declare('v0.46.0');
 
 use open ':encoding(utf8)';
 use utf8;
-use if $^V ge v5.12.0, feature => 'unicode_strings';
 use if $^V le v5.16, charnames => 'full';
 
 no locale; # Make sure all code points are defined as Unicode expects
@@ -1546,7 +1545,7 @@ sub _build_break_rules {
 				$operand = '.';
 			}
 		}
-		# next if $first =~ /IsCLDREmpty/ || $second =~ /IsCLDREmpty/;
+
 		no warnings 'deprecated';
 		push @rules, [qr{$first}msx, qr{$second}msx, ($opp eq '×' ? 1 : 0)];
 	}
@@ -2048,7 +2047,7 @@ sub language_name {
 
 	$name //= $self;
 
-	my $code = ref $name ? $name->language_id : eval { Locale::CLDR->new(language_id => $name)->language_id };
+    my $code = ref $name ? $name->language_id : ($self->language_aliases->{$name} // $name);
 
 	my $language = undef;
 	my @bundles = $self->_find_bundle('display_name_language');
